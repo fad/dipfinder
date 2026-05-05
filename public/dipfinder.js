@@ -1,6 +1,7 @@
 // Your list of stocks
 let stocks = []; // Initialize as empty array, will be populated in document ready
 let chart; // Global variable to hold the chart instance
+let chartStockData = []; // Metadata for chart tooltips and theme refreshes
 let notificationCache = {}; // Cache for notifications
 window.MAX_STOCKS = 10; // Default for guests, updated by auth.js
 const BASE_URL = window.location.origin;
@@ -331,23 +332,17 @@ function applyChartTheme(chartInstance) {
         chartInstance.options.plugins.tooltip.borderWidth = 1;
     }
 
-    if (chartInstance.data && Array.isArray(chartInstance.data.datasets)) {
+    if (chartStockData.length > 0 && chartInstance.data && Array.isArray(chartInstance.data.datasets)) {
         chartInstance.data.datasets.forEach(dataset => {
-            if (!Array.isArray(dataset.stockData)) return;
-
-            dataset.backgroundColor = dataset.stockData.map(data => getTrendTone(getSmaDiffPercent(data)).backgroundColor);
-            dataset.borderColor = dataset.stockData.map(data => getTrendTone(getSmaDiffPercent(data)).borderColor);
+            dataset.backgroundColor = chartStockData.map(data => getTrendTone(getSmaDiffPercent(data)).backgroundColor);
+            dataset.borderColor = chartStockData.map(data => getTrendTone(getSmaDiffPercent(data)).borderColor);
         });
     }
 
     if (xScale) {
         xScale.grid = xScale.grid || {};
-        xScale.grid.color = function(context) {
-            return context.tick.value === 0 ? theme.zeroGridColor : theme.gridColor;
-        };
-        xScale.grid.lineWidth = function(context) {
-            return context.tick.value === 0 ? 2 : 1;
-        };
+        xScale.grid.color = theme.gridColor;
+        xScale.grid.lineWidth = 1;
         xScale.ticks = xScale.ticks || {};
         xScale.ticks.color = theme.tickColor;
         xScale.title = {
@@ -658,6 +653,7 @@ async function updateTableAndChart(period) {
         backgroundColors.push(trendTone.backgroundColor);
         borderColors.push(trendTone.borderColor);
     }
+    chartStockData = chartPointData;
 
     // Destroy the existing chart instance if it exists
     if (chart) {
@@ -673,6 +669,29 @@ async function updateTableAndChart(period) {
     
     const ctx = chartElement.getContext('2d');
     
+    const zeroLinePlugin = {
+        id: 'dipfinderZeroLine',
+        afterDraw(chartInstance) {
+            const xScale = chartInstance.scales && chartInstance.scales.x;
+            const chartArea = chartInstance.chartArea;
+            if (!xScale || !chartArea) return;
+
+            const zeroX = xScale.getPixelForValue(0);
+            if (zeroX < chartArea.left || zeroX > chartArea.right) return;
+
+            const theme = getChartThemeColors();
+            const ctx = chartInstance.ctx;
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(zeroX, chartArea.top);
+            ctx.lineTo(zeroX, chartArea.bottom);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = theme.zeroGridColor;
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
     chart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -681,7 +700,6 @@ async function updateTableAndChart(period) {
                 {
                     label: `% vs ${period}-Day SMA`,
                     data: relativePrices,
-                    stockData: chartPointData,
                     backgroundColor: backgroundColors,
                     borderColor: borderColors,
                     borderWidth: 1,
@@ -702,7 +720,7 @@ async function updateTableAndChart(period) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const data = context.dataset.stockData[context.dataIndex];
+                            const data = chartStockData[context.dataIndex];
                             if (!data) return `${context.parsed.x}%`;
                             const diffPercent = getSmaDiffPercent(data);
                             const trendTone = getTrendTone(diffPercent);
@@ -719,12 +737,8 @@ async function updateTableAndChart(period) {
                 x: {
                     beginAtZero: true,
                     grid: {
-                        color: function(context) {
-                            return context.tick.value === 0 ? 'rgba(17, 24, 39, 0.55)' : 'rgba(0, 0, 0, 0.08)';
-                        },
-                        lineWidth: function(context) {
-                            return context.tick.value === 0 ? 2 : 1;
-                        }
+                        color: getChartThemeColors().gridColor,
+                        lineWidth: 1
                     },
                     ticks: {
                         font: {
@@ -762,7 +776,8 @@ async function updateTableAndChart(period) {
                     }
                 }
             }
-        }
+        },
+        plugins: [zeroLinePlugin]
     });
     applyChartTheme(chart);
     chart.update();
@@ -1261,6 +1276,7 @@ function saveDipfinderContentState() {
 // Function to restore chart from cached data
 function restoreChart(canvas, chartData) {
     if (!canvas || !chartData) return;
+    chartStockData = [];
     
     // If chart instance already exists, destroy it
     if (chart) {
