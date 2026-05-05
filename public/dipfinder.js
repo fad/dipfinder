@@ -245,11 +245,166 @@ function updatePeriodDisplay(period) {
     }
 }
 
+function formatCurrency(value) {
+    if (!Number.isFinite(value)) return 'N/A';
+    return `$${value.toFixed(2)}`;
+}
+
+function formatPercent(value) {
+    if (!Number.isFinite(value)) return 'N/A';
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${value.toFixed(2)}%`;
+}
+
+function getSmaDiffPercent(data) {
+    if (!Number.isFinite(data.relativePrice)) return null;
+    return data.relativePrice * 100;
+}
+
+function getSortableSmaDiff(data) {
+    const diffPercent = getSmaDiffPercent(data);
+    return Number.isFinite(diffPercent) ? diffPercent : Number.POSITIVE_INFINITY;
+}
+
+function getSmaDiffClasses(diffPercent) {
+    if (!Number.isFinite(diffPercent)) return 'bg-gray-100 text-gray-600';
+    if (diffPercent < 0) return 'bg-red-100 text-red-700';
+    return 'bg-green-100 text-green-700';
+}
+
+function renderSummaryMetrics(stockDataArray, period) {
+    const biggestDipEl = document.getElementById('metric-biggest-dip');
+    const biggestDipDetailEl = document.getElementById('metric-biggest-dip-detail');
+    const belowSmaEl = document.getElementById('metric-below-sma');
+    const belowSmaDetailEl = document.getElementById('metric-below-sma-detail');
+    const averageDipEl = document.getElementById('metric-average-dip');
+    const averageDipDetailEl = document.getElementById('metric-average-dip-detail');
+    const strongestAboveEl = document.getElementById('metric-strongest-above');
+    const strongestAboveDetailEl = document.getElementById('metric-strongest-above-detail');
+
+    const validRows = stockDataArray.filter(data => Number.isFinite(getSmaDiffPercent(data)));
+    if (validRows.length === 0) {
+        [biggestDipEl, belowSmaEl, averageDipEl, strongestAboveEl].forEach(el => { if (el) el.textContent = '--'; });
+        if (biggestDipDetailEl) biggestDipDetailEl.textContent = 'Waiting for watchlist data';
+        if (belowSmaDetailEl) belowSmaDetailEl.textContent = `${period}-Day SMA`;
+        if (averageDipDetailEl) averageDipDetailEl.textContent = 'Mean distance vs SMA';
+        if (strongestAboveDetailEl) strongestAboveDetailEl.textContent = 'Best positive spread';
+        return;
+    }
+
+    const sortedByDiff = [...validRows].sort((a, b) => getSortableSmaDiff(a) - getSortableSmaDiff(b));
+    const biggestDip = sortedByDiff[0];
+    const strongestAbove = sortedByDiff[sortedByDiff.length - 1];
+    const belowCount = validRows.filter(data => getSmaDiffPercent(data) < 0).length;
+    const averageDiff = validRows.reduce((sum, data) => sum + getSmaDiffPercent(data), 0) / validRows.length;
+
+    if (biggestDipEl) biggestDipEl.textContent = `${biggestDip.stock} ${formatPercent(getSmaDiffPercent(biggestDip))}`;
+    if (biggestDipDetailEl) biggestDipDetailEl.textContent = `vs ${period}-Day SMA ${formatCurrency(biggestDip.sma)}`;
+    if (belowSmaEl) belowSmaEl.textContent = `${belowCount} / ${validRows.length}`;
+    if (belowSmaDetailEl) belowSmaDetailEl.textContent = `Trading below ${period}-Day SMA`;
+    if (averageDipEl) averageDipEl.textContent = formatPercent(averageDiff);
+    if (averageDipDetailEl) averageDipDetailEl.textContent = `Average vs ${period}-Day SMA`;
+    if (strongestAboveEl) strongestAboveEl.textContent = `${strongestAbove.stock} ${formatPercent(getSmaDiffPercent(strongestAbove))}`;
+    if (strongestAboveDetailEl) strongestAboveDetailEl.textContent = `vs ${period}-Day SMA ${formatCurrency(strongestAbove.sma)}`;
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function formatNewsDate(value) {
+    if (!value) return 'Recent';
+    const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Recent';
+    return date.toLocaleDateString();
+}
+
+function getNewsTimestamp(value) {
+    if (!value) return 0;
+    const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function getArticleKey(article) {
+    return (article.url || article.headline || '').toLowerCase().trim();
+}
+
+function renderNewsByTicker(newsFeed, newsByTicker) {
+    newsFeed.empty();
+
+    const tickers = Object.keys(newsByTicker).filter(ticker => newsByTicker[ticker].length > 0);
+    if (tickers.length === 0) {
+        newsFeed.append(`
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                No recent watchlist news found.
+            </div>
+        `);
+        return;
+    }
+
+    tickers.forEach(ticker => {
+        const deduped = [];
+        const seen = new Set();
+
+        newsByTicker[ticker]
+            .sort((a, b) => getNewsTimestamp(b.datetime) - getNewsTimestamp(a.datetime))
+            .forEach(article => {
+                const key = getArticleKey(article);
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                deduped.push(article);
+            });
+
+        const visibleArticles = deduped.slice(0, 3);
+        const hiddenArticles = deduped.slice(3, 6);
+
+        const visibleHtml = visibleArticles.map(article => renderNewsArticle(article, false)).join('');
+        const hiddenHtml = hiddenArticles.map(article => renderNewsArticle(article, true)).join('');
+        const buttonHtml = hiddenArticles.length > 0
+            ? `<button type="button" class="view-more-news mt-3 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700" data-ticker="${ticker}">View more news</button>`
+            : '';
+
+        newsFeed.append(`
+            <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4 last:mb-0">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <h3 class="text-base font-bold text-gray-900">${ticker}</h3>
+                    <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">${deduped.length} articles</span>
+                </div>
+                <div class="space-y-3" data-news-group="${ticker}">
+                    ${visibleHtml}
+                    ${hiddenHtml}
+                </div>
+                ${buttonHtml}
+            </section>
+        `);
+    });
+}
+
+function renderNewsArticle(article, hidden) {
+    const summary = article.summary || 'Summary unavailable from this source.';
+    const hiddenClass = hidden ? ' hidden' : '';
+
+    return `
+        <article class="ticker-news-item${hiddenClass}">
+            <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer" class="block text-sm font-semibold text-gray-900 transition hover:text-blue-700 hover:underline">
+                ${escapeHtml(article.headline || 'Untitled article')}
+            </a>
+            <p class="mt-1 text-xs text-gray-500">${escapeHtml(article.source || 'Unknown source')} - ${formatNewsDate(article.datetime)}</p>
+            <p class="mt-1 text-sm text-gray-600">${escapeHtml(truncateString(summary, 150))}</p>
+        </article>
+    `;
+}
+
 // Render stock table rows
 function renderStockTableRows(tableBody, stockDataArray) {
     stockDataArray.forEach(data => {
-        const dailyChangeColor = data.dailyChange < 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600';
-        const dailyChangeSign = data.dailyChange < 0 ? '-' : '+';
+        const diffPercent = getSmaDiffPercent(data);
+        const diffClasses = getSmaDiffClasses(diffPercent);
 
         tableBody.append(`
             <tr class="stock-row grid cursor-pointer gap-3 px-4 py-4 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${data.stock}">
@@ -257,10 +412,11 @@ function renderStockTableRows(tableBody, stockDataArray) {
                     <div class="text-sm font-medium text-gray-900">${data.stock}</div>
                     <div class="truncate text-sm text-gray-500">${truncateString(data.companyName, 30)}</div>
                 </td>
-                <td class="whitespace-nowrap text-right text-gray-900">
-                    ${data.currentPrice.toFixed(2)}$
-                    <div class="mt-1 rounded px-2 py-1 text-xs ${dailyChangeColor}">
-                        ${dailyChangeSign}${Math.abs(data.dailyChange).toFixed(2)}%
+                <td class="whitespace-nowrap text-right">
+                    <div class="text-sm font-medium text-gray-900">${formatCurrency(data.currentPrice)}</div>
+                    <div class="text-xs text-gray-500">SMA ${formatCurrency(data.sma)}</div>
+                    <div class="mt-1 rounded px-2 py-1 text-xs font-semibold ${diffClasses}">
+                        ${formatPercent(diffPercent)}
                     </div>
                 </td>
                 <td class="flex justify-end">
@@ -367,31 +523,32 @@ async function updateTableAndChart(period) {
         return;
     }
 
-    // Sort the stock data array alphabetically for the table
-    stockDataArray.sort((a, b) => a.stock.localeCompare(b.stock));
+    // Sort the watchlist by biggest dip first.
+    stockDataArray.sort((a, b) => getSortableSmaDiff(a) - getSortableSmaDiff(b));
+    renderSummaryMetrics(stockDataArray, period);
 
     // Append the sorted data to the table
     renderStockTableRows(tableBody, stockDataArray);
-
-    // Sort the stock data array by relative price for the chart
-    stockDataArray.sort((a, b) => a.relativePrice - b.relativePrice);
 
     const chartLabels = [];
     const relativePrices = [];
     const backgroundColors = [];
     const borderColors = [];
+    const chartPointData = [];
 
     for (const data of stockDataArray) {
+        const diffPercent = getSmaDiffPercent(data);
         chartLabels.push(data.stock);
-        relativePrices.push((data.relativePrice * 100).toFixed(2));
+        relativePrices.push(Number.isFinite(diffPercent) ? Number(diffPercent.toFixed(2)) : null);
+        chartPointData.push(data);
 
         // Set the color based on the relative price value
-        if (data.relativePrice < 0) {
-            backgroundColors.push('rgba(255, 99, 132, 0.2)'); // Red for negative values
-            borderColors.push('rgba(255, 99, 132, 1)');
+        if (diffPercent < 0) {
+            backgroundColors.push('rgba(239, 68, 68, 0.7)');
+            borderColors.push('rgba(220, 38, 38, 1)');
         } else {
-            backgroundColors.push('rgba(75, 192, 192, 0.2)'); // Green for positive values
-            borderColors.push('rgba(75, 192, 192, 1)');
+            backgroundColors.push('rgba(16, 185, 129, 0.7)');
+            borderColors.push('rgba(5, 150, 105, 1)');
         }
     }
 
@@ -415,40 +572,50 @@ async function updateTableAndChart(period) {
             labels: chartLabels,
             datasets: [
                 {
-                    label: `Price relative to ${period}-Day SMA`,
+                    label: `% vs ${period}-Day SMA`,
                     data: relativePrices,
+                    stockData: chartPointData,
                     backgroundColor: backgroundColors,
                     borderColor: borderColors,
-                    borderWidth: 1
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barThickness: 18,
+                    maxBarThickness: 22
                 }
             ]
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const data = context.dataset.stockData[context.dataIndex];
+                            if (!data) return `${context.parsed.x}%`;
+                            return [
+                                `Current: ${formatCurrency(data.currentPrice)}`,
+                                `SMA: ${formatCurrency(data.sma)}`,
+                                `Difference: ${formatPercent(getSmaDiffPercent(data))}`
+                            ];
+                        }
+                    }
                 }
             },
             scales: {
                 x: {
-                    type: 'category',
-                     grid: {
-                         display: true,
-                         color: 'rgba(0, 0, 0, 0.1)'
-                     },
-                     ticks: {
-                         color: '#374151',
-                         font: {
-                             size: 12
-                         }
-                     }
-                },
-                y: {
                     beginAtZero: true,
                     grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(17, 24, 39, 0.55)' : 'rgba(0, 0, 0, 0.08)';
+                        },
+                        lineWidth: function(context) {
+                            return context.tick.value === 0 ? 2 : 1;
+                        }
                     },
                     ticks: {
                         color: '#374151',
@@ -456,7 +623,18 @@ async function updateTableAndChart(period) {
                             size: 12
                         },
                         callback: function(value) {
-                            return value + '%';
+                            return `${value}%`;
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#374151',
+                        font: {
+                            size: 12
                         }
                     }
                 }
@@ -473,27 +651,22 @@ async function updateTableAndChart(period) {
     
     // Update news title with current stocks in watchlist
     if (stocks.length > 0) {
-        $("#news-title").text('Latest News For Your Watchlist');
+        $("#news-title").text('News by ticker');
     }
-    
+
     const newsPromises = stocks.map(stock => fetchNews(stock));
     const newsResults = await Promise.all(newsPromises);
-    const allNews = newsResults.flat();
+    const newsByTicker = {};
+    stocks.forEach((stock, index) => {
+        newsByTicker[stock] = Array.isArray(newsResults[index]) ? newsResults[index] : [];
+    });
+    renderNewsByTicker(newsFeed, newsByTicker);
 
-    // Sort news by date in descending order
-    allNews.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-
-    // Limit to 20 news articles
-    const limitedNews = allNews.slice(0, 20);
-
-    limitedNews.forEach(article => {
-        const date = new Date(article.datetime * 1000).toLocaleDateString();
-        newsFeed.append(`
-            <div class="p-4 border-b border-gray-200">
-                <a href="${article.url}" target="_blank" class="text-lg font-semibold text-gray-900 hover:text-gray-700 hover:underline transition-colors block">${article.headline}</a>
-                <p class="text-sm text-gray-500 mt-1">${date} - ${article.source}</p>
-            </div>
-        `);
+    $(document).off('click.dipfinderNews', '.view-more-news');
+    $(document).on('click.dipfinderNews', '.view-more-news', function() {
+        const ticker = $(this).data('ticker');
+        $(`[data-news-group="${ticker}"] .ticker-news-item.hidden`).removeClass('hidden');
+        $(this).remove();
     });
 
     stopLoadingDots(newsLoading, 'news-loading', 'Loaded');
@@ -502,7 +675,8 @@ async function updateTableAndChart(period) {
     attachRemoveStockListeners();
 
     // Add click handlers for stock rows to navigate to screener
-    $("#stocks-table").on("click", ".stock-row", function() {
+    $("#stocks-table").off("click.dipfinderRows", ".stock-row");
+    $("#stocks-table").on("click.dipfinderRows", ".stock-row", function() {
         const stockSymbol = $(this).data("stock");
         if (stockSymbol) {
             // Navigate to screener using the SPA router

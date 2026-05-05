@@ -1,24 +1,29 @@
-        <div class="space-y-6">
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                    <p class="text-sm font-medium text-gray-500">Dashboard focus</p>
-                    <h2 class="mt-2 text-xl font-bold text-gray-900">Biggest dips in your watchlist</h2>
-                    <p class="mt-2 text-sm text-gray-500">Stocks are compared against the selected moving average period.</p>
+        <div class="space-y-5">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <p class="text-sm font-medium text-gray-500">Biggest Dip</p>
+                    <h2 id="metric-biggest-dip" class="mt-2 text-2xl font-bold text-gray-900">--</h2>
+                    <p id="metric-biggest-dip-detail" class="mt-1 text-sm text-gray-500">Waiting for watchlist data</p>
                 </div>
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                    <p class="text-sm font-medium text-gray-500">Moving average</p>
-                    <h3 id="selected-period-display" class="mt-2 text-xl font-bold text-gray-900">200-Day SMA</h3>
-                    <p class="mt-2 text-sm text-gray-500">Switch periods to change the dip comparison.</p>
+                <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <p class="text-sm font-medium text-gray-500">Stocks Below SMA</p>
+                    <h3 id="metric-below-sma" class="mt-2 text-2xl font-bold text-gray-900">--</h3>
+                    <p id="metric-below-sma-detail" class="mt-1 text-sm text-gray-500">Selected SMA period</p>
                 </div>
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                    <p class="text-sm font-medium text-gray-500">Market context</p>
-                    <h3 class="mt-2 text-xl font-bold text-gray-900">News by ticker</h3>
-                    <p class="mt-2 text-sm text-gray-500">Latest headlines stay tied to your current watchlist.</p>
+                <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <p class="text-sm font-medium text-gray-500">Average Watchlist Dip</p>
+                    <h3 id="metric-average-dip" class="mt-2 text-2xl font-bold text-gray-900">--</h3>
+                    <p id="metric-average-dip-detail" class="mt-1 text-sm text-gray-500">Mean distance vs SMA</p>
+                </div>
+                <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <p class="text-sm font-medium text-gray-500">Strongest Above SMA</p>
+                    <h3 id="metric-strongest-above" class="mt-2 text-2xl font-bold text-gray-900">--</h3>
+                    <p id="metric-strongest-above-detail" class="mt-1 text-sm text-gray-500">Best positive spread</p>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                <aside class="lg:col-span-4 xl:col-span-3">
+                <aside class="lg:col-span-5 xl:col-span-4">
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                         <div class="mb-4 flex items-center justify-between gap-3">
                             <div>
@@ -44,7 +49,7 @@
                         </div>
                     </div>
                 </aside>
-                <section class="lg:col-span-8 xl:col-span-9">
+                <section class="lg:col-span-7 xl:col-span-8">
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                         <span id="sma-loading" class="block text-center text-blue-500 font-semibold mb-4"></span>
                         <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -86,7 +91,7 @@
                         </div>
                     </div>
                         <div class="relative rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                            <canvas id="stocks-chart" style="height: 600px;"></canvas>
+                            <canvas id="stocks-chart" style="height: 320px;"></canvas>
                             <div id="chart-loading" class="absolute inset-0 flex items-center justify-center rounded-2xl bg-white bg-opacity-80 hidden">
                             <div class="flex items-center gap-3">
                                 <div class="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
@@ -95,8 +100,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" style="min-height: 700px;">
-                    <h2 id="news-title" class="mb-4 text-xl font-bold text-gray-900">Latest News For Your Watchlist</h2>
+                <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <h2 id="news-title" class="mb-4 text-xl font-bold text-gray-900">News by ticker</h2>
                     <div id="news-feed">
                         <span id="news-loading" class="block text-center text-blue-500 font-semibold"></span>
                         <!-- News articles will be appended here by JavaScript -->
