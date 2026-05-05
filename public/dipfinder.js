@@ -252,19 +252,19 @@ function renderStockTableRows(tableBody, stockDataArray) {
         const dailyChangeSign = data.dailyChange < 0 ? '-' : '+';
 
         tableBody.append(`
-            <tr class="stock-row hover:bg-gray-50 cursor-pointer transition-colors duration-200" data-stock="${data.stock}">
-                <td class="px-3 py-4 whitespace-nowrap relative">
+            <tr class="stock-row grid cursor-pointer gap-3 px-4 py-4 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${data.stock}">
+                <td class="min-w-0">
                     <div class="text-sm font-medium text-gray-900">${data.stock}</div>
-                    <div class="text-sm text-gray-500">${truncateString(data.companyName, 30)}</div>
+                    <div class="truncate text-sm text-gray-500">${truncateString(data.companyName, 30)}</div>
                 </td>
-                <td class="px-2 py-4 whitespace-nowrap text-center">
+                <td class="whitespace-nowrap text-right text-gray-900">
                     ${data.currentPrice.toFixed(2)}$
-                    <div class="text-xs ${dailyChangeColor} p-1 rounded mt-1">
+                    <div class="mt-1 rounded px-2 py-1 text-xs ${dailyChangeColor}">
                         ${dailyChangeSign}${Math.abs(data.dailyChange).toFixed(2)}%
                     </div>
                 </td>
-                <td class="px-3 py-4 whitespace-nowrap text-right">
-                    <button class="remove-stock relative z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700" data-stock="${data.stock}" title="Remove ${data.stock}" aria-label="Remove ${data.stock}" onclick="event.stopPropagation();">
+                <td class="flex justify-end">
+                    <button class="remove-stock relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200" data-stock="${data.stock}" title="Remove ${data.stock}" aria-label="Remove ${data.stock}" onclick="event.stopPropagation();">
                         <i class="fas fa-trash-alt"></i>                        
                     </button>
                 </td>
