@@ -131,9 +131,9 @@
     </style>
 </head>
 
-<body class="bg-gray-100 text-gray-900">
-    <div class="container mx-auto p-4">
-        <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-md mb-8">
+<body class="bg-gray-50 text-gray-900 antialiased">
+    <div class="mx-auto min-h-screen max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <header class="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js"
                 data-cbid="8a337494-5686-46e4-b16a-ded492ed02e7" type="text/javascript" async>
                 </script>
@@ -148,41 +148,52 @@
                 gtag('js', new Date());
                 gtag('config', 'G-CDWQY0HNJ8');
             </script>
-            <h1 class="text-center text-4xl font-extrabold tracking-tight">Dip Finder</h1>
-            <p class="text-center text-lg font-light">Track your watchlist and easily spot when stocks dip below their longterm moving average. Simple, visual, no signup needed.</p>
+            <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-6 py-8 text-white sm:px-8">
+                <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-blue-100">Finance dashboard</p>
+                        <h1 class="text-4xl font-extrabold tracking-tight sm:text-5xl">Dip Finder</h1>
+                        <p class="mt-3 max-w-3xl text-base text-blue-50 sm:text-lg">Track your watchlist and quickly see which stocks are furthest below their moving average.</p>
+                    </div>
+                    <div class="inline-flex items-center gap-3 rounded-2xl border border-white border-opacity-20 bg-white bg-opacity-10 px-4 py-3 text-sm font-semibold shadow-sm">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Watchlist dip monitor</span>
+                    </div>
+                </div>
+            </div>
         </header>
         <!-- Menu bar under header -->
-        <nav class="w-full bg-white/80 backdrop-blur-sm shadow-lg mb-6 rounded-xl border border-gray-200/50">
-            <div class="container mx-auto flex justify-between items-center p-4">
+        <nav class="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="flex flex-col gap-4 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <!-- Left side navigation -->
-                <div class="flex items-center gap-2">
-                    <a href="/" data-link class="blue-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2">
-                        <!-- <i class="fas fa-chart-line text-sm"></i> -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="/" data-link class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                        <i class="fas fa-chart-line text-sm"></i>
                         Dip Finder
                     </a>
-                    <a href="/screener" data-link class="bg-gray-100 text-gray-700 hover:bg-gray-200 px-5 py-2.5 rounded-xl text-sm font-medium cursor-pointer border border-gray-200 hover:border-gray-300 transform hover:scale-105 transition-all duration-200 flex items-center gap-2">
+                    <a href="/screener" data-link class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
                         <i class="fas fa-search text-sm"></i>
                         Stock Screener
                     </a>
                 </div>
                 <!-- Right side auth buttons -->
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-3">
                     <button id="theme-toggle" type="button"
-                        class="theme-toggle px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow transition-all duration-200 flex items-center gap-2"
+                        class="theme-toggle inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition"
                         aria-label="Switch to dark mode" aria-pressed="false">
                         <i id="theme-toggle-icon" class="fas fa-moon text-sm"></i>
                         <span id="theme-toggle-label">Dark</span>
                     </button>
                     <!-- Login/Register button - hidden initially -->
                     <div id="auth-button"
-                        class="green-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 hidden">
+                        class="green-gradient-btn hidden cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition flex">
                         <i class="fas fa-user-plus text-sm"></i>
                         Login or Register
                     </div>
                     <!-- Profile dropdown - hidden initially -->
                     <div class="relative hidden" id="profile-dropdown">
                         <button id="profile-btn"
-                            class="green-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+                            class="green-gradient-btn flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition"
                             onclick="toggleProfileMenu()">
                             <i class="fas fa-user-circle text-sm"></i>
                             Profile Settings
@@ -190,10 +201,10 @@
                         </button>
                         <!-- Dropdown menu -->
                         <div id="profile-dropdown-menu" 
-                             class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 hidden z-50">
-                            <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-lg">
-                                <p id="profile-email" class="text-sm font-semibold text-gray-800 truncate"></p>
-                                <p class="text-gray-500 text-xs mt-1">
+                             class="absolute right-0 z-50 mt-2 hidden w-64 rounded-xl border border-gray-200 bg-white shadow-lg">
+                            <div class="rounded-t-xl border-b border-gray-100 bg-gray-50 p-4">
+                                <p id="profile-email" class="truncate text-sm font-semibold text-gray-800"></p>
+                                <p class="mt-1 text-xs text-gray-500">
                                     <i class="fas fa-circle text-green-400 text-xs mr-2"></i>
                                     Welcome back!
                                 </p>
@@ -201,11 +212,11 @@
                             <div class="p-2">
                                 <a href="/profile" data-link 
                                         onclick="document.getElementById('profile-dropdown-menu').classList.add('hidden');"
-                                        class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors flex items-center">
+                                        class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-600">
                                     <i class="fas fa-user mr-3 text-blue-500"></i>Profile Page
                                 </a>
                                 <button onclick="logout()" 
-                                        class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors flex items-center">
+                                        class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50">
                                     <i class="fas fa-sign-out-alt mr-3 text-red-500"></i>Logout
                                 </button>
                             </div>
@@ -217,15 +228,15 @@
         <!-- End menu bar -->
 
         <!-- Hovering Authentication Modal -->
-        <div id="auth-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden z-50" onclick="closeAuthModalOnBackdrop(event)">
-            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4 relative" onclick="event.stopPropagation()">
+        <div id="auth-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-60 px-4 flex" onclick="closeAuthModalOnBackdrop(event)">
+            <div class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl" onclick="event.stopPropagation()">
                 <button id="auth-modal-close"
-                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold focus:outline-none transition-colors"
+                    class="absolute right-4 top-4 text-2xl font-bold text-gray-400 transition-colors hover:text-gray-700 focus:outline-none"
                     aria-label="Close">&times;</button>
                 
                 <div class="text-center mb-6">
-                    <h1 class="text-2xl font-bold text-gray-800 mb-2">DipFinder</h1>
-                    <div class="w-12 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded"></div>
+                    <h1 class="mb-2 text-2xl font-bold text-gray-900">DipFinder</h1>
+                    <div class="mx-auto h-1 w-12 rounded bg-gradient-to-r from-blue-500 to-indigo-600"></div>
                 </div>
                 
                 <div id="auth-error" class="bg-red-50 border-l-4 border-red-400 p-3 mb-4 rounded hidden">
@@ -281,11 +292,11 @@
                     </div>
                     
                     <button id="login-btn" type="button" onclick="login()"
-                        class="w-full gradient-btn text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all">
+                        class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
                         <i class="fas fa-sign-in-alt mr-2"></i>Login
                     </button>
                     <button type="button" onclick="closeAuthModal()"
-                        class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                        class="w-full rounded-xl bg-gray-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-gray-600">
                         <i class="fas fa-times mr-2"></i>Cancel
                     </button>
                     <button type="button" id="forgot-password-link" 
@@ -306,12 +317,12 @@
                     </div>
                     
                     <button id="forgot-btn" type="submit" 
-                            class="w-full gradient-btn text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all">
+                            class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
                         <i class="fas fa-paper-plane mr-2"></i>Send Reset Link
                     </button>
                     
                     <button type="button" onclick="showLoginForm()" 
-                            class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                            class="w-full rounded-xl bg-gray-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-gray-600">
                         <i class="fas fa-arrow-left mr-2"></i>Back to Login
                     </button>
                 </form>
@@ -324,7 +335,7 @@
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">Email Sent!</h3>
                     <p class="text-gray-700 text-sm">If the email exists in our system, a password reset link has been sent.</p>
                     <button type="button" onclick="showLoginForm()" 
-                            class="w-full gradient-btn text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all">
+                            class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
                         <i class="fas fa-sign-in-alt mr-2"></i>Back to Login
                     </button>
                 </div>
@@ -372,11 +383,11 @@
                     </div>
                     
                     <button id="register-btn" type="button" onclick="register()"
-                        class="w-full gradient-btn text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all">
+                        class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
                         <i class="fas fa-user-plus mr-2"></i>Create Account
                     </button>
                     <button type="button" onclick="closeAuthModal()"
-                        class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                        class="w-full rounded-xl bg-gray-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-gray-600">
                         <i class="fas fa-times mr-2"></i>Cancel
                     </button>
                 </form>
@@ -394,11 +405,11 @@
         </div>
 
     </div>
-    <div class="container mx-auto">
-        <footer class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg shadow-md text-center">
+    <div class="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
+        <footer class="rounded-2xl border border-gray-200 bg-white p-4 text-center text-sm font-semibold text-gray-600 shadow-sm">
             <div class="flex justify-center space-x-6">
-                <a href="/privacy" data-link class="hover:text-blue-200 transition-colors">Terms</a>
-                <a href="/contact" data-link class="hover:text-blue-200 transition-colors">Contact</a>
+                <a href="/privacy" data-link class="transition-colors hover:text-blue-600">Terms</a>
+                <a href="/contact" data-link class="transition-colors hover:text-blue-600">Contact</a>
             </div>
         </footer>
     </div>

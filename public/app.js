@@ -40,8 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (homeButton && screenerButton) {
             // Active and inactive class sets
-            const activeClasses = 'blue-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2';
-            const inactiveClasses = 'bg-gray-100 text-gray-700 hover:bg-gray-200 px-5 py-2.5 rounded-xl text-sm font-medium cursor-pointer border border-gray-200 hover:border-gray-300 transform hover:scale-105 transition-all duration-200 flex items-center gap-2';
+            const activeClasses = 'inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700';
+            const inactiveClasses = 'inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700';
             
             // Update home button
             homeButton.className = currentPath === '/' ? activeClasses : inactiveClasses;
