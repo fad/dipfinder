@@ -253,18 +253,18 @@ function renderStockTableRows(tableBody, stockDataArray) {
 
         tableBody.append(`
             <tr class="stock-row hover:bg-gray-50 cursor-pointer transition-colors duration-200" data-stock="${data.stock}">
-                <td class="px-6 py-4 whitespace-nowrap relative">
+                <td class="px-3 py-4 whitespace-nowrap relative">
                     <div class="text-sm font-medium text-gray-900">${data.stock}</div>
                     <div class="text-sm text-gray-500">${truncateString(data.companyName, 30)}</div>
                 </td>
-                <td class="px-1 py-4 whitespace-nowrap text-center">
+                <td class="px-2 py-4 whitespace-nowrap text-center">
                     ${data.currentPrice.toFixed(2)}$
                     <div class="text-xs ${dailyChangeColor} p-1 rounded mt-1">
                         ${dailyChangeSign}${Math.abs(data.dailyChange).toFixed(2)}%
                     </div>
                 </td>
-                <td class="px-1 py-4 whitespace-nowrap text-center">
-                    <button class="remove-stock text-red-600 hover:text-red-900 z-10 text-base relative" data-stock="${data.stock}" onclick="event.stopPropagation();">
+                <td class="px-3 py-4 whitespace-nowrap text-right">
+                    <button class="remove-stock relative z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700" data-stock="${data.stock}" title="Remove ${data.stock}" aria-label="Remove ${data.stock}" onclick="event.stopPropagation();">
                         <i class="fas fa-trash-alt"></i>                        
                     </button>
                 </td>
