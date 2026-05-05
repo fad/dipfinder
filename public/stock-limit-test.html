@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Limit Test - DipFinder</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="container mx-auto max-w-4xl">
+        <h1 class="text-3xl font-bold mb-8 text-center">Stock Limit Validation Test</h1>
+        
+        <div class="test-section bg-white">
+            <h2 class="text-xl font-semibold mb-4">Current Status</h2>
+            <div id="current-status" class="result info">
+                <p><strong>Authentication Status:</strong> <span id="auth-status">Checking...</span></p>
+                <p><strong>Current Stock Limit:</strong> <span id="current-limit">Checking...</span></p>
+                <p><strong>Stocks in Array:</strong> <span id="stocks-count">Checking...</span></p>
+                <p><strong>Stocks in localStorage:</strong> <span id="localstorage-count">Checking...</span></p>
+            </div>
+        </div>
+
+        <div class="test-section bg-white">
+            <h2 class="text-xl font-semibold mb-4">Test: Add Excessive Stocks to localStorage</h2>
+            <p class="text-gray-600 mb-4">This test adds 25 stocks to localStorage to simulate the bypass vulnerability.</p>
+            <button id="add-excessive-stocks" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Add 25 Stocks to localStorage
+            </button>
+            <div id="excessive-stocks-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section bg-white">
+            <h2 class="text-xl font-semibold mb-4">Test: Reload Page (Validation Check)</h2>
+            <p class="text-gray-600 mb-4">This test simulates reloading the page to check if validation works.</p>
+            <button id="reload-test" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Reload Page
+            </button>
+        </div>
+
+        <div class="test-section bg-white">
+            <h2 class="text-xl font-semibold mb-4">Test: Manual Validation</h2>
+            <p class="text-gray-600 mb-4">Manually trigger the validation function.</p>
+            <button id="manual-validation" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                Run Manual Validation
+            </button>
+            <div id="manual-validation-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section bg-white">
+            <h2 class="text-xl font-semibold mb-4">Raw localStorage Data</h2>
+            <textarea id="localstorage-data" class="w-full h-32 p-2 border border-gray-300 rounded" readonly></textarea>
+        </div>
+    </div>
+
+    <!-- Include the auth and dipfinder scripts -->
+    <script src="auth.js"></script>
+    <script src="dipfinder.js"></script>
+    
+    <script>
+        // Test script
+        function updateStatus() {
+            try {
+                const authStatus = window.AuthManager && window.AuthManager.isAuthenticated();
+                document.getElementById('auth-status').textContent = authStatus ? 'Authenticated' : 'Guest';
+                
+                const currentLimit = typeof getCurrentStockLimit === 'function' ? getCurrentStockLimit() : 'Function not available';
+                document.getElementById('current-limit').textContent = currentLimit;
+                
+                const stocksCount = typeof stocks !== 'undefined' ? stocks.length : 'Not available';
+                document.getElementById('stocks-count').textContent = stocksCount;
+                
+                const localStorageStocks = localStorage.getItem('stocks');
+                const localStorageCount = localStorageStocks ? JSON.parse(localStorageStocks).length : 0;
+                document.getElementById('localstorage-count').textContent = localStorageCount;
+                
+                document.getElementById('localstorage-data').value = localStorageStocks || 'No stocks data';
+            } catch (error) {
+                console.error('Error updating status:', error);
+            }
+        }
+
+        // Add excessive stocks test
+        document.getElementById('add-excessive-stocks').addEventListener('click', function() {
+            const excessiveStocks = [
+                'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'CRM', 'ADBE',
+                'ORCL', 'INTC', 'AMD', 'QCOM', 'TXN', 'AVGO', 'CSCO', 'IBM', 'HPQ', 'DELL',
+                'PYPL', 'SQ', 'SHOP', 'SPOT', 'UBER'
+            ];
+            
+            localStorage.setItem('stocks', JSON.stringify(excessiveStocks));
+            
+            const resultDiv = document.getElementById('excessive-stocks-result');
+            resultDiv.className = 'result info';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `<p>Added ${excessiveStocks.length} stocks to localStorage. Now reload the page or trigger validation to see if it gets trimmed.</p>`;
+            
+            updateStatus();
+        });
+
+        // Reload test
+        document.getElementById('reload-test').addEventListener('click', function() {
+            window.location.reload();
+        });
+
+        // Manual validation test
+        document.getElementById('manual-validation').addEventListener('click', function() {
+            const resultDiv = document.getElementById('manual-validation-result');
+            resultDiv.style.display = 'block';
+            
+            try {
+                if (typeof validateStocksArray === 'function') {
+                    const wasModified = validateStocksArray();
+                    resultDiv.className = wasModified ? 'result success' : 'result info';
+                    resultDiv.innerHTML = `<p>Validation result: ${wasModified ? 'Array was modified (trimmed)' : 'No changes needed'}</p>`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '<p>validateStocksArray function not available</p>';
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<p>Error during validation: ${error.message}</p>`;
+            }
+            
+            updateStatus();
+        });
+
+        // Update status periodically
+        setInterval(updateStatus, 1000);
+        
+        // Initial status update
+        setTimeout(updateStatus, 500);
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+        <!-- Main grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <!-- Search Section -->
+            <div class="lg:col-span-1">
+                <div class="bg-white p-4 rounded shadow">
+                    <h2 class="text-xl font-bold mb-4">Stock Screener</h2>
+                    <form id="screener-search-form" class="mt-4">
+                        <input type="text" id="screener-stock-input" class="border px-4 py-2 w-full" placeholder="Search stock symbol">
+                        <button type="submit" id="screener-search-btn" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded w-full">Search</button>
+                        <span id="screener-loading" class="block text-center text-blue-500 font-semibold"></span>
+                    </form>
+                    <!-- Only Company Overview in the search section -->
+                    <div id="company-overview" class="mt-4"></div>
+                </div>
+            </div>
+            
+            <!-- Chart Section -->
+            <div class="lg:col-span-3">
+                <div class="bg-white p-4 rounded shadow">
+                    <span id="screener-sma-loading" class="block text-center text-blue-500 font-semibold"></span>
+                    <div style="height: 500px;">
+                        <canvas id="screener-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Fundamentals Grid - Full Width -->
+        <div class="mt-6">
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">Fundamentals</h2>
+                <div id="fundamentals-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            </div>
+        </div>
+        
+        <!-- News Section - Full Width -->
+        <div class="mt-6 bg-white p-4 rounded shadow" style="min-height: 500px;">
+            <h2 id="news-title" class="text-2xl font-bold mb-4 text-gray-800">Latest News</h2>
+            <div id="news-container"></div>
+            <span id="screener-news-loading" class="block text-center text-blue-500 font-semibold"></span>
+        </div>

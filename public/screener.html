@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Screener - Dip Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0/dist/chartjs-adapter-luxon.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <style>
+        /* Gradient button style */
+        .gradient-btn {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            color: #fff;
+            transition: background 0.2s;
+        }
+        .gradient-btn:hover {
+            background: linear-gradient(to right, #2563eb, #7c3aed);
+        }
+        
+        /* Blue gradient for navigation and login buttons */
+        .blue-gradient-btn {
+            background: linear-gradient(to right, #2563eb, #1d4ed8);
+            color: white;
+            transition: all 0.2s;
+        }
+        .blue-gradient-btn:hover {
+            background: linear-gradient(to right, #1d4ed8, #1e40af);
+            transform: scale(1.05);
+        }
+        
+        /* Green gradient for profile settings */
+        .green-gradient-btn {
+            background: linear-gradient(to right, #10b981, #059669);
+            color: white;
+            transition: all 0.2s;
+        }
+        .green-gradient-btn:hover {
+            background: linear-gradient(to right, #059669, #047857);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+    <div class="container mx-auto p-4">
+        <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-md mb-8">
+            <h1 class="text-center text-4xl font-extrabold tracking-tight">Dip Finder</h1>
+            <p class="text-center text-lg font-light">Stock Screener</p>
+        </header>
+        <!-- Menu bar under header -->
+        <nav class="w-full bg-white/80 backdrop-blur-sm shadow-lg mb-6 rounded-xl border border-gray-200/50">
+            <div class="container mx-auto flex justify-between items-center p-4">
+                <!-- Left side navigation -->
+                <div class="flex items-center gap-2">
+                    <a href="index.html" class="bg-gray-100 text-gray-700 hover:bg-gray-200 px-5 py-2.5 rounded-xl text-sm font-medium cursor-pointer border border-gray-200 hover:border-gray-300 transform hover:scale-105 transition-all duration-200 flex items-center gap-2">
+                        <!-- <i class="fas fa-chart-line text-sm"></i> -->
+                        Dip Finder
+                    </a>
+                    <a href="screener.html" class="blue-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-search text-sm"></i>
+                        Stock Screener
+                    </a>
+                </div>
+                <!-- Right side auth buttons -->
+                <div class="flex items-center gap-3">
+                    <!-- Login/Register button - hidden initially -->
+                    <div id="auth-button" class="green-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 hidden">
+                        <i class="fas fa-user-plus text-sm"></i>
+                        Login or Register
+                    </div>
+                    <!-- Profile dropdown - hidden initially -->
+                    <div class="relative hidden" id="profile-dropdown">
+                        <button id="profile-btn"
+                            class="green-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+                            onclick="toggleProfileMenu()">
+                            <i class="fas fa-user-circle text-sm"></i>
+                            Profile Settings
+                            <i class="fas fa-chevron-down text-xs ml-1"></i>
+                        </button>
+                        <!-- Dropdown menu -->
+                        <div id="profile-dropdown-menu" 
+                             class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 hidden z-50">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+                                <p id="profile-email" class="text-sm font-semibold text-gray-800 truncate"></p>
+                                <p class="text-gray-500 text-xs mt-1">
+                                    <i class="fas fa-circle text-green-400 text-xs mr-2"></i>
+                                    Welcome back!
+                                </p>
+                            </div>
+                            <div class="p-2">
+                                <button onclick="document.getElementById('profile-dropdown-menu').classList.add('hidden'); window.location.href='profile.html';" 
+                                        class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors flex items-center">
+                                    <i class="fas fa-user mr-3 text-blue-500"></i>Profile Page
+                                </button>
+                                <button onclick="logout()" 
+                                        class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors flex items-center">
+                                    <i class="fas fa-sign-out-alt mr-3 text-red-500"></i>Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <!-- End menu bar -->
+        <!-- Hovering Authentication Modal -->
+        <div id="auth-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden z-50" onclick="closeAuthModalOnBackdrop(event)">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4 relative" onclick="event.stopPropagation()">
+                <button id="auth-modal-close"
+                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold focus:outline-none transition-colors"
+                    aria-label="Close">&times;</button>
+                
+                <div class="text-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-800 mb-2">DipFinder</h1>
+                    <div class="w-12 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded"></div>
+                </div>
+                
+                <div id="auth-error" class="bg-red-50 border-l-4 border-red-400 p-3 mb-4 rounded hidden">
+                    <div class="flex">
+                        <div class="text-red-400">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-red-700" id="auth-error-text"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="auth-success" class="bg-green-50 border-l-4 border-green-400 p-3 mb-4 rounded hidden">
+                    <div class="flex">
+                        <div class="text-green-400">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-green-700" id="auth-success-text"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="auth-options" class="space-y-3">
+                    <button onclick="showLoginForm()" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg font-medium transition-colors">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login
+                    </button>
+                    <button onclick="showRegisterForm()" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-medium transition-colors">
+                        <i class="fas fa-user-plus mr-2"></i>Register
+                    </button>
+                </div>
+                
+                <form id="login-form" class="hidden space-y-4" onsubmit="event.preventDefault(); login();">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-envelope mr-2"></i>Email
+                        </label>
+                        <input type="email" id="login-email" 
+                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               placeholder="Enter your email" required>
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-lock mr-2"></i>Password
+                        </label>
+                        <input type="password" id="login-password" 
+                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               placeholder="Enter your password" required>
+                    </div>
+                    
+                    <button id="login-btn" type="button" onclick="login()"
+                        class="w-full gradient-btn text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login
+                    </button>
+                    <button type="button" onclick="closeAuthModal()"
+                        class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="button" id="forgot-password-link" 
+                            class="w-full text-blue-600 hover:text-blue-800 py-2 text-center border-none bg-transparent transition-colors">
+                        <i class="fas fa-key mr-2"></i>Forgot My Password?
+                    </button>
+                </form>
+                <form id="forgot-form" class="hidden space-y-4" onsubmit="event.preventDefault(); forgotPassword();">
+                    <div>
+                        <label for="forgot-email" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-envelope mr-2"></i>Email Address
+                        </label>
+                        <input type="email" id="forgot-email" 
+                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               placeholder="Enter your email address" required>
+                    </div>
+                    
+                    <button id="forgot-btn" type="submit" 
+                            class="w-full gradient-btn text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all">
+                        <i class="fas fa-paper-plane mr-2"></i>Send Reset Link
+                    </button>
+                    
+                    <button type="button" onclick="showLoginForm()" 
+                            class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Login
+                    </button>
+                </form>
+
+                <!-- Forgot Password Success -->
+                <div id="forgot-ok-btn" class="hidden text-center space-y-4">
+                    <div class="text-green-600 mb-4">
+                        <i class="fas fa-check-circle text-4xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Email Sent!</h3>
+                    <p class="text-gray-700 text-sm">If the email exists in our system, a password reset link has been sent.</p>
+                    <button type="button" onclick="showLoginForm()" 
+                            class="w-full gradient-btn text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Back to Login
+                    </button>
+                </div>
+                
+                <form id="register-form" class="hidden space-y-4" onsubmit="event.preventDefault(); register();">
+                    <div>
+                        <label for="register-email" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-envelope mr-2"></i>Email
+                        </label>
+                        <input type="email" id="register-email" 
+                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                               placeholder="Enter your email" required>
+                    </div>
+                    <div>
+                        <label for="register-password" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-lock mr-2"></i>Password
+                        </label>
+                        <input type="password" id="register-password" 
+                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                               placeholder="Create a password" required>
+                    </div>
+                    
+                    <button id="register-btn" type="button" onclick="register()"
+                        class="w-full gradient-btn text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all">
+                        <i class="fas fa-user-plus mr-2"></i>Create Account
+                    </button>
+                    <button type="button" onclick="closeAuthModal()"
+                        class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                </form>
+                
+                <!-- Single shared CAPTCHA widget that appears above the submit button -->
+                <div id="captcha-container" class="hidden flex justify-center py-4">
+                    <div class="cf-turnstile"
+                         data-callback="onTurnstileSuccess" data-expired-callback="onTurnstileExpired"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Main grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <!-- Search Section -->
+            <div class="lg:col-span-1">
+                <div class="bg-white p-4 rounded shadow">
+                    <h2 class="text-xl font-bold mb-4">Stock Screener</h2>
+                    <div class="mt-4">
+                        <input type="text" id="screener-search" class="border px-4 py-2 w-full" placeholder="Search stock symbol">
+                        <button id="screener-search-btn" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded w-full">Search</button>
+                        <span id="screener-loading" class="block text-center text-blue-500 font-semibold"></span>
+                    </div>
+                    <!-- Only Company Overview in the search section -->
+                    <div id="company-overview" class="mt-4"></div>
+                </div>
+            </div>
+            
+            <!-- Chart Section -->
+            <div class="lg:col-span-3">
+                <div class="bg-white p-4 rounded shadow">
+                    <span id="screener-sma-loading" class="block text-center text-blue-500 font-semibold"></span>
+                    <div style="height: 500px;">
+                        <canvas id="screener-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Fundamentals Grid - Full Width -->
+        <div class="mt-6">
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">Fundamentals</h2>
+                <div id="fundamentals-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            </div>
+        </div>
+        
+        <!-- News Section - Full Width -->
+        <div class="mt-6 bg-white p-4 rounded shadow" style="min-height: 500px;">
+            <h2 id="news-title" class="text-2xl font-bold mb-4 text-gray-800">Latest News</h2>
+            <div id="news-container"></div>
+            <span id="screener-news-loading" class="block text-center text-blue-500 font-semibold"></span>
+        </div>
+    </div>
+    <div class="container mx-auto">
+        <footer class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg shadow-md text-center">
+            <div class="flex justify-center space-x-6">
+                <a href="privacy.html" class="hover:text-blue-200 transition-colors">Terms</a>
+                <a href="contact.html" class="hover:text-blue-200 transition-colors">Contact</a>
+            </div>
+        </footer>
+    </div>
+  </body>
+  </html>

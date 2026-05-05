@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnstile Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { color: green; }
+        .error { color: red; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+        #result { margin-top: 20px; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cloudflare Turnstile Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Turnstile Widget Test</h2>
+            <p>Check if Turnstile loads and generates a token:</p>
+            <div class="cf-turnstile" 
+                 id="turnstile-widget"
+                 data-callback="onTurnstileSuccess" 
+                 data-expired-callback="onTurnstileExpired">
+            </div>
+            <button onclick="checkTurnstileToken()">Check Token</button>
+            <div id="token-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Backend CAPTCHA Verification Test</h2>
+            <p>Test if the backend can verify the token:</p>
+            <button onclick="testBackendVerification()">Test Backend</button>
+            <div id="backend-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. Environment Check</h2>
+            <p>Current environment:</p>
+            <div id="env-info">
+                <strong>Origin:</strong> <span id="origin"></span><br>
+                <strong>Hostname:</strong> <span id="hostname"></span><br>
+                <strong>API Base URL:</strong> <span id="api-base"></span>
+            </div>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script src="turnstile-config.js"></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <script>
+        // Display environment info
+        document.getElementById('origin').textContent = window.location.origin;
+        document.getElementById('hostname').textContent = window.location.hostname;
+        const apiBase = window.location.hostname === 'localhost' ? 'https://dipfinder.com' : window.location.origin;
+        document.getElementById('api-base').textContent = apiBase;
+
+        // Turnstile callbacks
+        window.onTurnstileSuccess = function(token) {
+/*console.log('Turnstile success:', token);*/ 
+            showResult('token-result', 'Turnstile loaded successfully! Token: ' + token.substring(0, 20) + '...', 'success');
+        };
+
+        window.onTurnstileExpired = function() {
+/*console.log('Turnstile expired');*/ 
+            showResult('token-result', 'Turnstile token expired', 'error');
+        };
+
+        function checkTurnstileToken() {
+            if (typeof turnstile !== 'undefined') {
+                const token = turnstile.getResponse();
+                if (token) {
+                    showResult('token-result', 'Token available: ' + token.substring(0, 20) + '...', 'success');
+                } else {
+                    showResult('token-result', 'No token available. Please complete the CAPTCHA.', 'error');
+                }
+            } else {
+                showResult('token-result', 'Turnstile not loaded', 'error');
+            }
+        }
+
+        async function testBackendVerification() {
+            if (typeof turnstile === 'undefined') {
+                showResult('backend-result', 'Turnstile not loaded', 'error');
+                return;
+            }
+
+            const token = turnstile.getResponse();
+            if (!token) {
+                showResult('backend-result', 'No CAPTCHA token. Please complete the CAPTCHA first.', 'error');
+                return;
+            }
+
+            showResult('backend-result', 'Testing backend verification...', '');
+
+            try {
+                const response = await fetch(`${apiBase}/api/user?action=verify-captcha`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ captchaToken: token })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showResult('backend-result', 'Backend verification successful: ' + data.message, 'success');
+                } else {
+                    showResult('backend-result', 'Backend verification failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showResult('backend-result', 'Network error: ' + error.message, 'error');
+            }
+        }
+
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = type;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+    "version": 2,
+    "rewrites": [
+        { "source": "/api/(.*)", "destination": "/api/$1" },
+        
+        { "source": "/stocks/:symbol", "destination": "/api/stock-data/:symbol?action=price" },
+        { "source": "/sma/:symbol", "destination": "/api/stock-data/:symbol?action=sma" },
+        { "source": "/news/:symbol", "destination": "/api/stock-data/:symbol?action=news" },
+        { "source": "/company-name/:symbol", "destination": "/api/stock-data/:symbol?action=company-name" },
+        { "source": "/fundamentals/:symbol", "destination": "/api/stock-data/:symbol?action=fundamentals" },
+        { "source": "/batch-stocks", "destination": "/api/batch-stocks" },
+        { "source": "/login", "destination": "/api/user?action=login" },
+        { "source": "/register", "destination": "/api/user?action=register" },
+        { "source": "/auth", "destination": "/api/user?action=verify-token" },
+        { "source": "/verify-captcha", "destination": "/api/user?action=verify-captcha" },
+        
+        { "source": "/screener", "destination": "/index.html" },
+        { "source": "/profile", "destination": "/index.html" },
+        { "source": "/contact", "destination": "/index.html" },
+        { "source": "/privacy", "destination": "/index.html" },
+        { "source": "/((?!api/|.*\\..*).*)", "destination": "/index.html" }
+    ]
+}

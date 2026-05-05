@@ -1,0 +1,358 @@
+// profile.js - Profile page functionality
+window.initializeProfile = function() {
+/*console.log('Initializing Profile page...');*/ 
+    const BASE_URL = window.location.origin;
+    let eventListeners = []; // To track event listeners for cleanup
+
+    // Helper function for formatting dates consistently
+    function formatDateWithMonthName(dateStr) {
+        if (!dateStr) return '-';
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '-'; // Invalid date
+            
+            const options = { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            };
+            return date.toLocaleDateString(undefined, options);
+        } catch (e) {
+            console.error('Date formatting error:', e);
+            return '-';
+        }
+    }
+
+    // Tab switching logic
+    function setupTabSwitching() {
+        const tabs = ['profile', 'settings', 'subscribe'];
+
+        tabs.forEach(tabName => {
+            const tabButton = document.getElementById(`${tabName}-tab`);
+            if (tabButton) {
+                const handler = function() {
+                    // Hide all content
+                    tabs.forEach(t => {
+                        const content = document.getElementById(`${t}-content-display`);
+                        if (content) content.classList.add('hidden');
+                    });
+
+                    // Show selected content
+                    const selectedContent = document.getElementById(`${tabName}-content-display`);
+                    if (selectedContent) {
+                        selectedContent.classList.remove('hidden');
+                        selectedContent.style.opacity = 0;
+                        selectedContent.style.transition = 'opacity 0.5s ease-in-out';
+                        setTimeout(() => {
+                            selectedContent.style.opacity = 1;
+                        }, 300);
+                    }
+
+                    // Update tab styles
+                    tabs.forEach(t => {
+                        const tab = document.getElementById(`${t}-tab`);
+                        if (tab) {
+                            tab.classList.remove('gradient-btn');
+                            tab.classList.add('bg-gray-300', 'text-gray-800');
+                        }
+                    });
+
+                    // Activate selected tab
+                    this.classList.add('gradient-btn');
+                    this.classList.remove('bg-gray-300', 'text-gray-800');
+                };
+                tabButton.addEventListener('click', handler);
+                eventListeners.push({ element: tabButton, type: 'click', handler });
+            }
+        });
+    }
+
+    // Load profile information
+    async function loadProfileInfo() {
+/*console.log('Starting loadProfileInfo...');*/ 
+
+        // Wait for AuthManager to be available and initialized
+        let retryCount = 0;
+        const maxRetries = 50; // 5 seconds maximum wait
+        
+        while (!window.AuthManager && retryCount < maxRetries) {
+/*console.log('Waiting for AuthManager...', retryCount);*/ 
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retryCount++;
+        }
+
+        if (!window.AuthManager) {
+            console.error('AuthManager not available after waiting');
+            document.getElementById('profile-page-email').textContent = 'Auth system error.';
+            return;
+        }
+
+        // Ensure AuthManager has completed its initialization
+        await window.AuthManager.checkAuthStatus();
+
+        if (!window.AuthManager.isAuthenticated || !window.AuthManager.currentUser) {
+/*console.log('User not authenticated, redirecting to home.');*/ 
+            document.getElementById('profile-page-email').textContent = 'Not logged in';
+            document.getElementById('profile-member-since').textContent = '-';
+            // Use SPA router to navigate
+            setTimeout(() => {
+                if (window.router) {
+                    window.router.navigateTo('/');
+                }
+            }, 1500);
+            return;
+        }
+
+        const user = window.AuthManager.currentUser;
+        if (user && user.email) {
+            document.getElementById('profile-page-email').textContent = user.email;
+            const dropdownEmail = document.getElementById('dropdown-profile-email');
+            if (dropdownEmail) {
+                dropdownEmail.textContent = user.email;
+            }
+        }
+
+        const token = window.AuthManager.token;
+        if (token) {
+            try {
+                const res = await fetch(`${BASE_URL}/api/user?action=profile`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('profile-page-email').textContent = data.email || user.email || '-';
+                    const dropdownEmail = document.getElementById('dropdown-profile-email');
+                    if (dropdownEmail) {
+                        dropdownEmail.textContent = data.email || user.email || '-';
+                    }
+                    if (data.createdDate) {
+                        document.getElementById('profile-member-since').textContent = formatDateWithMonthName(data.createdDate);
+                    } else {
+                        document.getElementById('profile-member-since').textContent = '-';
+                    }
+                } else {
+                    console.error('Profile API error:', data);
+                    document.getElementById('profile-member-since').textContent = 'Error loading date';
+                }
+            } catch (e) {
+                console.error('Profile loading error:', e);
+                document.getElementById('profile-member-since').textContent = 'Error loading date';
+            }
+        }
+    }
+
+    // Setup password change functionality
+    function setupPasswordChange() {
+        const changePasswordBtn = document.getElementById('change-password-btn');
+        if (changePasswordBtn) {
+            changePasswordBtn.addEventListener('click', handlePasswordChange);
+            eventListeners.push({ element: changePasswordBtn, type: 'click', handler: handlePasswordChange });
+        }
+    }
+
+    // Handle password change
+    async function handlePasswordChange() {
+        const currentPassword = document.getElementById('current-password');
+        const newPassword = document.getElementById('new-password');
+        const confirmPassword = document.getElementById('confirm-password');
+        const messageDiv = document.getElementById('password-change-message');
+        const submitBtn = document.getElementById('change-password-btn');
+
+        // Clear previous messages
+        messageDiv.innerHTML = '';
+        messageDiv.className = 'mt-4 p-3 rounded-md';
+
+        // Validation
+        if (!currentPassword.value || !newPassword.value || !confirmPassword.value) {
+            showMessage(messageDiv, 'Please fill in all fields.', 'error');
+            return;
+        }
+
+        if (newPassword.value !== confirmPassword.value) {
+            showMessage(messageDiv, 'New passwords do not match.', 'error');
+            return;
+        }
+
+        if (newPassword.value.length < 8) {
+            showMessage(messageDiv, 'New password must be at least 8 characters long.', 'error');
+            return;
+        }
+
+        if (!isStrongPassword(newPassword.value)) {
+            showMessage(messageDiv, 'Password must contain uppercase, lowercase, and number.', 'error');
+            return;
+        }
+
+        // Disable button and show loading
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Changing...';
+
+        try {
+            const token = window.AuthManager?.token;
+            if (!token) {
+                showMessage(messageDiv, 'Authentication error. Please log in again.', 'error');
+                return;
+            }
+
+            const res = await fetch(`${BASE_URL}/api/user?action=change-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    currentPassword: currentPassword.value,
+                    newPassword: newPassword.value
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showMessage(messageDiv, 'Password changed successfully!', 'success');
+                // Clear fields
+                currentPassword.value = '';
+                newPassword.value = '';
+                confirmPassword.value = '';
+            } else {
+                showMessage(messageDiv, data.message || 'An error occurred.', 'error');
+            }
+        } catch (error) {
+            console.error('Password change error:', error);
+            showMessage(messageDiv, 'An unexpected error occurred.', 'error');
+        } finally {
+            // Re-enable button
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Change Password';
+        }
+    }
+
+    // Setup email preferences functionality
+    function setupEmailPreferences() {
+        const savePreferencesBtn = document.getElementById('save-email-preferences-btn');
+        if (savePreferencesBtn) {
+            const handler = handleEmailPreferencesChange;
+            savePreferencesBtn.addEventListener('click', handler);
+            eventListeners.push({ element: savePreferencesBtn, type: 'click', handler });
+        }
+    }
+
+    // Load email preferences
+    async function loadEmailPreferences() {
+        // Wait for AuthManager to be available
+        let retryCount = 0;
+        const maxRetries = 50;
+        
+        while (!window.AuthManager && retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retryCount++;
+        }
+
+        const token = window.AuthManager?.token || localStorage.getItem('token');
+        if (!token) {
+            console.log('No token available for loading email preferences');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${BASE_URL}/api/user?action=profile`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                console.log('Profile data received:', data);
+                // Set newsletter checkbox based on user preferences
+                const newsletterCheckbox = document.getElementById('newsletter-subscription');
+                if (newsletterCheckbox) {
+                    const isSubscribed = data.newsletterSubscribed || false;
+                    newsletterCheckbox.checked = isSubscribed;
+                    console.log('Newsletter subscription status:', isSubscribed);
+                } else {
+                    console.warn('Newsletter checkbox not found in DOM');
+                }
+            } else {
+                console.error('Failed to load profile data:', data);
+            }
+        } catch (e) {
+            console.error('Error loading email preferences:', e);
+        }
+    }
+
+    // Handle email preferences change
+    async function handleEmailPreferencesChange() {
+        const newsletterCheckbox = document.getElementById('newsletter-subscription');
+        const messageDiv = document.getElementById('email-preferences-message');
+        const submitBtn = document.getElementById('save-email-preferences-btn');
+
+        const token = window.AuthManager?.token || localStorage.getItem('token');
+        if (!token) {
+            showMessage(messageDiv, 'Authentication required. Please log in again.', 'error');
+            return;
+        }
+
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+        messageDiv.innerHTML = '';
+
+        try {
+            const res = await fetch(`${BASE_URL}/api/user?action=update-email-preferences`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    newsletterSubscribed: newsletterCheckbox.checked
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showMessage(messageDiv, 'Email preferences updated successfully!', 'success');
+            } else {
+                showMessage(messageDiv, data.error || 'Failed to update preferences. Please try again.', 'error');
+            }
+        } catch (e) {
+            console.error('Email preferences update error:', e);
+            showMessage(messageDiv, 'Network error. Please try again.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Preferences';
+        }
+    }
+
+    function showMessage(element, message, type) {
+        element.textContent = message;
+        if (type === 'success') {
+            element.className = 'mt-4 p-3 rounded-md bg-green-100 text-green-800';
+        } else {
+            element.className = 'mt-4 p-3 rounded-md bg-red-100 text-red-800';
+        }
+    }
+
+    function isStrongPassword(password) {
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasLowercase = /[a-z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        return hasUppercase && hasLowercase && hasNumber;
+    }
+
+    // Initial setup for the profile page
+    setupTabSwitching();
+    loadProfileInfo();
+    setupPasswordChange();
+    setupEmailPreferences();
+    loadEmailPreferences();
+
+    // Cleanup function
+    window.destroyProfile = function() {
+/*console.log("Destroying Profile page...");*/ 
+        eventListeners.forEach(listener => {
+            listener.element.removeEventListener(listener.type, listener.handler);
+        });
+        eventListeners = [];
+    };
+};

@@ -1,0 +1,338 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import axios from 'axios';
+import { connectToDatabase } from '../lib/mongodb';
+
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+const CACHE_EXPIRY_FUNDAMENTALS = 3600000; // 1 hour
+const CACHE_EXPIRY_NEWS = 3000000; // 50 minutes
+const CACHE_EXPIRY_COMPANY = 300000; // 5 minutes
+const CACHE_EXPIRY_STOCKS = 1800000; // 30 minutes
+
+// Helper function to calculate SMA time series
+async function calculateSMATimeSeries(data: number[], period: number): Promise<number[]> {
+  const sma: number[] = [];
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) {
+      sma.push(NaN); // Not enough data points for SMA
+    } else {
+      const sum = data.slice(i - period + 1, i + 1).reduce((acc, val) => acc + val, 0);
+      sma.push(sum / period);
+    }
+  }
+  return sma;
+}
+
+// Get current and last week dates for news
+function getCurrentDate() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getLastWeekDate() {
+  const date = new Date();
+  date.setDate(date.getDate() - 7);
+  return date.toISOString().split('T')[0];
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const { symbol } = req.query;
+  const action = req.query.action as string || 'price'; // Default to price data
+  const period = parseInt(req.query.period as string) || 200;
+
+  if (!symbol || typeof symbol !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid symbol' });
+  }
+
+  if (!FINNHUB_API_KEY) {
+    return res.status(500).json({ error: 'Missing Finnhub API key' });
+  }
+
+  try {
+    const db = await connectToDatabase();
+
+    switch (action) {
+      case 'fundamentals':
+        return await handleFundamentals(db, symbol, res);
+      
+      case 'news':
+        return await handleNews(db, symbol, res);
+      
+      case 'company-name':
+        return await handleCompanyName(db, symbol, res);
+      
+      case 'price':
+      case 'timeseries':
+        return await handleStockPrice(db, symbol, res);
+      
+      case 'sma':
+        return await handleSMA(db, symbol, period, res);
+      
+      case 'sma-timeseries':
+        return await handleSMATimeSeries(symbol, period, res);
+      
+      default:
+        return res.status(400).json({ error: `Unknown action: ${action}` });
+    }
+  } catch (error) {
+    console.error(`Error in stock-data API for ${symbol}:`, error);
+    return res.status(500).json({ error: `Error processing request for ${symbol}` });
+  }
+}
+
+// Handle fundamentals data
+async function handleFundamentals(db: any, symbol: string, res: VercelResponse) {
+  const cacheKey = `fundamentals-v5-${symbol}`; // Updated cache key to force refresh with corrected margin logic
+  const collection = db.collection('fundamentals');
+  
+  // Check cache
+  const cached = await collection.findOne({ cacheKey });
+  if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_FUNDAMENTALS) {
+    return res.status(200).json(cached.data);
+  }
+
+  // Fetch from Finnhub API
+  const [profileResponse, metricsResponse, quoteResponse, financialsResponse] = await Promise.all([
+    axios.get(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`),
+    axios.get(`https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${FINNHUB_API_KEY}`),
+    axios.get(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`),
+    axios.get(`https://finnhub.io/api/v1/stock/financials-reported?symbol=${symbol}&token=${FINNHUB_API_KEY}`)
+  ]);
+
+  const profile = profileResponse.data;
+  const metrics = metricsResponse.data?.metric || {};
+  const quote = quoteResponse.data;
+  const financials = financialsResponse.data?.data?.[0] || {};
+
+  if (!profile.name && !quote.c) {
+    return res.status(404).json({ error: `No data found for symbol ${symbol}` });
+  }
+
+  // Format the comprehensive data
+  const fundamentalData = {
+    // Company Info
+    symbol: symbol.toUpperCase(),
+    name: profile.name || symbol,
+    exchange: profile.exchange || 'N/A',
+    sector: profile.finnhubIndustry || 'N/A',
+    industry: profile.industry || 'N/A',
+    country: profile.country || 'N/A',
+    employees: profile.employeeTotal || null,
+    
+    // Market Data
+    currentPrice: quote.c || null,
+    dayChange: quote.d || null,
+    dayChangePercent: quote.dp || null,
+    marketCap: profile.marketCapitalization ? `$${(profile.marketCapitalization / 1000).toFixed(2)}B` : null,
+    volume: quote.volume || null,
+    fiftyTwoWeekHigh: metrics['52WeekHigh'] || null,
+    fiftyTwoWeekLow: metrics['52WeekLow'] || null,
+    
+    // Valuation Metrics
+    peRatio: metrics.peBasicExclExtraTTM || metrics.peTTM || null,
+    forwardPE: metrics.peNormalizedAnnual || null,
+    pegRatio: metrics.pegRatio || null,
+    priceToBook: metrics.pbQuarterly || null,
+    priceToSales: metrics.psQuarterly || null,
+    evToRevenue: metrics.evToRevenueTTM || null,
+    evToEbitda: metrics.evToEbitdaTTM || null,
+    
+    // Financial Performance (convert decimal to percentage - only if value seems to be in decimal format)
+    revenue: profile.marketCapitalization ? `$${(profile.marketCapitalization * (metrics.psQuarterly || 1) / 1000).toFixed(2)}B` : null,
+    revenueGrowth: metrics.revenueGrowthTTMYoy ? (metrics.revenueGrowthTTMYoy < 10 ? metrics.revenueGrowthTTMYoy * 100 : metrics.revenueGrowthTTMYoy) : null,
+    grossMargin: metrics.grossMarginTTM ? (metrics.grossMarginTTM <= 1 ? metrics.grossMarginTTM * 100 : metrics.grossMarginTTM) : null,
+    operatingMargin: metrics.operatingMarginTTM ? (metrics.operatingMarginTTM <= 1 ? metrics.operatingMarginTTM * 100 : metrics.operatingMarginTTM) : null,
+    profitMargin: metrics.netProfitMarginTTM ? (metrics.netProfitMarginTTM <= 1 ? metrics.netProfitMarginTTM * 100 : metrics.netProfitMarginTTM) : null,
+    eps: metrics.epsBasicExclExtraItemsTTM || null,
+    forwardEps: metrics.epsNormalizedAnnual || null,
+    
+    // Dividend & Risk (convert decimal to percentage - only if value seems to be in decimal format)
+    dividendYield: metrics.dividendYieldIndicatedAnnual ? (metrics.dividendYieldIndicatedAnnual <= 0.2 ? metrics.dividendYieldIndicatedAnnual * 100 : metrics.dividendYieldIndicatedAnnual) : null,
+    dividendRate: metrics.dividendPerShareAnnual || null,
+    payoutRatio: metrics.payoutRatioTTM ? (metrics.payoutRatioTTM <= 1 ? metrics.payoutRatioTTM * 100 : metrics.payoutRatioTTM) : null,
+    beta: metrics.beta || null,
+    bookValue: metrics.bookValuePerShareQuarterly || null
+  };
+
+  // Cache the result
+  await collection.updateOne(
+    { cacheKey },
+    { $set: { cacheKey, data: fundamentalData, timestamp: Date.now() } },
+    { upsert: true }
+  );
+
+  return res.status(200).json(fundamentalData);
+}
+
+// Handle news data
+async function handleNews(db: any, symbol: string, res: VercelResponse) {
+  const cacheKey = `news-${symbol}`;
+  const collection = db.collection('news');
+  
+  const cached = await collection.findOne({ cacheKey });
+  if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_NEWS) {
+    return res.status(200).json(cached.data);
+  }
+
+  const url = `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${getLastWeekDate()}&to=${getCurrentDate()}&token=${FINNHUB_API_KEY}`;
+  const response = await axios.get(url);
+  const result = { news: response.data };
+
+  await collection.updateOne(
+    { cacheKey },
+    { $set: { cacheKey, data: result, timestamp: Date.now() } },
+    { upsert: true }
+  );
+
+  return res.status(200).json(result);
+}
+
+// Handle company name
+async function handleCompanyName(db: any, symbol: string, res: VercelResponse) {
+  const cacheKey = `company-name-${symbol}`;
+  const collection = db.collection('companyNames');
+  
+  const cached = await collection.findOne({ cacheKey });
+  if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_COMPANY) {
+    return res.status(200).json(cached.data);
+  }
+
+  const url = `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+  const response = await axios.get(url);
+  const companyName = response.data.name || symbol;
+  const result = { name: companyName };
+
+  await collection.updateOne(
+    { cacheKey },
+    { $set: { cacheKey, data: result, timestamp: Date.now() } },
+    { upsert: true }
+  );
+
+  return res.status(200).json(result);
+}
+
+// Handle stock price data
+async function handleStockPrice(db: any, symbol: string, res: VercelResponse) {
+  const cacheKey = `stock-${symbol}`;
+  const collection = db.collection('stocks');
+  
+  const cached = await collection.findOne({ cacheKey });
+  if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_STOCKS) {
+    return res.status(200).json(cached.data);
+  }
+
+  const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=18mo`);
+  const data = response.data;
+
+  if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
+    return res.status(404).json({ error: `No data found for symbol ${symbol}` });
+  }
+
+  await collection.updateOne(
+    { cacheKey },
+    { $set: { cacheKey, data, timestamp: Date.now() } },
+    { upsert: true }
+  );
+
+  return res.status(200).json(data);
+}
+
+// Handle SMA calculation
+async function handleSMA(db: any, symbol: string, period: number, res: VercelResponse) {
+  const stockData = await handleStockPriceInternal(db, symbol);
+  
+  if (!stockData?.chart?.result?.[0]) {
+    return res.status(404).json({ error: `No data found for symbol ${symbol}` });
+  }
+
+  const prices = stockData.chart.result[0].indicators.quote[0].close;
+  if (prices.length < period) {
+    return res.status(400).json({ error: `Not enough data for ${period}-day SMA` });
+  }
+
+  const recentPrices = prices.slice(-period);
+  const sma = recentPrices.reduce((sum: number, price: number) => sum + price, 0) / period;
+
+  return res.status(200).json({ sma: parseFloat(sma.toFixed(2)) });
+}
+
+// Handle SMA time series
+async function handleSMATimeSeries(symbol: string, period: number, res: VercelResponse) {
+  try {
+    // Connect to the database
+    const db = await connectToDatabase();
+    const cacheKey = `sma-timeseries-${symbol}-${period}`;
+    const collection = db.collection('smaTimeseries');
+    
+    // Check cache
+    const cached = await collection.findOne({ cacheKey });
+    if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_STOCKS) {
+/*console.log(`Returning cached SMA timeseries for ${symbol}`);*/ 
+      return res.status(200).json(cached.data);
+    }
+    
+    // Fetch from Yahoo Finance if not in cache
+/*console.log(`Fetching SMA timeseries data for ${symbol}`);*/ 
+    const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2y`);
+    const data = response.data;
+
+    if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
+      console.error(`No chart data found for ${symbol}`);
+      return res.status(404).json({ error: `No data found for symbol ${symbol}` });
+    }
+
+    const result = data.chart.result[0];
+    const timestamps = result.timestamp;
+    const prices = result.indicators.quote[0].close;
+
+    if (prices.length < period) {
+      console.error(`Not enough price data for ${symbol} SMA calculation`);
+      return res.status(400).json({ error: `Not enough data for ${period}-day SMA` });
+    }
+
+    const smaValues = await calculateSMATimeSeries(prices, period);
+    const smaData = timestamps.map((timestamp: number, index: number) => ({
+      date: new Date(timestamp * 1000).toISOString().split('T')[0],
+      value: isNaN(smaValues[index]) ? null : parseFloat(smaValues[index].toFixed(2))
+    })).filter((item: any) => item.value !== null);
+
+    const responseData = { values: smaData };
+    
+    // Cache the result
+    await collection.updateOne(
+      { cacheKey },
+      { $set: { cacheKey, data: responseData, timestamp: Date.now() } },
+      { upsert: true }
+    );
+
+/*console.log(`Returning fresh SMA timeseries for ${symbol}`);*/ 
+    return res.status(200).json(responseData);
+  } catch (error) {
+    console.error(`Error in handleSMATimeSeries for ${symbol}:`, error);
+    return res.status(500).json({ error: `Error calculating SMA timeseries for ${symbol}` });
+  }
+}
+
+// Internal helper for stock price (no response)
+async function handleStockPriceInternal(db: any, symbol: string) {
+  const cacheKey = `stock-${symbol}`;
+  const collection = db.collection('stocks');
+  
+  const cached = await collection.findOne({ cacheKey });
+  if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_STOCKS) {
+    return cached.data;
+  }
+
+  const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=18mo`);
+  const data = response.data;
+
+  if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
+    return null;
+  }
+
+  await collection.updateOne(
+    { cacheKey },
+    { $set: { cacheKey, data, timestamp: Date.now() } },
+    { upsert: true }
+  );
+
+  return data;
+}

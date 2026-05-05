@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Dip Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> 
+    <link rel="stylesheet" href="styles/styles.css">    <style>
+        /* Gradient button style matching header */
+        .gradient-btn {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            color: #fff;
+            transition: background 0.2s;
+        }
+        .gradient-btn:hover {
+            background: linear-gradient(to right, #2563eb, #7c3aed);
+        }
+        
+        /* Blue gradient for navigation and login buttons */
+        .blue-gradient-btn {
+            background: linear-gradient(to right, #2563eb, #1d4ed8);
+            color: white;
+            transition: all 0.2s;
+        }
+        .blue-gradient-btn:hover {
+            background: linear-gradient(to right, #1d4ed8, #1e40af);
+            transform: scale(1.05);
+        }
+        
+        /* Green gradient for profile settings */
+        .green-gradient-btn {
+            background: linear-gradient(to right, #10b981, #059669);
+            color: white;
+            transition: all 0.2s;
+        }
+        .green-gradient-btn:hover {
+            background: linear-gradient(to right, #059669, #047857);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen flex flex-col">
+    <div class="flex-1 flex flex-col container mx-auto p-4">
+        <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-md mb-8">
+            <h1 class="text-center text-4xl font-extrabold tracking-tight">Dip Finder</h1>
+            <p class="text-center text-lg font-light">Profile & Settings</p>
+        </header>
+        <!-- Menu bar under header -->
+        <nav class="w-full bg-white/80 backdrop-blur-sm shadow-lg mb-6 rounded-xl border border-gray-200/50 overflow-visible">
+            <div class="container mx-auto flex justify-between items-center p-4 overflow-visible">
+                <!-- Left side navigation -->
+                <div class="flex items-center gap-2">
+                    <a href="index.html" class="bg-gray-100 text-gray-700 hover:bg-gray-200 px-5 py-2.5 rounded-xl text-sm font-medium cursor-pointer border border-gray-200 hover:border-gray-300 transform hover:scale-105 transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-chart-line text-sm"></i>
+                        Dip Finder
+                    </a>
+                    <a href="screener.html" class="bg-gray-100 text-gray-700 hover:bg-gray-200 px-5 py-2.5 rounded-xl text-sm font-medium cursor-pointer border border-gray-200 hover:border-gray-300 transform hover:scale-105 transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-search text-sm"></i>
+                        Stock Screener
+                    </a>
+                    <div class="blue-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg flex items-center gap-2">
+                        <i class="fas fa-user-cog text-sm"></i>
+                        Profile
+                    </div>
+                </div>
+                <!-- Right side auth buttons -->
+                <div class="flex items-center gap-3">
+                    <!-- Profile dropdown -->
+                    <div class="relative">
+                        <button id="profile-btn"
+                            class="green-gradient-btn px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+                            onclick="toggleProfileMenu()">
+                            <i class="fas fa-user-circle text-sm"></i>
+                            Profile Settings
+                            <i class="fas fa-chevron-down text-xs ml-1"></i>
+                        </button>
+                        <!-- Dropdown menu -->
+                        <div id="profile-dropdown-menu" 
+                             class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 hidden z-50">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+                                <p id="dropdown-profile-email" class="text-sm font-semibold text-gray-800 truncate">user@example.com</p>
+                                <p class="text-gray-500 text-xs mt-1">
+                                    <i class="fas fa-circle text-green-400 text-xs mr-2"></i>
+                                    Welcome back!
+                                </p>
+                            </div>
+                            <div class="p-2">
+                                <button onclick="document.getElementById('profile-dropdown-menu').classList.add('hidden'); window.location.href='profile.html';" 
+                                        class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors flex items-center">
+                                    <i class="fas fa-user mr-3 text-blue-500"></i>Profile Page
+                                </button>
+                                <button onclick="logout()" 
+                                        class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors flex items-center">
+                                    <i class="fas fa-sign-out-alt mr-3 text-red-500"></i>Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <!-- End menu bar -->
+        <div class="flex flex-col md:flex-row gap-4 flex-1">
+            <div class="md:w-1/4 bg-white p-4 rounded shadow flex flex-col items-center">
+                <button id="profile-tab" class="w-full mb-2 gradient-btn px-4 py-2 rounded-md">Profile</button>
+                <button id="settings-tab" class="w-full mb-2 bg-gray-300 text-gray-800 px-4 py-2 rounded-md">Settings</button>
+                <button id="subscribe-tab" class="w-full bg-gray-300 text-gray-800 px-4 py-2 rounded-md">Subscription</button>
+            </div>
+            <div class="md:w-3/4 bg-white p-4 rounded shadow" id="profile-content-display">
+                <!-- Profile info will be shown here -->
+                <h2 class="text-xl font-bold mb-4">Profile</h2>
+                <div id="profile-info">
+                    <p><strong>Email:</strong> <span id="profile-page-email"></span></p>
+                    <p><strong>Member since:</strong> <span id="profile-member-since"></span></p>
+                </div>
+            </div>
+            <div class="md:w-3/4 bg-white p-4 rounded shadow hidden" id="settings-content-display">
+                <!-- Settings info will be shown here -->
+                <h2 class="text-xl font-bold mb-4">Settings</h2>
+                
+                <!-- Change Password Section -->
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Change Password</h3>
+                    <div class="space-y-4 max-w-md">
+                        <div>
+                            <label for="current-password" class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                            <input type="password" id="current-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter current password">
+                        </div>
+                        <div>
+                            <label for="new-password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                            <input type="password" id="new-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter new password">
+                        </div>
+                        <div>
+                            <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                            <input type="password" id="confirm-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Confirm new password">
+                        </div>
+                        <button id="change-password-btn" class="gradient-btn px-4 py-2 rounded-md shadow hover:opacity-90 transition-opacity">
+                            Change Password
+                        </button>
+                        <div id="password-change-message"></div>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600">
+                        <p><strong>Password requirements:</strong></p>
+                        <ul class="list-disc list-inside mt-1">
+                            <li>At least 8 characters long</li>
+                            <li>Contains uppercase and lowercase letters</li>
+                            <li>Contains at least one number</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- Subscribe info will be shown here 
+            <div class="md:w-3/4 bg-white p-4 rounded shadow hidden" id="subscribe-content-display">
+                <h2 class="text-xl font-bold mb-4">Subscription</h2>
+                <div id="subscribe-info">
+                    <p>Subscribe options will go here.</p>
+                </div>
+            </div>
+            -->
+        </div>
+        <footer class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg shadow-md text-center mt-8">
+            <div class="flex justify-center space-x-6">
+                <a href="privacy.html" class="hover:text-blue-200 transition-colors">Terms</a>
+                <a href="contact.html" class="hover:text-blue-200 transition-colors">Contact</a>
+            </div>
+        </footer>
+    </div>
+    <script>
+        function toggleProfileMenu() {
+            const menu = document.getElementById('profile-dropdown-menu');
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+            } else {
+                menu.classList.add('hidden');
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('profile-dropdown-menu');
+            const button = document.getElementById('profile-btn');
+            
+            if (!button.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    </script>
+    <script src="auth.js"></script>
+    <script src="profile.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.initializeProfile) {
+                window.initializeProfile();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+1. error when wrong input
+2. database
+
+------ bug  ------
+
+
+------ base ------
+percentage change in chart
+
+  company name
+  daily change
+  news for watchlist stocks
+  stock in table alphabetically
+
+dark theme
+put online
+
+------ pro  ------
+email alerts
+more stocks per watchlist
+multiple watchlists
+alternative chart (scatter chart PE)
+AI alert

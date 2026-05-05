@@ -1,0 +1,83 @@
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-1">
+                <div class="bg-white p-4 rounded shadow">
+                    <h2 class="text-xl font-bold mb-4">Stocks</h2>
+                    <p class="text-sm text-gray-600 mb-3">
+                        <i class="fas fa-info-circle text-blue-500"></i> 
+                        You can click on any stock to view details in the screener
+                    </p>
+                    <div class="mt-4">
+                        <input type="text" id="new-stock" class="border px-4 py-2 w-50"
+                            placeholder="Add a stock symbol">
+                        <button id="add-stock" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded w-50">Add</button>
+                        <span id="stocks-loading" class="block text-center text-blue-500 font-semibold"></span>
+                        <p id="stock-limit-message" class="text-red-500 mt-2 hidden">You can only have up to 10 stocks.
+                        </p>
+                    </div>
+                    <table id="stocks-table" class="min-w-full divide-y divide-gray-200 mt-4 text-sm">
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Rows will be appended here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="md:col-span-2">
+                <div class="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-lg border border-gray-200/50 backdrop-blur-sm">
+                    <span id="sma-loading" class="block text-center text-blue-500 font-semibold mb-4"></span>
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-1">Price vs SMA Analysis</h3>
+                            <p class="text-sm text-gray-600">Track how your stocks perform relative to their moving averages</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-medium text-gray-700">Period:</span>
+                            <div class="custom-select-wrapper">
+                                <div class="custom-select" id="sma-period-custom">
+                                    <div class="custom-select-trigger">
+                                        <span id="sma-period-text">200-Day SMA</span>
+                                        <i class="fas fa-chevron-down custom-select-arrow"></i>
+                                    </div>
+                                    <div class="custom-select-options" id="sma-period-options">
+                                        <div class="custom-select-option active" data-value="200">
+                                            <span>200-Day SMA</span>
+                                        </div>
+                                        <div class="custom-select-option" data-value="100">
+                                            <span>100-Day SMA</span>
+                                        </div>
+                                        <div class="custom-select-option" data-value="50">
+                                            <span>50-Day SMA</span>
+                                        </div>
+                                        <div class="custom-select-option" data-value="10">
+                                            <span>10-Day SMA</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Hidden select for form compatibility -->
+                                <select id="sma-period" class="hidden">
+                                    <option value="200">200-Day SMA</option>
+                                    <option value="100">100-Day SMA</option>
+                                    <option value="50">50-Day SMA</option>
+                                    <option value="10">10-Day SMA</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="relative bg-white rounded-lg p-4 shadow-inner border border-gray-100">
+                        <canvas id="stocks-chart" style="height: 600px;"></canvas>
+                        <div id="chart-loading" class="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-lg hidden">
+                            <div class="flex items-center gap-3">
+                                <div class="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
+                                <span class="text-gray-600 font-medium">Loading chart data...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 bg-white p-4 rounded shadow" style="min-height: 700px;">
+                    <h2 id="news-title" class="text-2xl font-bold mb-4 text-gray-800">Latest News For Your Watchlist</h2>
+                    <div id="news-feed">
+                        <span id="news-loading" class="block text-center text-blue-500 font-semibold"></span>
+                        <!-- News articles will be appended here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact & Support - DipFinder</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <style>
+        .gradient-btn {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            color: #fff;
+            transition: background 0.2s;
+        }
+        .gradient-btn:hover {
+            background: linear-gradient(to right, #2563eb, #7c3aed);
+        }
+        .contact-card {
+            transition: all 0.3s ease;
+        }
+        .contact-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen flex flex-col">
+    <div class="flex-1 flex flex-col container mx-auto p-4">
+        <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-md mb-8">
+            <h1 class="text-center text-4xl font-extrabold tracking-tight">DipFinder</h1>
+            <p class="text-center text-lg font-light">Contact & Support</p>
+        </header>
+        
+        <button onclick="window.location.href='index.html'" class="mb-6 self-start gradient-btn px-4 py-2 rounded-md shadow">
+            <i class="fas fa-arrow-left mr-2"></i>Back To Homepage
+        </button>
+
+        <div class="flex-1 flex justify-center">
+            <!-- Contact Information -->
+            <div class="bg-white p-8 rounded-lg shadow-md contact-card max-w-2xl w-full">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <i class="fas fa-envelope text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Get in Touch</h2>
+                    <p class="text-gray-600">We're here to help with any questions or issues you may have</p>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="flex items-start space-x-4">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-envelope text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-800">Email Support</h3>
+                            <p class="text-gray-600 text-sm mb-2">Get help with your account, technical issues, or general questions</p>
+                            <a href="mailto:info@dipfinder.com" class="text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                                info@dipfinder.com
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start space-x-4">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-clock text-green-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-800">Response Time</h3>
+                            <p class="text-gray-600 text-sm">We typically respond within 24 hours during business days</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg shadow-md text-center mt-8">
+            <div class="flex justify-center space-x-6">
+                <a href="privacy.html" class="hover:text-blue-200 transition-colors">Terms</a>
+                <a href="contact.html" class="hover:text-blue-200 transition-colors">Contact</a>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
