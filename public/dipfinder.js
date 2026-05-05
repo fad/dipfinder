@@ -272,77 +272,6 @@ function getSmaDiffClasses(diffPercent) {
     return 'bg-green-100 text-green-700';
 }
 
-function getChartThemeColors() {
-    const isDark = document.documentElement.classList.contains('dark-mode');
-    return {
-        tickColor: isDark ? '#cbd5e1' : '#374151',
-        titleColor: isDark ? '#cbd5e1' : '#475569',
-        gridColor: isDark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(0, 0, 0, 0.08)',
-        zeroGridColor: isDark ? 'rgba(226, 232, 240, 0.72)' : 'rgba(17, 24, 39, 0.55)',
-        tooltipBackground: isDark ? '#020617' : '#111827',
-        tooltipText: '#f8fafc'
-    };
-}
-
-function applyChartTheme(chartInstance) {
-    if (!chartInstance || !chartInstance.options || !chartInstance.options.scales) return;
-
-    const theme = getChartThemeColors();
-    const xScale = chartInstance.options.scales.x;
-    const yScale = chartInstance.options.scales.y;
-
-    if (chartInstance.options.plugins && chartInstance.options.plugins.tooltip) {
-        chartInstance.options.plugins.tooltip.backgroundColor = theme.tooltipBackground;
-        chartInstance.options.plugins.tooltip.titleColor = theme.tooltipText;
-        chartInstance.options.plugins.tooltip.bodyColor = theme.tooltipText;
-        chartInstance.options.plugins.tooltip.borderColor = theme.zeroGridColor;
-        chartInstance.options.plugins.tooltip.borderWidth = 1;
-    }
-
-    if (xScale) {
-        xScale.grid = xScale.grid || {};
-        xScale.grid.color = function(context) {
-            return context.tick.value === 0 ? theme.zeroGridColor : theme.gridColor;
-        };
-        xScale.grid.lineWidth = function(context) {
-            return context.tick.value === 0 ? 2 : 1;
-        };
-        xScale.ticks = xScale.ticks || {};
-        xScale.ticks.color = theme.tickColor;
-        xScale.title = {
-            display: true,
-            text: xScale.title && xScale.title.text ? xScale.title.text : 'Difference vs selected SMA',
-            color: theme.titleColor,
-            font: {
-                size: 12,
-                weight: '600'
-            }
-        };
-    }
-
-    if (yScale) {
-        yScale.ticks = yScale.ticks || {};
-        yScale.ticks.color = theme.tickColor;
-        yScale.grid = yScale.grid || {};
-        yScale.grid.color = theme.gridColor;
-        yScale.title = {
-            display: true,
-            text: 'Ticker',
-            color: theme.titleColor,
-            font: {
-                size: 12,
-                weight: '600'
-            }
-        };
-    }
-}
-
-window.refreshDipfinderChartTheme = function() {
-    if (!chart) return;
-    applyChartTheme(chart);
-    chart.update();
-};
-
 function renderSummaryMetrics(stockDataArray, period) {
     const biggestDipEl = document.getElementById('metric-biggest-dip');
     const biggestDipDetailEl = document.getElementById('metric-biggest-dip-detail');
@@ -668,11 +597,10 @@ async function updateTableAndChart(period) {
                         label: function(context) {
                             const data = context.dataset.stockData[context.dataIndex];
                             if (!data) return `${context.parsed.x}%`;
-                            const diffPercent = getSmaDiffPercent(data);
                             return [
                                 `Current: ${formatCurrency(data.currentPrice)}`,
-                                `${period}-Day SMA: ${formatCurrency(data.sma)}`,
-                                `Difference vs SMA: ${formatPercent(diffPercent)}`
+                                `SMA: ${formatCurrency(data.sma)}`,
+                                `Difference: ${formatPercent(getSmaDiffPercent(data))}`
                             ];
                         }
                     }
@@ -690,19 +618,12 @@ async function updateTableAndChart(period) {
                         }
                     },
                     ticks: {
+                        color: '#374151',
                         font: {
                             size: 12
                         },
                         callback: function(value) {
                             return `${value}%`;
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: `Difference vs ${period}-Day SMA`,
-                        font: {
-                            size: 12,
-                            weight: '600'
                         }
                     }
                 },
@@ -711,24 +632,15 @@ async function updateTableAndChart(period) {
                         display: false
                     },
                     ticks: {
+                        color: '#374151',
                         font: {
                             size: 12
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Ticker',
-                        font: {
-                            size: 12,
-                            weight: '600'
                         }
                     }
                 }
             }
         }
     });
-    applyChartTheme(chart);
-    chart.update();
 
     // Hide chart loading indicator
     hideChartLoading();
@@ -1237,8 +1149,6 @@ function restoreChart(canvas, chartData) {
         data: JSON.parse(JSON.stringify(chartData.data)), // Deep clone to avoid reference issues
         options: JSON.parse(JSON.stringify(chartData.options))
     });
-    applyChartTheme(chart);
-    chart.update();
 }
 
 // Re-attach event listeners to stock rows
