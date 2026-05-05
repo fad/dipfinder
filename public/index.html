@@ -211,23 +211,16 @@
             <div class="px-5 py-4 text-white sm:px-6" style="background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 54%, #3730a3 100%);">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <div class="mb-3 inline-flex items-center rounded-xl border border-white border-opacity-20 bg-white bg-opacity-10 px-3 py-2 shadow-sm" aria-label="Dip Finder logo">
-                            <svg width="156" height="34" viewBox="0 0 156 34" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="dipfinder-logo-title">
-                                <title id="dipfinder-logo-title">Dip Finder</title>
-                                <rect x="1" y="1" width="32" height="32" rx="9" fill="white" fill-opacity="0.96"/>
-                                <path d="M9 12.5H14.2C17.8 12.5 20.4 14.9 20.4 18.2C20.4 21.5 17.8 24 14.2 24H9V12.5Z" fill="#3730A3"/>
-                                <path d="M13.1 15.5V21H14.1C15.9 21 17.1 19.9 17.1 18.2C17.1 16.6 15.9 15.5 14.1 15.5H13.1Z" fill="white"/>
-                                <path d="M22 12.5H29V15.4H25.4V17.2H28.7V20H25.4V24H22V12.5Z" fill="#4F46E5"/>
-                                <path d="M43 9.5H50.2C57.4 9.5 62.4 14.2 62.4 21.1C62.4 27.9 57.4 32.5 50.2 32.5H43V9.5ZM50 27.1C53.8 27.1 56.2 24.8 56.2 21.1C56.2 17.3 53.8 14.9 50 14.9H48.9V27.1H50Z" fill="white"/>
-                                <path d="M66.4 9.5H72.3V32.5H66.4V9.5Z" fill="white"/>
-                                <path d="M77.1 9.5H87.2C92.2 9.5 95.5 12.5 95.5 16.9C95.5 21.4 92.2 24.3 87.2 24.3H83V32.5H77.1V9.5ZM86.4 19.2C88.3 19.2 89.5 18.3 89.5 16.9C89.5 15.4 88.3 14.5 86.4 14.5H83V19.2H86.4Z" fill="white"/>
-                                <path d="M103.6 9.5H119.4V14.7H109.5V18.6H118.4V23.7H109.5V32.5H103.6V9.5Z" fill="white" fill-opacity="0.88"/>
-                                <path d="M123.2 9.5H129.1V32.5H123.2V9.5Z" fill="white" fill-opacity="0.88"/>
-                                <path d="M134 9.5H139.4L149.1 22.5V9.5H154.8V32.5H149.5L139.7 19.6V32.5H134V9.5Z" fill="white" fill-opacity="0.88"/>
-                            </svg>
+                        <div class="mb-3 inline-flex items-center gap-2 rounded-xl border border-white border-opacity-20 bg-white bg-opacity-10 px-3 py-2 text-sm font-extrabold shadow-sm">
+                            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-indigo-700">DF</span>
+                            <span>Dip Finder</span>
                         </div>
                         <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Biggest Dips in Stocks You Already Want to Own</h1>
                         <p class="mt-2 max-w-3xl text-sm text-blue-50 sm:text-base">Track your watchlist and spot when your favorite companies finally pull back.</p>
+                    </div>
+                    <div class="inline-flex items-center gap-3 rounded-xl border border-white border-opacity-20 bg-white bg-opacity-10 px-4 py-2 text-sm font-semibold shadow-sm">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Moving Average Watchlist</span>
                     </div>
                 </div>
             </div>
@@ -239,7 +232,7 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <a href="/" data-link class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
                         <i class="fas fa-chart-line text-sm"></i>
-                        Dashboard
+                        Dip Finder
                     </a>
                     <a href="/screener" data-link class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
                         <i class="fas fa-search text-sm"></i>
@@ -249,9 +242,10 @@
                 <!-- Right side auth buttons -->
                 <div class="flex flex-wrap items-center gap-3">
                     <button id="theme-toggle" type="button"
-                        class="theme-toggle inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold shadow-sm transition"
+                        class="theme-toggle inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition"
                         aria-label="Switch to dark mode" aria-pressed="false">
                         <i id="theme-toggle-icon" class="fas fa-moon text-sm"></i>
+                        <span id="theme-toggle-label">Dark</span>
                     </button>
                     <!-- Login/Register button - hidden initially -->
                     <div id="auth-button"
@@ -515,12 +509,14 @@
             const isDark = document.documentElement.classList.contains('dark-mode');
             const toggle = document.getElementById('theme-toggle');
             const icon = document.getElementById('theme-toggle-icon');
+            const label = document.getElementById('theme-toggle-label');
 
-            if (!toggle || !icon) return;
+            if (!toggle || !icon || !label) return;
 
             toggle.setAttribute('aria-pressed', String(isDark));
             toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
             icon.className = isDark ? 'fas fa-sun text-sm' : 'fas fa-moon text-sm';
+            label.textContent = isDark ? 'Light' : 'Dark';
         }
 
         document.addEventListener('DOMContentLoaded', function() {
