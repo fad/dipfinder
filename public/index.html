@@ -148,12 +148,15 @@
                 gtag('js', new Date());
                 gtag('config', 'G-CDWQY0HNJ8');
             </script>
-            <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-5 py-4 text-white sm:px-6">
+            <div class="px-5 py-4 text-white sm:px-6" style="background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 54%, #3730a3 100%);">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-blue-100">Watchlist Dip Monitor</p>
-                        <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Dip Finder</h1>
-                        <p class="mt-1 max-w-3xl text-sm text-blue-50 sm:text-base">See which watchlist stocks are trading furthest below their selected moving average.</p>
+                        <div class="mb-3 inline-flex items-center gap-2 rounded-xl border border-white border-opacity-20 bg-white bg-opacity-10 px-3 py-2 text-sm font-extrabold shadow-sm">
+                            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-indigo-700">DF</span>
+                            <span>Dip Finder</span>
+                        </div>
+                        <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Biggest Dips in Stocks You Already Want to Own</h1>
+                        <p class="mt-2 max-w-3xl text-sm text-blue-50 sm:text-base">Track your watchlist and spot when your favorite companies finally pull back.</p>
                     </div>
                     <div class="inline-flex items-center gap-3 rounded-xl border border-white border-opacity-20 bg-white bg-opacity-10 px-4 py-2 text-sm font-semibold shadow-sm">
                         <i class="fas fa-chart-line"></i>
@@ -465,6 +468,9 @@
                 const isDark = document.documentElement.classList.toggle('dark-mode');
                 localStorage.setItem('theme', isDark ? 'dark' : 'light');
                 updateThemeToggle();
+                if (window.refreshDipfinderChartTheme) {
+                    window.refreshDipfinderChartTheme();
+                }
             });
         });
     </script>
