@@ -42,28 +42,6 @@
             background: linear-gradient(to right, #2563eb, #7c3aed);
         }
         
-        /* Blue gradient for navigation and login buttons */
-        .blue-gradient-btn {
-            background: linear-gradient(to right, #2563eb, #1d4ed8);
-            color: white;
-            transition: all 0.2s;
-        }
-        .blue-gradient-btn:hover {
-            background: linear-gradient(to right, #1d4ed8, #1e40af);
-            transform: scale(1.05);
-        }
-        
-        /* Green gradient for profile settings */
-        .green-gradient-btn {
-            background: linear-gradient(to right, #10b981, #059669);
-            color: white;
-            transition: all 0.2s;
-        }
-        .green-gradient-btn:hover {
-            background: linear-gradient(to right, #059669, #047857);
-            transform: scale(1.05);
-        }
-
         html.dark-mode body {
             background: #0f172a !important;
             color: #e5e7eb !important;
@@ -133,7 +111,7 @@
 
 <body class="bg-gray-50 text-gray-900 antialiased">
     <div class="mx-auto min-h-screen max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <header class="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <header class="mb-5 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js"
                 data-cbid="8a337494-5686-46e4-b16a-ded492ed02e7" type="text/javascript" async>
                 </script>
@@ -148,26 +126,18 @@
                 gtag('js', new Date());
                 gtag('config', 'G-CDWQY0HNJ8');
             </script>
-            <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-5 py-4 text-white sm:px-6">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-blue-100">Watchlist Dip Monitor</p>
-                        <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Dip Finder</h1>
-                        <p class="mt-1 max-w-3xl text-sm text-blue-50 sm:text-base">See which watchlist stocks are trading furthest below their selected moving average.</p>
+            <div class="flex flex-col gap-4 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+                        <i class="fas fa-chart-line text-sm"></i>
                     </div>
-                    <div class="inline-flex items-center gap-3 rounded-xl border border-white border-opacity-20 bg-white bg-opacity-10 px-4 py-2 text-sm font-semibold shadow-sm">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Moving Average Watchlist</span>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Watchlist Dip Monitor</p>
+                        <h1 class="text-lg font-extrabold text-gray-900">Dip Finder</h1>
                     </div>
                 </div>
-            </div>
-        </header>
-        <!-- Menu bar under header -->
-        <nav class="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <div class="flex flex-col gap-4 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <!-- Left side navigation -->
-                <div class="flex flex-wrap items-center gap-2">
-                    <a href="/" data-link class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                <nav class="flex flex-wrap items-center gap-2">
+                    <a href="/" data-link class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700">
                         <i class="fas fa-chart-line text-sm"></i>
                         Dip Finder
                     </a>
@@ -175,8 +145,7 @@
                         <i class="fas fa-search text-sm"></i>
                         Stock Screener
                     </a>
-                </div>
-                <!-- Right side auth buttons -->
+                </nav>
                 <div class="flex flex-wrap items-center gap-3">
                     <button id="theme-toggle" type="button"
                         class="theme-toggle inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition"
@@ -186,14 +155,14 @@
                     </button>
                     <!-- Login/Register button - hidden initially -->
                     <div id="auth-button"
-                        class="green-gradient-btn hidden cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition flex">
+                        class="hidden cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 flex">
                         <i class="fas fa-user-plus text-sm"></i>
                         Login or Register
                     </div>
                     <!-- Profile dropdown - hidden initially -->
                     <div class="relative hidden" id="profile-dropdown">
                         <button id="profile-btn"
-                            class="green-gradient-btn flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition"
+                            class="flex cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
                             onclick="toggleProfileMenu()">
                             <i class="fas fa-user-circle text-sm"></i>
                             Profile Settings
@@ -224,8 +193,7 @@
                     </div>
                 </div>
             </div>
-        </nav>
-        <!-- End menu bar -->
+        </header>
 
         <!-- Hovering Authentication Modal -->
         <div id="auth-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-60 px-4 flex" onclick="closeAuthModalOnBackdrop(event)">
@@ -267,7 +235,7 @@
                         <i class="fas fa-sign-in-alt mr-2"></i>Login
                     </button>
                     <button onclick="showRegisterForm()"
-                        class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-medium transition-colors">
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-lg font-medium transition-colors">
                         <i class="fas fa-user-plus mr-2"></i>Register
                     </button>
                 </div>
@@ -347,7 +315,7 @@
                             <i class="fas fa-envelope mr-2"></i>Email
                         </label>
                         <input type="email" id="register-email" 
-                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
                                placeholder="Enter your email" required>
                     </div>
                     <div>
@@ -355,7 +323,7 @@
                             <i class="fas fa-lock mr-2"></i>Password
                         </label>
                         <input type="password" id="register-password" 
-                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
                                placeholder="Create a password" required>
                     </div>
                     
@@ -363,11 +331,11 @@
                     <div class="space-y-3">
                         <div class="flex items-start">
                             <input type="checkbox" id="register-terms" 
-                                   class="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded" 
+                                   class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" 
                                    required>
                             <label for="register-terms" class="ml-2 text-sm text-gray-700">
-                                I agree to the <a href="/privacy" target="_blank" class="text-green-600 hover:text-green-700 underline">Terms of Service</a> 
-                                and <a href="/privacy" target="_blank" class="text-green-600 hover:text-green-700 underline">Privacy Policy</a>
+                                I agree to the <a href="/privacy" target="_blank" class="text-indigo-600 hover:text-indigo-700 underline">Terms of Service</a> 
+                                and <a href="/privacy" target="_blank" class="text-indigo-600 hover:text-indigo-700 underline">Privacy Policy</a>
                                 <span class="text-red-500">*</span>
                             </label>
                         </div>
@@ -375,7 +343,7 @@
                         <!-- Newsletter (Optional) -->
                         <div class="flex items-start">
                             <input type="checkbox" id="register-newsletter" 
-                                   class="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                                   class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
                             <label for="register-newsletter" class="ml-2 text-sm text-gray-700">
                                 I would like to receive updates, promotions and newsletters.
                             </label>

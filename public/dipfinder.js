@@ -266,10 +266,58 @@ function getSortableSmaDiff(data) {
     return Number.isFinite(diffPercent) ? diffPercent : Number.POSITIVE_INFINITY;
 }
 
-function getSmaDiffClasses(diffPercent) {
-    if (!Number.isFinite(diffPercent)) return 'bg-gray-100 text-gray-600';
-    if (diffPercent < 0) return 'bg-red-100 text-red-700';
-    return 'bg-green-100 text-green-700';
+function getTrendTone(diffPercent) {
+    if (!Number.isFinite(diffPercent)) {
+        return {
+            label: 'No SMA',
+            badgeClasses: 'bg-gray-100 text-gray-600',
+            backgroundColor: 'rgba(100, 116, 139, 0.45)',
+            borderColor: 'rgba(71, 85, 105, 1)'
+        };
+    }
+
+    if (diffPercent <= -15) {
+        return {
+            label: 'Deep dip',
+            badgeClasses: 'bg-rose-100 text-rose-800',
+            backgroundColor: 'rgba(190, 90, 90, 0.64)',
+            borderColor: 'rgba(159, 72, 72, 1)'
+        };
+    }
+
+    if (diffPercent < -5) {
+        return {
+            label: 'Dip',
+            badgeClasses: 'bg-amber-100 text-amber-800',
+            backgroundColor: 'rgba(217, 119, 6, 0.62)',
+            borderColor: 'rgba(180, 83, 9, 1)'
+        };
+    }
+
+    if (diffPercent < 0) {
+        return {
+            label: 'Below trend',
+            badgeClasses: 'bg-orange-100 text-orange-800',
+            backgroundColor: 'rgba(234, 128, 50, 0.52)',
+            borderColor: 'rgba(194, 93, 32, 1)'
+        };
+    }
+
+    if (diffPercent <= 5) {
+        return {
+            label: 'Above trend',
+            badgeClasses: 'bg-teal-50 text-teal-800',
+            backgroundColor: 'rgba(45, 150, 143, 0.5)',
+            borderColor: 'rgba(15, 118, 110, 1)'
+        };
+    }
+
+    return {
+        label: 'Above trend',
+        badgeClasses: 'bg-cyan-50 text-cyan-800',
+        backgroundColor: 'rgba(14, 116, 144, 0.58)',
+        borderColor: 'rgba(21, 94, 117, 1)'
+    };
 }
 
 function renderSummaryMetrics(stockDataArray, period) {
@@ -286,9 +334,9 @@ function renderSummaryMetrics(stockDataArray, period) {
     if (validRows.length === 0) {
         [biggestDipEl, belowSmaEl, averageDipEl, strongestAboveEl].forEach(el => { if (el) el.textContent = '--'; });
         if (biggestDipDetailEl) biggestDipDetailEl.textContent = 'Waiting for watchlist data';
-        if (belowSmaDetailEl) belowSmaDetailEl.textContent = `${period}-Day SMA`;
+        if (belowSmaDetailEl) belowSmaDetailEl.textContent = `${period}-Day trend`;
         if (averageDipDetailEl) averageDipDetailEl.textContent = 'Mean distance vs SMA';
-        if (strongestAboveDetailEl) strongestAboveDetailEl.textContent = 'Best positive spread';
+        if (strongestAboveDetailEl) strongestAboveDetailEl.textContent = 'Largest positive spread';
         return;
     }
 
@@ -299,13 +347,13 @@ function renderSummaryMetrics(stockDataArray, period) {
     const averageDiff = validRows.reduce((sum, data) => sum + getSmaDiffPercent(data), 0) / validRows.length;
 
     if (biggestDipEl) biggestDipEl.textContent = `${biggestDip.stock} ${formatPercent(getSmaDiffPercent(biggestDip))}`;
-    if (biggestDipDetailEl) biggestDipDetailEl.textContent = `vs ${period}-Day SMA ${formatCurrency(biggestDip.sma)}`;
+    if (biggestDipDetailEl) biggestDipDetailEl.textContent = `${getTrendTone(getSmaDiffPercent(biggestDip)).label} vs ${period}-Day SMA ${formatCurrency(biggestDip.sma)}`;
     if (belowSmaEl) belowSmaEl.textContent = `${belowCount} / ${validRows.length}`;
-    if (belowSmaDetailEl) belowSmaDetailEl.textContent = `Trading below ${period}-Day SMA`;
+    if (belowSmaDetailEl) belowSmaDetailEl.textContent = `Below ${period}-Day trend`;
     if (averageDipEl) averageDipEl.textContent = formatPercent(averageDiff);
-    if (averageDipDetailEl) averageDipDetailEl.textContent = `Average vs ${period}-Day SMA`;
+    if (averageDipDetailEl) averageDipDetailEl.textContent = `Average vs ${period}-Day trend`;
     if (strongestAboveEl) strongestAboveEl.textContent = `${strongestAbove.stock} ${formatPercent(getSmaDiffPercent(strongestAbove))}`;
-    if (strongestAboveDetailEl) strongestAboveDetailEl.textContent = `vs ${period}-Day SMA ${formatCurrency(strongestAbove.sma)}`;
+    if (strongestAboveDetailEl) strongestAboveDetailEl.textContent = `${getTrendTone(getSmaDiffPercent(strongestAbove)).label} vs ${period}-Day SMA ${formatCurrency(strongestAbove.sma)}`;
 }
 
 function escapeHtml(value) {
@@ -404,7 +452,7 @@ function renderNewsArticle(article, hidden) {
 function renderStockTableRows(tableBody, stockDataArray) {
     stockDataArray.forEach(data => {
         const diffPercent = getSmaDiffPercent(data);
-        const diffClasses = getSmaDiffClasses(diffPercent);
+        const trendTone = getTrendTone(diffPercent);
 
         tableBody.append(`
             <tr class="stock-row grid cursor-pointer gap-3 px-4 py-4 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${data.stock}">
@@ -415,12 +463,12 @@ function renderStockTableRows(tableBody, stockDataArray) {
                 <td class="whitespace-nowrap text-right">
                     <div class="text-sm font-medium text-gray-900">${formatCurrency(data.currentPrice)}</div>
                     <div class="text-xs text-gray-500">SMA ${formatCurrency(data.sma)}</div>
-                    <div class="mt-1 rounded px-2 py-1 text-xs font-semibold ${diffClasses}">
-                        ${formatPercent(diffPercent)}
+                    <div class="mt-1 rounded px-2 py-1 text-xs font-semibold ${trendTone.badgeClasses}">
+                        ${trendTone.label} ${formatPercent(diffPercent)}
                     </div>
                 </td>
                 <td class="flex justify-end">
-                    <button class="remove-stock relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200" data-stock="${data.stock}" title="Remove ${data.stock}" aria-label="Remove ${data.stock}" onclick="event.stopPropagation();">
+                    <button class="remove-stock relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-700 transition hover:bg-rose-100 hover:text-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-200" data-stock="${data.stock}" title="Remove ${data.stock}" aria-label="Remove ${data.stock}" onclick="event.stopPropagation();">
                         <i class="fas fa-trash-alt"></i>                        
                     </button>
                 </td>
@@ -542,14 +590,9 @@ async function updateTableAndChart(period) {
         relativePrices.push(Number.isFinite(diffPercent) ? Number(diffPercent.toFixed(2)) : null);
         chartPointData.push(data);
 
-        // Set the color based on the relative price value
-        if (diffPercent < 0) {
-            backgroundColors.push('rgba(239, 68, 68, 0.7)');
-            borderColors.push('rgba(220, 38, 38, 1)');
-        } else {
-            backgroundColors.push('rgba(16, 185, 129, 0.7)');
-            borderColors.push('rgba(5, 150, 105, 1)');
-        }
+        const trendTone = getTrendTone(diffPercent);
+        backgroundColors.push(trendTone.backgroundColor);
+        borderColors.push(trendTone.borderColor);
     }
 
     // Destroy the existing chart instance if it exists
@@ -597,10 +640,12 @@ async function updateTableAndChart(period) {
                         label: function(context) {
                             const data = context.dataset.stockData[context.dataIndex];
                             if (!data) return `${context.parsed.x}%`;
+                            const diffPercent = getSmaDiffPercent(data);
+                            const trendTone = getTrendTone(diffPercent);
                             return [
                                 `Current: ${formatCurrency(data.currentPrice)}`,
-                                `SMA: ${formatCurrency(data.sma)}`,
-                                `Difference: ${formatPercent(getSmaDiffPercent(data))}`
+                                `${period}-Day SMA: ${formatCurrency(data.sma)}`,
+                                `${trendTone.label}: ${formatPercent(diffPercent)}`
                             ];
                         }
                     }
@@ -625,6 +670,15 @@ async function updateTableAndChart(period) {
                         callback: function(value) {
                             return `${value}%`;
                         }
+                    },
+                    title: {
+                        display: true,
+                        text: `% difference vs ${period}-Day SMA`,
+                        color: '#475569',
+                        font: {
+                            size: 12,
+                            weight: '600'
+                        }
                     }
                 },
                 y: {
@@ -635,6 +689,15 @@ async function updateTableAndChart(period) {
                         color: '#374151',
                         font: {
                             size: 12
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Ticker',
+                        color: '#475569',
+                        font: {
+                            size: 12,
+                            weight: '600'
                         }
                     }
                 }
