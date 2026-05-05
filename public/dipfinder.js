@@ -266,10 +266,42 @@ function getSortableSmaDiff(data) {
     return Number.isFinite(diffPercent) ? diffPercent : Number.POSITIVE_INFINITY;
 }
 
-function getSmaDiffClasses(diffPercent) {
-    if (!Number.isFinite(diffPercent)) return 'bg-gray-100 text-gray-600';
-    if (diffPercent < 0) return 'bg-red-100 text-red-700';
-    return 'bg-green-100 text-green-700';
+function hexToRgba(hex, alpha) {
+    const cleanHex = hex.replace('#', '');
+    const r = parseInt(cleanHex.slice(0, 2), 16);
+    const g = parseInt(cleanHex.slice(2, 4), 16);
+    const b = parseInt(cleanHex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function isDarkMode() {
+    return document.documentElement.classList.contains('dark-mode');
+}
+
+function getTrendTone(diffPercent) {
+    let tone;
+
+    if (!Number.isFinite(diffPercent)) {
+        tone = { label: 'Fair', className: 'trend-fair', light: '#94A3B8', dark: '#64748B' };
+    } else if (diffPercent < -15) {
+        tone = { label: 'Deep Dip', className: 'trend-deep-dip', light: '#0F766E', dark: '#2DD4BF' };
+    } else if (diffPercent < -5) {
+        tone = { label: 'Dipping', className: 'trend-dipping', light: '#14B8A6', dark: '#5EEAD4' };
+    } else if (diffPercent <= 5) {
+        tone = { label: 'Fair', className: 'trend-fair', light: '#94A3B8', dark: '#64748B' };
+    } else if (diffPercent <= 15) {
+        tone = { label: 'Warm', className: 'trend-warm', light: '#FBBF24', dark: '#FACC15' };
+    } else {
+        tone = { label: 'Hot', className: 'trend-hot', light: '#F97316', dark: '#FB923C' };
+    }
+
+    const color = isDarkMode() ? tone.dark : tone.light;
+    return {
+        ...tone,
+        color,
+        backgroundColor: hexToRgba(color, isDarkMode() ? 0.72 : 0.68),
+        borderColor: color
+    };
 }
 
 function getChartThemeColors() {
@@ -297,6 +329,15 @@ function applyChartTheme(chartInstance) {
         chartInstance.options.plugins.tooltip.bodyColor = theme.tooltipText;
         chartInstance.options.plugins.tooltip.borderColor = theme.zeroGridColor;
         chartInstance.options.plugins.tooltip.borderWidth = 1;
+    }
+
+    if (chartInstance.data && Array.isArray(chartInstance.data.datasets)) {
+        chartInstance.data.datasets.forEach(dataset => {
+            if (!Array.isArray(dataset.stockData)) return;
+
+            dataset.backgroundColor = dataset.stockData.map(data => getTrendTone(getSmaDiffPercent(data)).backgroundColor);
+            dataset.borderColor = dataset.stockData.map(data => getTrendTone(getSmaDiffPercent(data)).borderColor);
+        });
     }
 
     if (xScale) {
@@ -475,19 +516,19 @@ function renderNewsArticle(article, hidden) {
 function renderStockTableRows(tableBody, stockDataArray) {
     stockDataArray.forEach(data => {
         const diffPercent = getSmaDiffPercent(data);
-        const diffClasses = getSmaDiffClasses(diffPercent);
+        const trendTone = getTrendTone(diffPercent);
 
         tableBody.append(`
             <tr class="stock-row grid cursor-pointer gap-3 px-4 py-4 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${data.stock}">
                 <td class="min-w-0">
-                    <div class="text-sm font-medium text-gray-900">${data.stock}</div>
+                    <div class="text-sm font-semibold trend-text ${trendTone.className}">${data.stock}</div>
                     <div class="truncate text-sm text-gray-500">${truncateString(data.companyName, 30)}</div>
                 </td>
                 <td class="whitespace-nowrap text-right">
                     <div class="text-sm font-medium text-gray-900">${formatCurrency(data.currentPrice)}</div>
                     <div class="text-xs text-gray-500">SMA ${formatCurrency(data.sma)}</div>
-                    <div class="mt-1 rounded px-2 py-1 text-xs font-semibold ${diffClasses}">
-                        ${formatPercent(diffPercent)}
+                    <div class="mt-1 rounded px-2 py-1 text-xs font-semibold trend-badge ${trendTone.className}">
+                        ${trendTone.label} ${formatPercent(diffPercent)}
                     </div>
                 </td>
                 <td class="flex justify-end">
@@ -613,14 +654,9 @@ async function updateTableAndChart(period) {
         relativePrices.push(Number.isFinite(diffPercent) ? Number(diffPercent.toFixed(2)) : null);
         chartPointData.push(data);
 
-        // Set the color based on the relative price value
-        if (diffPercent < 0) {
-            backgroundColors.push('rgba(239, 68, 68, 0.7)');
-            borderColors.push('rgba(220, 38, 38, 1)');
-        } else {
-            backgroundColors.push('rgba(16, 185, 129, 0.7)');
-            borderColors.push('rgba(5, 150, 105, 1)');
-        }
+        const trendTone = getTrendTone(diffPercent);
+        backgroundColors.push(trendTone.backgroundColor);
+        borderColors.push(trendTone.borderColor);
     }
 
     // Destroy the existing chart instance if it exists
@@ -669,10 +705,11 @@ async function updateTableAndChart(period) {
                             const data = context.dataset.stockData[context.dataIndex];
                             if (!data) return `${context.parsed.x}%`;
                             const diffPercent = getSmaDiffPercent(data);
+                            const trendTone = getTrendTone(diffPercent);
                             return [
                                 `Current: ${formatCurrency(data.currentPrice)}`,
                                 `${period}-Day SMA: ${formatCurrency(data.sma)}`,
-                                `Difference vs SMA: ${formatPercent(diffPercent)}`
+                                `${trendTone.label}: ${formatPercent(diffPercent)} vs SMA`
                             ];
                         }
                     }
