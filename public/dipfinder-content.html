@@ -1,16 +1,4 @@
         <div class="space-y-5">
-            <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <p class="text-xs font-semibold uppercase tracking-widest text-indigo-600">Moving Average Watchlist</p>
-                <div class="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <h2 class="text-2xl font-extrabold text-gray-900 sm:text-3xl">Find the clearest watchlist dips versus trend.</h2>
-                        <p class="mt-2 max-w-3xl text-sm text-gray-500 sm:text-base">Rank your stocks by distance from the selected SMA, compare current price to trend, and scan related news without trading noise.</p>
-                    </div>
-                    <div class="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700">
-                        Calm trend analytics
-                    </div>
-                </div>
-            </section>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                     <p class="text-sm font-medium text-gray-500">Biggest Dip</p>
@@ -18,7 +6,7 @@
                     <p id="metric-biggest-dip-detail" class="mt-1 text-sm text-gray-500">Waiting for watchlist data</p>
                 </div>
                 <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <p class="text-sm font-medium text-gray-500">Stocks Below Trend</p>
+                    <p class="text-sm font-medium text-gray-500">Stocks Below SMA</p>
                     <h3 id="metric-below-sma" class="mt-2 text-2xl font-bold text-gray-900">--</h3>
                     <p id="metric-below-sma-detail" class="mt-1 text-sm text-gray-500">Selected SMA period</p>
                 </div>
@@ -28,9 +16,9 @@
                     <p id="metric-average-dip-detail" class="mt-1 text-sm text-gray-500">Mean distance vs SMA</p>
                 </div>
                 <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <p class="text-sm font-medium text-gray-500">Most Above Trend</p>
+                    <p class="text-sm font-medium text-gray-500">Strongest Above SMA</p>
                     <h3 id="metric-strongest-above" class="mt-2 text-2xl font-bold text-gray-900">--</h3>
-                    <p id="metric-strongest-above-detail" class="mt-1 text-sm text-gray-500">Largest positive spread</p>
+                    <p id="metric-strongest-above-detail" class="mt-1 text-sm text-gray-500">Best positive spread</p>
                 </div>
             </div>
 
