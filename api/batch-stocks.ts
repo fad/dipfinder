@@ -3,6 +3,8 @@ import { connectToDatabase } from './lib/mongodb';
 import axios from 'axios';
 import { Document } from 'mongodb';
 
+const CACHE_EXPIRY_STOCKS = 30 * 60 * 1000; // 30 minutes
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -20,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let stockDataDoc = await stockCollection.findOne({ cacheKey: stockCacheKey });
       let stockData = stockDataDoc ? stockDataDoc.data : null;
       let stockTimestamp = stockDataDoc ? stockDataDoc.timestamp : 0;
-      if (!stockData || Date.now() - stockTimestamp > 30000) {
+      if (!stockData || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=200d`;
         const response = await axios.get(url);
         stockData = response.data;
@@ -36,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let smaDataDoc = await smaCollection.findOne({ cacheKey: smaCacheKey });
       let sma = smaDataDoc ? smaDataDoc.data.sma : null;
       let smaTimestamp = smaDataDoc ? smaDataDoc.timestamp : 0;
-      if (!sma || Date.now() - smaTimestamp > 30000) {
+      if (!sma || Date.now() - smaTimestamp > CACHE_EXPIRY_STOCKS) {
         const prices = stockData.chart.result[0].indicators.quote[0].close;
         const lastPrices = prices.slice(-Number(period));
         const total = lastPrices.reduce((sum: number, price: number) => sum + parseFloat(price as any), 0);
