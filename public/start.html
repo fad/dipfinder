@@ -76,37 +76,17 @@
     <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
     <section class="lp-hero-bg px-6 py-24 text-white sm:py-32">
 
-        <!-- Background: grid + chart line + glow orbs -->
-        <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-            <!-- Subtle grid -->
-            <svg class="absolute inset-0 h-full w-full" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <pattern id="hero-grid" width="48" height="48" patternUnits="userSpaceOnUse">
-                        <path d="M 48 0 L 0 0 0 48" fill="none" stroke="white" stroke-width="0.4" stroke-opacity="0.1"/>
-                    </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#hero-grid)"/>
-            </svg>
-            <!-- Stock chart line — upward trend with dips, covering the bottom half -->
-            <svg class="absolute bottom-0 left-0 w-full" viewBox="0 0 1440 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Fill area under chart -->
-                <path d="M0 200 L0 170 C60 165 80 180 120 155 C160 130 170 145 210 120 C250 95 260 115 300 90 C340 65 350 85 400 60 C440 40 455 65 500 50 C545 35 555 55 600 40 C640 28 660 50 700 35 C745 18 755 45 800 30 C840 18 860 40 900 28 C945 14 955 35 1010 22 C1060 10 1070 30 1120 18 C1165 8 1175 28 1230 16 C1280 6 1290 22 1350 12 L1440 8 L1440 220 Z"
-                      fill="white" fill-opacity="0.04"/>
-                <!-- Chart line -->
-                <path d="M0 170 C60 165 80 180 120 155 C160 130 170 145 210 120 C250 95 260 115 300 90 C340 65 350 85 400 60 C440 40 455 65 500 50 C545 35 555 55 600 40 C640 28 660 50 700 35 C745 18 755 45 800 30 C840 18 860 40 900 28 C945 14 955 35 1010 22 C1060 10 1070 30 1120 18 C1165 8 1175 28 1230 16 C1280 6 1290 22 1350 12 L1440 8"
-                      fill="none" stroke="white" stroke-width="2" stroke-opacity="0.25"/>
-                <!-- Dip highlight dots -->
-                <circle cx="120" cy="155" r="3" fill="white" fill-opacity="0.3"/>
-                <circle cx="210" cy="120" r="3" fill="white" fill-opacity="0.3"/>
-                <circle cx="300" cy="90"  r="3" fill="white" fill-opacity="0.3"/>
-                <circle cx="455" cy="65"  r="3" fill="white" fill-opacity="0.3"/>
-                <circle cx="660" cy="50"  r="3" fill="white" fill-opacity="0.3"/>
-                <circle cx="860" cy="40"  r="3" fill="white" fill-opacity="0.3"/>
-            </svg>
-            <!-- Glow orbs -->
-            <div class="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-blue-400 opacity-10 blur-3xl"></div>
-            <div class="absolute -top-16 right-0 h-80 w-80 rounded-full bg-violet-400 opacity-10 blur-3xl"></div>
-            <div class="absolute bottom-0 left-1/2 h-64 w-96 -translate-x-1/2 rounded-full bg-indigo-300 opacity-10 blur-3xl"></div>
+        <!-- Background: app screenshot + gradient overlay -->
+        <div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+            <!-- App screenshot fills the hero -->
+            <picture>
+                <source srcset="/img/preview.avif" type="image/avif">
+                <img src="/img/preview.png" alt=""
+                     class="absolute inset-0 h-full w-full object-cover object-top"
+                     style="opacity:0.18;">
+            </picture>
+            <!-- Gradient overlay: opaque at top for text, fades at bottom -->
+            <div style="position:absolute;inset:0;background:linear-gradient(to bottom, #1e3a8a 0%, #3730a3cc 45%, #5b21b680 100%);"></div>
         </div>
 
         <div class="hero-content mx-auto max-w-4xl text-center">
@@ -150,15 +130,6 @@
                 <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> No credit card</span>
             </div>
 
-            <!-- App preview -->
-            <div class="mx-auto mt-16 max-w-5xl">
-                <picture>
-                    <source srcset="/img/preview.avif" type="image/avif">
-                    <img src="/img/preview.png" alt="Dip Finder dashboard showing watchlist and SMA chart"
-                         class="w-full rounded-2xl shadow-2xl ring-1 ring-white ring-opacity-20"
-                         width="1200" loading="eager">
-                </picture>
-            </div>
         </div>
     </section>
 
