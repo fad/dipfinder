@@ -953,6 +953,12 @@ window.initializeDipfinder = function() {
     });
 
 
+    // Inline "Save Watchlist" button — opens auth modal
+    $(document).on('click.dipfinder', '#save-watchlist-inline', function() {
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.classList.remove('hidden');
+    });
+
     // Sample watchlist buttons
     $(document).on('click.dipfinder', '.sample-watchlist', function() {
         const period = $('#sma-period').val() || '200';

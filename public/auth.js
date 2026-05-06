@@ -168,14 +168,18 @@ const AuthManager = (function() {
         // Show login button
         const authButton = document.getElementById("auth-button");
         if (authButton) authButton.classList.remove("hidden");
-        
+
+        // Show inline save button
+        const saveInline = document.getElementById("save-watchlist-btn-wrap");
+        if (saveInline) saveInline.classList.remove("hidden");
+
         // Hide profile dropdown
         const profileDropdown = document.getElementById("profile-dropdown");
         if (profileDropdown) profileDropdown.classList.add("hidden");
-        
+
         const profileMenu = document.getElementById("profile-menu");
         if (profileMenu) profileMenu.classList.add("hidden");
-        
+
         updateGlobalAuthState(false, null);
     }
     
@@ -188,7 +192,11 @@ const AuthManager = (function() {
         // Hide login button
         const authButton = document.getElementById("auth-button");
         if (authButton) authButton.classList.add("hidden");
-        
+
+        // Hide inline save button (user is already logged in)
+        const saveInline = document.getElementById("save-watchlist-btn-wrap");
+        if (saveInline) saveInline.classList.add("hidden");
+
         // Show profile dropdown
         const profileDropdown = document.getElementById("profile-dropdown");
         if (profileDropdown) profileDropdown.classList.remove("hidden");
