@@ -1,26 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { connectToDatabase } from '../lib/mongodb';
+import {
+  calculateSma,
+  calculateSmaTimeSeries,
+  CACHE_EXPIRY_STOCKS,
+  CACHE_EXPIRY_FUNDAMENTALS,
+  CACHE_EXPIRY_NEWS,
+  CACHE_EXPIRY_COMPANY,
+} from '../lib/stocks';
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-const CACHE_EXPIRY_FUNDAMENTALS = 3600000; // 1 hour
-const CACHE_EXPIRY_NEWS = 3000000; // 50 minutes
-const CACHE_EXPIRY_COMPANY = 300000; // 5 minutes
-const CACHE_EXPIRY_STOCKS = 1800000; // 30 minutes
-
-// Helper function to calculate SMA time series
-async function calculateSMATimeSeries(data: number[], period: number): Promise<number[]> {
-  const sma: number[] = [];
-  for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) {
-      sma.push(NaN); // Not enough data points for SMA
-    } else {
-      const sum = data.slice(i - period + 1, i + 1).reduce((acc, val) => acc + val, 0);
-      sma.push(sum / period);
-    }
-  }
-  return sma;
-}
 
 // Get current and last week dates for news
 function getCurrentDate() {
@@ -248,8 +238,7 @@ async function handleSMA(db: any, symbol: string, period: number, res: VercelRes
     return res.status(400).json({ error: `Not enough data for ${period}-day SMA` });
   }
 
-  const recentPrices = prices.slice(-period);
-  const sma = recentPrices.reduce((sum: number, price: number) => sum + price, 0) / period;
+  const sma = calculateSma(prices, period);
 
   return res.status(200).json({ sma: parseFloat(sma.toFixed(2)) });
 }
@@ -288,7 +277,7 @@ async function handleSMATimeSeries(symbol: string, period: number, res: VercelRe
       return res.status(400).json({ error: `Not enough data for ${period}-day SMA` });
     }
 
-    const smaValues = await calculateSMATimeSeries(prices, period);
+    const smaValues = calculateSmaTimeSeries(prices, period);
     const smaData = timestamps.map((timestamp: number, index: number) => ({
       date: new Date(timestamp * 1000).toISOString().split('T')[0],
       value: isNaN(smaValues[index]) ? null : parseFloat(smaValues[index].toFixed(2))

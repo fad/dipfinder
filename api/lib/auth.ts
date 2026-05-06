@@ -2,7 +2,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
+if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);

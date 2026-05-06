@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
+import { calculateSma, CACHE_EXPIRY_STOCKS } from './lib/stocks';
 import axios from 'axios';
-
-const CACHE_EXPIRY_STOCKS = 30 * 60 * 1000; // 30 minutes
 
 type DashboardStockCache = {
   companyName: string;
@@ -41,11 +40,6 @@ function getCachedDashboardStock(data: any): DashboardStockCache | null {
   };
 }
 
-function calculateSma(closes: number[], period: number) {
-  const recentPrices = closes.slice(-period);
-  const total = recentPrices.reduce((sum, price) => sum + price, 0);
-  return total / recentPrices.length;
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
