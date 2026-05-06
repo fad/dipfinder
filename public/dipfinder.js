@@ -161,10 +161,34 @@ function getSortableSmaDiff(data) {
     return Number.isFinite(diffPercent) ? diffPercent : Number.POSITIVE_INFINITY;
 }
 
+// Status tiers: Deep Dip | Dipping | Fair | Warm | Hot
+function getDiffStatus(diffPercent) {
+    if (!Number.isFinite(diffPercent)) return 'fair';
+    if (diffPercent < -15) return 'deep-dip';
+    if (diffPercent <  -5) return 'dipping';
+    if (diffPercent <   5) return 'fair';
+    if (diffPercent <  15) return 'warm';
+    return 'hot';
+}
+
 function getSmaDiffClasses(diffPercent) {
-    if (!Number.isFinite(diffPercent)) return 'bg-gray-100 text-gray-600';
-    if (diffPercent < 0) return 'bg-red-100 text-red-700';
-    return 'bg-green-100 text-green-700';
+    switch (getDiffStatus(diffPercent)) {
+        case 'deep-dip': return 'bg-teal-700 text-teal-50';
+        case 'dipping':  return 'bg-teal-100 text-teal-700';
+        case 'fair':     return 'bg-slate-100 text-slate-600';
+        case 'warm':     return 'bg-amber-100 text-amber-700';
+        case 'hot':      return 'bg-orange-100 text-orange-700';
+    }
+}
+
+function getBarColor(diffPercent) {
+    switch (getDiffStatus(diffPercent)) {
+        case 'deep-dip': return { bg: '#0F766E', border: '#0D6561' };
+        case 'dipping':  return { bg: '#14B8A6', border: '#0F9E8E' };
+        case 'fair':     return { bg: '#94A3B8', border: '#7B8FA3' };
+        case 'warm':     return { bg: '#FBBF24', border: '#D97706' };
+        case 'hot':      return { bg: '#F97316', border: '#EA580C' };
+    }
 }
 
 // ── Period display ────────────────────────────────────────────────────────────
@@ -539,13 +563,9 @@ function renderDashboardData(stockDataArray, period, tableBody) {
         chartLabels.push(data.stock);
         relativePrices.push(Number.isFinite(diffPercent) ? Number(diffPercent.toFixed(2)) : null);
         chartPointData.push(data);
-        if (diffPercent < 0) {
-            backgroundColors.push('rgba(239, 68, 68, 0.7)');
-            borderColors.push('rgba(220, 38, 38, 1)');
-        } else {
-            backgroundColors.push('rgba(16, 185, 129, 0.7)');
-            borderColors.push('rgba(5, 150, 105, 1)');
-        }
+        const barColor = getBarColor(diffPercent);
+        backgroundColors.push(barColor.bg);
+        borderColors.push(barColor.border);
     }
 
     if (chart) chart.destroy();
@@ -904,13 +924,9 @@ window.initializeDipfinder = function() {
             chart.data.labels.push(newStockData.stock);
             const ds = chart.data.datasets[0];
             ds.data.push(Number.isFinite(diffPercent) ? Number(diffPercent.toFixed(2)) : null);
-            if (diffPercent < 0) {
-                ds.backgroundColor.push('rgba(239, 68, 68, 0.7)');
-                ds.borderColor.push('rgba(220, 38, 38, 1)');
-            } else {
-                ds.backgroundColor.push('rgba(16, 185, 129, 0.7)');
-                ds.borderColor.push('rgba(5, 150, 105, 1)');
-            }
+            const barColor = getBarColor(diffPercent);
+            ds.backgroundColor.push(barColor.bg);
+            ds.borderColor.push(barColor.border);
             if (ds.stockData) {
                 ds.stockData.push(newStockData);
                 renderSummaryMetrics(ds.stockData, period);
