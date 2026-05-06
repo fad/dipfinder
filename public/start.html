@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dip Finder - Find Dips in Stocks You Already Want to Own</title>
+    <meta name="description" content="Most investors have stocks they'd like to own - just not at any price. Dip Finder shows you when your watchlist stocks start trading below their moving average. Free, no account required.">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Dip Finder">
+    <meta property="og:title" content="Dip Finder - Find Dips in Stocks You Already Want to Own">
+    <meta property="og:description" content="Track your watchlist and instantly see which stocks are trading below their moving average. Free, no account required.">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Dip Finder - Find Dips in Stocks You Already Want to Own">
+    <meta name="twitter:description" content="Track your watchlist and instantly see which stocks are trading below their moving average. Free, no account required.">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <style>
+        .lp-hero-bg {
+            background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 50%, #7c3aed 100%);
+        }
+        .lp-step-line::after {
+            content: '';
+            display: block;
+            width: 2px;
+            height: 2rem;
+            background: #e2e8f0;
+            margin: 0.5rem auto 0;
+        }
+        .lp-step-line:last-child::after { display: none; }
+        .lp-feature-card:hover { transform: translateY(-2px); }
+        .lp-feature-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 antialiased">
+
+    <!-- ── Nav ──────────────────────────────────────────────────────────────── -->
+    <nav class="sticky top-0 z-40 border-b border-gray-100 bg-white bg-opacity-95 backdrop-blur">
+        <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+            <!-- Logo -->
+            <a href="/start" class="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true">
+                    <rect width="64" height="64" rx="12" fill="#2563eb"/>
+                    <path d="M6,12 L6,52 L19,52 Q31,52 31,32 Q31,12 19,12 Z" fill="white"/>
+                    <path d="M11,17 L18,17 Q26,17 26,32 Q26,47 18,47 L11,47 Z" fill="#2563eb"/>
+                    <path d="M34,12 L34,52 L39,52 L39,34 L52,34 L52,29 L39,29 L39,17 L58,17 L58,12 Z" fill="white"/>
+                </svg>
+                <span class="text-lg font-extrabold tracking-tight text-gray-900">Dip Finder</span>
+            </a>
+            <!-- Nav links -->
+            <div class="hidden items-center gap-6 sm:flex">
+                <a href="#how-it-works" class="text-sm font-medium text-gray-500 transition hover:text-gray-900">How it works</a>
+                <a href="#features" class="text-sm font-medium text-gray-500 transition hover:text-gray-900">Features</a>
+                <a href="/screener" class="text-sm font-medium text-gray-500 transition hover:text-gray-900">Screener</a>
+            </div>
+            <a href="/" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                Open App <i class="fas fa-arrow-right text-xs"></i>
+            </a>
+        </div>
+    </nav>
+
+    <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+    <section class="lp-hero-bg px-6 py-24 text-white sm:py-32">
+        <div class="mx-auto max-w-4xl text-center">
+
+            <!-- Logo mark -->
+            <div class="mb-8 inline-flex items-center justify-center">
+                <div class="flex items-center gap-4 rounded-2xl bg-white bg-opacity-10 px-6 py-4 backdrop-blur-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="52" height="52" aria-hidden="true">
+                        <rect width="64" height="64" rx="14" fill="white" fill-opacity="0.15"/>
+                        <path d="M6,12 L6,52 L19,52 Q31,52 31,32 Q31,12 19,12 Z" fill="white"/>
+                        <path d="M11,17 L18,17 Q26,17 26,32 Q26,47 18,47 L11,47 Z" fill="#4f46e5"/>
+                        <path d="M34,12 L34,52 L39,52 L39,34 L52,34 L52,29 L39,29 L39,17 L58,17 L58,12 Z" fill="white"/>
+                    </svg>
+                    <div class="text-left">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-blue-200">Watchlist Dip Monitor</p>
+                        <p class="text-2xl font-extrabold tracking-tight">Dip Finder</p>
+                    </div>
+                </div>
+            </div>
+
+            <h1 class="mb-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Find dips in stocks<br class="hidden sm:block"> you already want to own.
+            </h1>
+            <p class="mx-auto mb-10 max-w-2xl text-lg text-blue-100 sm:text-xl">
+                Most investors have stocks they'd like to own - just not at any price.
+                Dip Finder helps you keep an eye on those stocks and quickly spot when one starts trading below trend.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-4">
+                <a href="/" class="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-bold text-blue-700 shadow-lg transition hover:bg-blue-50">
+                    <i class="fas fa-play-circle"></i> Try it Free
+                </a>
+                <a href="#how-it-works" class="inline-flex items-center gap-2 rounded-xl border border-white border-opacity-30 bg-white bg-opacity-10 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-opacity-20">
+                    How it works <i class="fas fa-chevron-down text-xs"></i>
+                </a>
+            </div>
+
+            <!-- Trust badges -->
+            <div class="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-blue-200">
+                <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> Free to use</span>
+                <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> No account required</span>
+                <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> No credit card</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── How it works ──────────────────────────────────────────────────────── -->
+    <section id="how-it-works" class="bg-gray-50 px-6 py-20">
+        <div class="mx-auto max-w-4xl">
+            <div class="mb-14 text-center">
+                <p class="mb-2 text-xs font-bold uppercase tracking-widest text-blue-600">Simple by design</p>
+                <h2 class="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">How it works</h2>
+            </div>
+            <div class="grid grid-cols-1 gap-8 sm:grid-cols-3">
+
+                <div class="flex flex-col items-center text-center">
+                    <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md">
+                        <i class="fas fa-list-ul text-xl"></i>
+                    </div>
+                    <div class="mb-1 text-xs font-bold uppercase tracking-widest text-blue-500">Step 1</div>
+                    <h3 class="mb-2 text-lg font-bold text-gray-900">Build your watchlist</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">Add the tickers you've been watching - stocks you'd buy if the price was right. No account needed to get started.</p>
+                </div>
+
+                <div class="flex flex-col items-center text-center">
+                    <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md">
+                        <i class="fas fa-sliders-h text-xl"></i>
+                    </div>
+                    <div class="mb-1 text-xs font-bold uppercase tracking-widest text-indigo-500">Step 2</div>
+                    <h3 class="mb-2 text-lg font-bold text-gray-900">Pick a moving average</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">Choose from the 10, 50, 100, or 200-day SMA. Each tells a different story - short-term pullback or long-term undervaluation.</p>
+                </div>
+
+                <div class="flex flex-col items-center text-center">
+                    <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-md">
+                        <i class="fas fa-chart-bar text-xl"></i>
+                    </div>
+                    <div class="mb-1 text-xs font-bold uppercase tracking-widest text-teal-600">Step 3</div>
+                    <h3 class="mb-2 text-lg font-bold text-gray-900">Spot the dips</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">Your watchlist is ranked by how far each stock is below its average. The deepest dips rise to the top - no math required.</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Features ──────────────────────────────────────────────────────────── -->
+    <section id="features" class="bg-white px-6 py-20">
+        <div class="mx-auto max-w-5xl">
+            <div class="mb-14 text-center">
+                <p class="mb-2 text-xs font-bold uppercase tracking-widest text-blue-600">Everything you need</p>
+                <h2 class="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Built for focused investors</h2>
+                <p class="mx-auto mt-3 max-w-xl text-gray-500">Not a bloated trading platform. Just the tools that help you buy what you know, when the price makes sense.</p>
+            </div>
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <i class="fas fa-list text-lg"></i>
+                    </div>
+                    <h3 class="mb-2 font-bold text-gray-900">Watchlist Monitor</h3>
+                    <p class="text-sm leading-relaxed text-gray-500">Track up to 10 stocks. Each row shows price, SMA value, and % distance - color-coded by depth of dip.</p>
+                </div>
+
+                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <i class="fas fa-chart-bar text-lg"></i>
+                    </div>
+                    <h3 class="mb-2 font-bold text-gray-900">Dip Chart</h3>
+                    <p class="text-sm leading-relaxed text-gray-500">Visual bar chart ranked by SMA distance. See at a glance which stocks are dipping and by how much.</p>
+                </div>
+
+                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                        <i class="fas fa-search text-lg"></i>
+                    </div>
+                    <h3 class="mb-2 font-bold text-gray-900">Stock Screener</h3>
+                    <p class="text-sm leading-relaxed text-gray-500">Dig deeper on any ticker. Price history, moving averages, fundamentals, and recent news in one place.</p>
+                </div>
+
+                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                        <i class="fas fa-newspaper text-lg"></i>
+                    </div>
+                    <h3 class="mb-2 font-bold text-gray-900">News Feed</h3>
+                    <p class="text-sm leading-relaxed text-gray-500">Latest headlines for every stock in your watchlist, so you can tell a dip from a falling knife.</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Disclaimer bar ────────────────────────────────────────────────────── -->
+    <section class="border-y border-amber-100 bg-amber-50 px-6 py-5">
+        <div class="mx-auto flex max-w-4xl items-start gap-3 text-sm text-amber-800">
+            <i class="fas fa-exclamation-circle mt-0.5 flex-shrink-0 text-amber-500"></i>
+            <p>Dip Finder is a research tool, not financial advice. A dip can mean opportunity - or trouble. Always do your own research before making any investment decision.</p>
+        </div>
+    </section>
+
+    <!-- ── Final CTA ─────────────────────────────────────────────────────────── -->
+    <section class="lp-hero-bg px-6 py-24 text-center text-white">
+        <div class="mx-auto max-w-2xl">
+            <h2 class="mb-4 text-3xl font-extrabold tracking-tight sm:text-4xl">Ready to spot your next dip?</h2>
+            <p class="mb-10 text-lg text-blue-100">No account. No credit card. Just add your tickers and go.</p>
+            <a href="/" class="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-bold text-blue-700 shadow-lg transition hover:bg-blue-50">
+                <i class="fas fa-play-circle"></i> Open Dip Finder Free
+            </a>
+        </div>
+    </section>
+
+    <!-- ── Footer ────────────────────────────────────────────────────────────── -->
+    <footer class="border-t border-gray-100 bg-white px-6 py-10">
+        <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
+            <div class="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
+                    <rect width="64" height="64" rx="12" fill="#2563eb"/>
+                    <path d="M6,12 L6,52 L19,52 Q31,52 31,32 Q31,12 19,12 Z" fill="white"/>
+                    <path d="M11,17 L18,17 Q26,17 26,32 Q26,47 18,47 L11,47 Z" fill="#2563eb"/>
+                    <path d="M34,12 L34,52 L39,52 L39,34 L52,34 L52,29 L39,29 L39,17 L58,17 L58,12 Z" fill="white"/>
+                </svg>
+                <span class="font-bold text-gray-800">Dip Finder</span>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
+                <a href="/" class="transition hover:text-gray-900">Dashboard</a>
+                <a href="/screener" class="transition hover:text-gray-900">Screener</a>
+                <a href="/about" class="transition hover:text-gray-900">About</a>
+                <a href="/contact" class="transition hover:text-gray-900">Contact</a>
+                <a href="/privacy" class="transition hover:text-gray-900">Privacy</a>
+            </div>
+            <p class="text-sm text-gray-400">&copy; 2025 Dip Finder</p>
+        </div>
+    </footer>
+
+</body>
+</html>
