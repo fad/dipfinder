@@ -72,7 +72,12 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         '/contact': {
             file: 'contact-content.html',
-            init: null, // No JS for contact page
+            init: null,
+            destroy: null
+        },
+        '/about': {
+            file: 'about-content.html',
+            init: null,
             destroy: null
         }
     };
