@@ -190,20 +190,52 @@ function enforceStockLimit(stockArray) {
     return stockArray;
 }
 
+function removeStockFromUI(stockToRemove) {
+    const period = $('#sma-period').val() || '200';
+
+    // Remove the table row
+    $(`tr.stock-row[data-stock="${CSS.escape(stockToRemove)}"]`).remove();
+
+    // Update in-memory list and localStorage
+    stocks = stocks.filter(s => s !== stockToRemove);
+    saveStocks();
+
+    // Invalidate the dashboard cache so the next full load re-fetches
+    try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
+
+    // Update chart: splice out the removed stock's entry
+    if (chart) {
+        const idx = chart.data.labels.indexOf(stockToRemove);
+        if (idx !== -1) {
+            chart.data.labels.splice(idx, 1);
+            const ds = chart.data.datasets[0];
+            ds.data.splice(idx, 1);
+            ds.backgroundColor.splice(idx, 1);
+            ds.borderColor.splice(idx, 1);
+            if (ds.stockData) ds.stockData.splice(idx, 1);
+            chart.update();
+
+            // Recalculate summary metrics from remaining data
+            if (ds.stockData) {
+                renderSummaryMetrics(ds.stockData, period);
+            }
+        }
+    }
+
+    // Remove this ticker's news section
+    $('#news-feed section').filter(function() {
+        return $(this).find('h3').text().trim() === stockToRemove;
+    }).remove();
+
+    $("#stock-limit-message").addClass("hidden");
+    saveDipfinderContentState();
+}
+
 function attachRemoveStockListeners() {
-/*console.log('Attaching remove stock listeners');*/ 
-    // First remove any existing handlers to prevent duplicates
-    $(document).off('click.dipfinder', '.remove-stock'); 
-    
-    // Add event listeners to remove buttons
-    $(".remove-stock").click(function() {
-/*console.log('Remove stock button clicked - 2:', $(this).data("stock"));*/ 
-        const stockToRemove = $(this).data("stock");
-        stocks = stocks.filter(stock => stock !== stockToRemove);
-        saveStocks();
-        const period = $('#sma-period').val() || '200';
-        updateTableAndChart(period);
-        $("#stock-limit-message").addClass("hidden");
+    $(document).off('click.dipfinder', '.remove-stock');
+    $(document).on('click.dipfinder', '.remove-stock', function(e) {
+        e.stopPropagation();
+        removeStockFromUI($(this).data('stock'));
     });
 }
 
@@ -876,9 +908,11 @@ window.initializeDipfinder = function() {
         // Re-attach remove stock listeners
         attachRemoveStockListeners();
 
-        // Restore chart
-        if (window.dipfinderContentCache.chartData && stocksChart) {
-            restoreChart(stocksChart, window.dipfinderContentCache.chartData);
+        // Re-render chart from localStorage cached data so all function callbacks are preserved
+        const _restoredPeriod = localStorage.getItem('selectedPeriod') || '200';
+        const _restoredRows = loadCachedDashboardData(_restoredPeriod);
+        if (_restoredRows && _restoredRows.length > 0) {
+            renderDashboardData(_restoredRows, _restoredPeriod, $("#stocks-table tbody"));
         }
         
         // Restore news feed
@@ -993,18 +1027,6 @@ window.initializeDipfinder = function() {
         if (event.which == 13) {
             $('#add-stock').click();
         }
-    });
-
-    $(document).off('click.dipfinder', '.remove-stock'); // Remove any existing handlers
-    $(document).on('click.dipfinder', '.remove-stock', function(e) {
-/*console.log('Remove stock button clicked:', $(this).data("stock"));*/ 
-        e.stopPropagation();
-        const stockToRemove = $(this).data("stock");
-        stocks = stocks.filter(stock => stock !== stockToRemove);
-        saveStocks();
-        const period = $('#sma-period').val() || '200';
-        updateTableAndChart(period);
-        $("#stock-limit-message").addClass("hidden");
     });
 
     $(document).on('click.dipfinder', '.stock-row', function() {
