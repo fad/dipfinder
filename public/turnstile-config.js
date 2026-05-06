@@ -44,6 +44,44 @@ const TurnstileConfig = {
 /*console.log(`Turnstile initialized with site key: ${siteKey} for hostname: ${window.location.hostname}`);*/ 
     },
 
+    loadScript() {
+        if (window.turnstile) {
+            return Promise.resolve(window.turnstile);
+        }
+
+        if (this.scriptPromise) {
+            return this.scriptPromise;
+        }
+
+        this.scriptPromise = new Promise((resolve, reject) => {
+            const existingScript = document.querySelector('script[data-turnstile-api]');
+            if (existingScript) {
+                existingScript.addEventListener('load', () => resolve(window.turnstile));
+                existingScript.addEventListener('error', reject);
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+            script.async = true;
+            script.defer = true;
+            script.dataset.turnstileApi = 'true';
+            script.onload = () => resolve(window.turnstile);
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+
+        return this.scriptPromise;
+    },
+
+    ensureLoaded() {
+        this.initializeWidgets();
+        return this.loadScript().catch(error => {
+            console.error('Failed to load Cloudflare Turnstile:', error);
+            throw error;
+        });
+    },
+
     // Check if we're in development mode
     isDevelopment() {
         const hostname = window.location.hostname;

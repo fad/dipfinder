@@ -444,6 +444,7 @@ const AuthManager = (function() {
         if (captchaContainer && loginBtn) {
             loginBtn.parentNode.insertBefore(captchaContainer, loginBtn);
             captchaContainer.classList.remove("hidden");
+            if (window.TurnstileConfig) window.TurnstileConfig.ensureLoaded();
         }
     }
     
@@ -458,6 +459,7 @@ const AuthManager = (function() {
         if (captchaContainer && registerBtn) {
             registerBtn.parentNode.insertBefore(captchaContainer, registerBtn);
             captchaContainer.classList.remove("hidden");
+            if (window.TurnstileConfig) window.TurnstileConfig.ensureLoaded();
         }
         
         // Setup real-time validation
@@ -475,6 +477,7 @@ const AuthManager = (function() {
         if (captchaContainer && forgotBtn) {
             forgotBtn.parentNode.insertBefore(captchaContainer, forgotBtn);
             captchaContainer.classList.remove("hidden");
+            if (window.TurnstileConfig) window.TurnstileConfig.ensureLoaded();
         }
     }
     
