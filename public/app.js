@@ -112,30 +112,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const screenerButton = document.querySelector('a[href="/screener"][data-link]');
         
         if (homeButton && screenerButton) {
-            // Active and inactive class sets
-            const activeClasses = 'inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700';
-            const inactiveClasses = 'inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700';
-            
-            // Update home button
+            const activeClasses = 'inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700';
+            const inactiveClasses = 'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900';
+
             homeButton.className = currentPath === '/app' ? activeClasses : inactiveClasses;
-/*console.log('Home button updated:', homeButton.className);*/ 
-            
-            // Preserve icon for screener button
+
             let screenerIcon = '';
             if (screenerButton.querySelector('i')) {
                 screenerIcon = screenerButton.querySelector('i').outerHTML;
             }
-            
-            // Update screener button
             screenerButton.className = currentPath === '/screener' ? activeClasses : inactiveClasses;
-/*console.log('Screener button updated:', screenerButton.className);*/ 
-            
-            // Ensure the screener button has its icon
             if (screenerIcon && !screenerButton.querySelector('i')) {
-                screenerButton.innerHTML = screenerIcon + ' Stock Screener';
+                screenerButton.innerHTML = screenerIcon + ' Screener';
             }
-        } else {
-            console.error('Navigation buttons not found in DOM');
         }
     };
 

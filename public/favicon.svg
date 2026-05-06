@@ -1,8 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#2563eb"/>
-  <!-- D -->
-  <path d="M6,12 L6,52 L19,52 Q31,52 31,32 Q31,12 19,12 Z" fill="white"/>
-  <path d="M11,17 L18,17 Q26,17 26,32 Q26,47 18,47 L11,47 Z" fill="#2563eb"/>
-  <!-- F -->
-  <path d="M34,12 L34,52 L39,52 L39,34 L52,34 L52,29 L39,29 L39,17 L58,17 L58,12 Z" fill="white"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5B9BFA"/>
+      <stop offset="100%" stop-color="#1845CE"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#g)"/>
+  <path fill-rule="evenodd" fill="white" d="M 6,12 L 6,52 L 19,52 Q 31,52 31,32 Q 31,12 19,12 Z M 12,19 L 18,19 Q 25,19 25,32 Q 25,45 18,45 L 12,45 Z"/>
+  <path fill="white" d="M 34,12 L 34,52 L 41,52 L 41,35 L 56,35 L 56,28 L 41,28 L 41,19 L 58,19 L 58,12 Z"/>
 </svg>

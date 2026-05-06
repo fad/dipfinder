@@ -566,9 +566,12 @@ function initStockAutocomplete(inputElementId, options = {}) {
             return;
         }
 
-        const matches = TICKER_LIST.filter(item =>
-            item.ticker.startsWith(value) || item.name.toUpperCase().includes(value)
-        ).slice(0, config.maxSuggestions);
+        const tickerMatches = TICKER_LIST.filter(item => item.ticker.startsWith(value));
+        const nameMatches  = TICKER_LIST.filter(item => {
+            if (item.ticker.startsWith(value)) return false;
+            return item.name.toUpperCase().split(/[\s\-&.,/()+]+/).some(w => w.startsWith(value));
+        });
+        const matches = [...tickerMatches, ...nameMatches].slice(0, config.maxSuggestions);
 
         if (matches.length === 0) {
             suggestionBox.style.display = 'none';

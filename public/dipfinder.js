@@ -3,6 +3,7 @@
 // ── Shared globals (var so other scripts can access via window scope) ─────────
 var stocks = [];  // populated from localStorage in initializeDipfinder
 var chart;        // Chart.js instance; created/destroyed in renderDashboardData
+var newsCache = {};  // ticker → articles[], kept in sync with add/remove
 
 window.MAX_STOCKS = 10; // default, updated by auth.js
 
@@ -570,9 +571,8 @@ function removeStockFromUI(stockToRemove) {
         }
     }
 
-    $('#news-feed section').filter(function() {
-        return $(this).find('h3').text().trim() === stockToRemove;
-    }).remove();
+    delete newsCache[stockToRemove];
+    renderNewsByTicker($('#news-feed'), newsCache);
 
     $('#stock-limit-message').addClass('hidden');
     saveDipfinderContentState();
@@ -788,15 +788,20 @@ async function updateTableAndChart(period) {
     renderDashboardData(stockDataArray, period, tableBody);
 
     const newsFeed = $('#news-feed');
-    newsFeed.empty();
+    newsFeed.html(`
+        <div class="flex items-center gap-2 py-6 text-gray-400">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent shrink-0"></div>
+            <span class="text-sm">Loading news…</span>
+        </div>
+    `);
     if (stocks.length > 0) $('#news-title').text('News by ticker');
 
     const newsResults = await Promise.all(stocks.map(stock => fetchNews(stock)));
-    const newsByTicker = {};
+    newsCache = {};
     stocks.forEach((stock, i) => {
-        newsByTicker[stock] = Array.isArray(newsResults[i]) ? newsResults[i] : [];
+        newsCache[stock] = Array.isArray(newsResults[i]) ? newsResults[i] : [];
     });
-    renderNewsByTicker(newsFeed, newsByTicker);
+    renderNewsByTicker(newsFeed, newsCache);
 
     $(document).off('click.dipfinderNews', '.view-more-news');
     $(document).on('click.dipfinderNews', '.view-more-news', function() {
@@ -805,7 +810,7 @@ async function updateTableAndChart(period) {
         $(this).remove();
     });
 
-    stopLoadingDots(newsLoading, 'news-loading', 'Loaded');
+    stopLoadingDots(newsLoading, null, '');
     saveDipfinderContentState();
 }
 
@@ -1011,9 +1016,8 @@ window.initializeDipfinder = function() {
         if (loadingEl) loadingEl.textContent = '';
 
         fetchNews(newStock).then(articles => {
-            if (articles && articles.length > 0) {
-                appendTickerNewsSection($('#news-feed'), newStock, articles);
-            }
+            newsCache[newStock] = Array.isArray(articles) ? articles : [];
+            renderNewsByTicker($('#news-feed'), newsCache);
         });
 
         saveDipfinderContentState();
@@ -1096,6 +1100,18 @@ window.initializeDipfinder = function() {
         }
     }, 5000);
 };
+
+// ── Newsletter signup ─────────────────────────────────────────────────────────
+
+(function() {
+    document.addEventListener('click', function(e) {
+        if (!e.target.matches('#newsletter-submit')) return;
+        const input = document.getElementById('newsletter-email');
+        const msg   = document.getElementById('newsletter-msg');
+        if (!input || !msg) return;
+        msg.classList.remove('hidden');
+    });
+})();
 
 // ── SPA teardown ──────────────────────────────────────────────────────────────
 

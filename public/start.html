@@ -24,7 +24,7 @@
             }
         } catch (e) { /* invalid token — show landing page */ }
     </script>
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="styles/styles.css">
     <style>
@@ -44,22 +44,57 @@
         .lp-step-line:last-child::after { display: none; }
         .lp-feature-card:hover { transform: translateY(-2px); }
         .lp-feature-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+
+        /* Hero preview: subtle scale-up entrance */
+        @keyframes fadeScaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hero-preview-wrap {
+            animation: fadeScaleIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+            will-change: transform;
+        }
+        .hero-preview-wrap img { display: block; }
+
+        /* Staggered text entrance */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(22px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .hero-line {
+            opacity: 0;
+            animation: fadeSlideUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        span.hero-line { display: block; }
+
+        /* Scroll reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(28px);
+            transition: opacity 0.65s ease, transform 0.65s ease;
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 text-gray-900 antialiased">
 
     <!-- ── Nav ──────────────────────────────────────────────────────────────── -->
-    <nav class="sticky top-0 z-40 border-b border-white border-opacity-60 bg-white bg-opacity-80 backdrop-blur">
-        <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <nav class="sticky top-0 z-40 border-b border-gray-200 bg-white bg-opacity-90" style="backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
             <!-- Logo -->
             <a href="/start" class="flex items-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true">
-                    <rect width="64" height="64" rx="12" fill="#2563eb"/>
-                    <path d="M6,12 L6,52 L19,52 Q31,52 31,32 Q31,12 19,12 Z" fill="white"/>
-                    <path d="M11,17 L18,17 Q26,17 26,32 Q26,47 18,47 L11,47 Z" fill="#4f46e5"/>
-                    <path d="M34,12 L34,52 L39,52 L39,34 L52,34 L52,29 L39,29 L39,17 L58,17 L58,12 Z" fill="white"/>
-                </svg>
-                <span class="text-lg font-extrabold tracking-tight text-gray-900">Dip Finder</span>
+                <picture>
+                    <source srcset="/img/logo.avif" type="image/avif">
+                    <img src="/img/logo.png" width="32" height="32" alt="Dip Finder logo" style="border-radius:7px;">
+                </picture>
+                <span class="text-base font-extrabold tracking-tight text-gray-900">Dip Finder</span>
             </a>
             <!-- Nav links -->
             <div class="hidden items-center gap-6 sm:flex">
@@ -73,7 +108,7 @@
     </nav>
 
     <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
-    <section class="lp-hero-bg px-6 py-24 text-white sm:py-32">
+    <section id="hero-section" class="lp-hero-bg px-6 py-24 text-white sm:py-32">
 
         <!-- Background: photo + gradient overlay -->
         <div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
@@ -87,54 +122,42 @@
             <div style="position:absolute;inset:0;background:linear-gradient(to bottom, #1e3a8a 0%, #3730a3cc 45%, #5b21b680 100%);"></div>
         </div>
 
-        <div class="hero-content mx-auto max-w-4xl text-center">
+        <div class="hero-content mx-auto max-w-7xl" style="display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;">
 
-            <!-- Logo mark -->
-            <div class="mb-8 inline-flex items-center justify-center">
-                <div class="flex items-center gap-4 rounded-2xl bg-white bg-opacity-10 px-6 py-4 backdrop-blur-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="52" height="52" aria-hidden="true">
-                        <rect width="64" height="64" rx="14" fill="white" fill-opacity="0.15"/>
-                        <path d="M6,12 L6,52 L19,52 Q31,52 31,32 Q31,12 19,12 Z" fill="white"/>
-                        <path d="M11,17 L18,17 Q26,17 26,32 Q26,47 18,47 L11,47 Z" fill="#4f46e5"/>
-                        <path d="M34,12 L34,52 L39,52 L39,34 L52,34 L52,29 L39,29 L39,17 L58,17 L58,12 Z" fill="white"/>
-                    </svg>
-                    <div class="text-left">
-                        <p class="text-xs font-semibold uppercase tracking-widest text-blue-200">Watchlist Dip Monitor</p>
-                        <p class="text-2xl font-extrabold tracking-tight">Dip Finder</p>
-                    </div>
+            <!-- Left: text -->
+            <div id="hero-text">
+                <h1 class="mb-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+                    <span class="hero-line" style="animation-delay:0s">Find dips in stocks</span>
+                    <span class="hero-line" style="animation-delay:0.1s">you already want to own.</span>
+                </h1>
+                <p class="hero-line mb-10 text-lg text-blue-100" style="animation-delay:0.22s">
+                    Most investors have stocks they'd like to own - just not at any price.<br>
+                    Dip Finder helps you keep an eye on those stocks and quickly spot when one starts trading below trend.
+                </p>
+                <div class="hero-line flex flex-wrap gap-4" style="animation-delay:0.34s">
+                    <a href="/app" class="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-bold text-blue-700 shadow-lg transition hover:bg-blue-50">
+                        <i class="fas fa-play-circle"></i> Try Now
+                    </a>
+                    <a href="#how-it-works" class="inline-flex items-center gap-2 rounded-xl border border-white border-opacity-30 bg-white bg-opacity-10 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-opacity-20">
+                        How it works <i class="fas fa-chevron-down text-xs"></i>
+                    </a>
+                </div>
+
+                <!-- Trust badges -->
+                <div class="hero-line flex flex-wrap items-center gap-6 text-sm text-blue-200" style="animation-delay:0.46s;margin-top:48px;">
+                    <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> Free to use</span>
+                    <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> No account required</span>
+                    <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> No credit card</span>
                 </div>
             </div>
 
-            <h1 class="mb-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                Find dips in stocks<br class="hidden sm:block"> you already want to own.
-            </h1>
-            <p class="mx-auto mb-10 max-w-2xl text-lg text-blue-100 sm:text-xl">
-                Most investors have stocks they'd like to own - just not at any price.
-                Dip Finder helps you keep an eye on those stocks and quickly spot when one starts trading below trend.
-            </p>
-            <div class="flex flex-wrap items-center justify-center gap-4">
-                <a href="/app" class="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-bold text-blue-700 shadow-lg transition hover:bg-blue-50">
-                    <i class="fas fa-play-circle"></i> Try Now
-                </a>
-                <a href="#how-it-works" class="inline-flex items-center gap-2 rounded-xl border border-white border-opacity-30 bg-white bg-opacity-10 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-opacity-20">
-                    How it works <i class="fas fa-chevron-down text-xs"></i>
-                </a>
-            </div>
-
-            <!-- Trust badges -->
-            <div class="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-blue-200">
-                <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> Free to use</span>
-                <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> No account required</span>
-                <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-300"></i> No credit card</span>
-            </div>
-
-            <!-- App preview -->
-            <div class="mx-auto max-w-5xl" style="margin-top:80px;">
+            <!-- Right: app preview -->
+            <div class="hero-preview-wrap" id="hero-preview-wrap">
                 <picture>
                     <source srcset="/img/preview.avif" type="image/avif">
                     <img src="/img/preview.png" alt="Dip Finder dashboard"
                          class="w-full rounded-2xl shadow-2xl ring-1 ring-white ring-opacity-20"
-                         width="1200" loading="eager">
+                         width="1200" loading="eager" draggable="false">
                 </picture>
             </div>
 
@@ -144,13 +167,13 @@
     <!-- ── How it works ──────────────────────────────────────────────────────── -->
     <section id="how-it-works" class="px-6 py-20">
         <div class="mx-auto max-w-4xl">
-            <div class="mb-14 text-center">
+            <div class="mb-14 text-center reveal">
                 <p class="mb-2 text-xs font-bold uppercase tracking-widest text-blue-600">Simple by design</p>
                 <h2 class="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">How it works</h2>
             </div>
             <div class="grid grid-cols-1 gap-8 sm:grid-cols-3">
 
-                <div class="flex flex-col items-center text-center">
+                <div class="flex flex-col items-center text-center reveal reveal-delay-1">
                     <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md">
                         <i class="fas fa-list-ul text-xl"></i>
                     </div>
@@ -159,7 +182,7 @@
                     <p class="text-sm leading-relaxed text-gray-600">Add the tickers you've been watching - stocks you'd buy if the price was right. No account needed to get started.</p>
                 </div>
 
-                <div class="flex flex-col items-center text-center">
+                <div class="flex flex-col items-center text-center reveal reveal-delay-2">
                     <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md">
                         <i class="fas fa-sliders-h text-xl"></i>
                     </div>
@@ -168,7 +191,7 @@
                     <p class="text-sm leading-relaxed text-gray-600">Choose from the 10, 50, 100, or 200-day SMA. Each tells a different story - short-term pullback or long-term undervaluation.</p>
                 </div>
 
-                <div class="flex flex-col items-center text-center">
+                <div class="flex flex-col items-center text-center reveal reveal-delay-3">
                     <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-md">
                         <i class="fas fa-chart-bar text-xl"></i>
                     </div>
@@ -184,14 +207,14 @@
     <!-- ── Features ──────────────────────────────────────────────────────────── -->
     <section id="features" class="px-6 py-20">
         <div class="mx-auto max-w-5xl">
-            <div class="mb-14 text-center">
+            <div class="mb-14 text-center reveal">
                 <p class="mb-2 text-xs font-bold uppercase tracking-widest text-blue-600">Everything you need</p>
                 <h2 class="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Built for focused investors</h2>
                 <p class="mx-auto mt-3 max-w-xl text-gray-500">Not a bloated trading platform. Just the tools that help you buy what you know, when the price makes sense.</p>
             </div>
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
 
-                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm reveal reveal-delay-1">
                     <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                         <i class="fas fa-list text-lg"></i>
                     </div>
@@ -199,7 +222,7 @@
                     <p class="text-sm leading-relaxed text-gray-500">Track up to 10 stocks. Each row shows price, SMA value, and % distance - color-coded by depth of dip.</p>
                 </div>
 
-                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm reveal reveal-delay-2">
                     <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                         <i class="fas fa-chart-bar text-lg"></i>
                     </div>
@@ -207,7 +230,7 @@
                     <p class="text-sm leading-relaxed text-gray-500">Visual bar chart ranked by SMA distance. See at a glance which stocks are dipping and by how much.</p>
                 </div>
 
-                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm reveal reveal-delay-3">
                     <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
                         <i class="fas fa-search text-lg"></i>
                     </div>
@@ -215,7 +238,7 @@
                     <p class="text-sm leading-relaxed text-gray-500">Dig deeper on any ticker. Price history, moving averages, fundamentals, and recent news in one place.</p>
                 </div>
 
-                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm reveal reveal-delay-4">
                     <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
                         <i class="fas fa-newspaper text-lg"></i>
                     </div>
@@ -227,17 +250,9 @@
         </div>
     </section>
 
-    <!-- ── Disclaimer bar ────────────────────────────────────────────────────── -->
-    <section class="border-y border-amber-100 bg-amber-50 px-6 py-5">
-        <div class="mx-auto flex max-w-4xl items-start gap-3 text-sm text-amber-800">
-            <i class="fas fa-exclamation-circle mt-0.5 flex-shrink-0 text-amber-500"></i>
-            <p>Dip Finder is a research tool, not financial advice. A dip can mean opportunity - or trouble. Always do your own research before making any investment decision.</p>
-        </div>
-    </section>
-
     <!-- ── Final CTA ─────────────────────────────────────────────────────────── -->
     <section class="lp-hero-bg px-6 py-24 text-center text-white">
-        <div class="mx-auto max-w-2xl">
+        <div class="mx-auto max-w-2xl reveal">
             <h2 class="mb-4 text-3xl font-extrabold tracking-tight sm:text-4xl">Ready to spot your next dip?</h2>
             <p class="mb-10 text-lg text-blue-100">No account. No credit card. Just add your tickers and go.</p>
             <a href="/app" class="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-bold text-blue-700 shadow-lg transition hover:bg-blue-50">
@@ -246,16 +261,22 @@
         </div>
     </section>
 
+    <!-- ── Disclaimer bar ────────────────────────────────────────────────────── -->
+    <div class="border-t border-amber-100 bg-amber-50 px-6 py-4">
+        <div class="mx-auto flex max-w-6xl items-start gap-3 text-sm text-amber-800">
+            <i class="fas fa-exclamation-circle mt-0.5 flex-shrink-0 text-amber-500"></i>
+            <p>Dip Finder is a research tool, not financial advice. A dip can mean opportunity - or trouble. Always do your own research before making any investment decision.</p>
+        </div>
+    </div>
+
     <!-- ── Footer ────────────────────────────────────────────────────────────── -->
     <footer class="border-t border-white border-opacity-60 bg-white bg-opacity-60 px-6 py-10">
         <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
             <div class="flex items-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
-                    <rect width="64" height="64" rx="12" fill="#2563eb"/>
-                    <path d="M6,12 L6,52 L19,52 Q31,52 31,32 Q31,12 19,12 Z" fill="white"/>
-                    <path d="M11,17 L18,17 Q26,17 26,32 Q26,47 18,47 L11,47 Z" fill="#4f46e5"/>
-                    <path d="M34,12 L34,52 L39,52 L39,34 L52,34 L52,29 L39,29 L39,17 L58,17 L58,12 Z" fill="white"/>
-                </svg>
+                <picture>
+                    <source srcset="/img/logo.avif" type="image/avif">
+                    <img src="/img/logo.png" width="28" height="28" alt="Dip Finder logo" style="border-radius:6px;">
+                </picture>
                 <span class="font-bold text-gray-800">Dip Finder</span>
             </div>
             <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
@@ -268,6 +289,44 @@
             <p class="text-sm text-gray-400">&copy; 2025 Dip Finder</p>
         </div>
     </footer>
+
+    <script>
+        // ── Parallax on scroll ──────────────────────────────────────────────────
+        const heroSection  = document.getElementById('hero-section');
+        const heroText     = document.getElementById('hero-text');
+        const heroPreview  = document.getElementById('hero-preview-wrap');
+
+        if (heroSection && heroText && heroPreview) {
+            let ticking = false;
+
+            window.addEventListener('scroll', () => {
+                if (ticking) return;
+                requestAnimationFrame(() => {
+                    const scrollY      = window.scrollY;
+                    const heroHeight   = heroSection.offsetHeight;
+                    if (scrollY > heroHeight) { ticking = false; return; }
+
+                    // Text drifts up gently; image lags slightly behind
+                    heroText.style.transform    = `translateY(${scrollY * 0.12}px)`;
+                    heroPreview.style.transform = `translateY(${scrollY * 0.05}px)`;
+                    ticking = false;
+                });
+                ticking = true;
+            });
+        }
+
+        // ── Scroll reveal ───────────────────────────────────────────────────────
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12 });
+
+        document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+    </script>
 
 </body>
 </html>

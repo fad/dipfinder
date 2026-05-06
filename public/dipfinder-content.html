@@ -1,27 +1,27 @@
-        <div class="space-y-5">
+        <div class="space-y-4">
 
-            <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
 
                 <!-- ── Left: Watchlist ──────────────────────────────────── -->
                 <aside class="lg:col-span-4 xl:col-span-4">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                        <div class="mb-4 flex items-center justify-between gap-3">
+                    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                        <div class="mb-3 flex items-center justify-between gap-3">
                             <div>
-                                <h2 class="text-lg font-bold text-gray-900">Watchlist</h2>
-                                <p class="text-sm text-gray-500">Click a ticker to inspect it in the screener.</p>
+                                <h2 class="text-sm font-bold text-gray-900">Watchlist</h2>
+                                <p class="text-xs text-gray-500">Click a ticker to inspect it in the screener.</p>
                             </div>
-                            <i class="fas fa-list text-blue-500"></i>
+                            <i class="fas fa-list text-blue-500 text-sm"></i>
                         </div>
-                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                            <input type="text" id="new-stock" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-2.5">
+                            <input type="text" id="new-stock" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                                 placeholder="Add ticker and press Enter">
                             <button id="add-stock" class="hidden">Add</button>
-                            <span id="stocks-loading" class="block text-center text-blue-500 font-semibold"></span>
-                            <p id="stock-limit-message" class="mt-2 hidden text-sm text-red-500">You can only have up to 10 stocks.</p>
+                            <span id="stocks-loading" class="block text-center text-blue-500 text-xs font-semibold"></span>
+                            <p id="stock-limit-message" class="mt-1.5 hidden text-xs text-red-500">You can only have up to 10 stocks.</p>
                         </div>
 
-                        <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
-                            <table id="stocks-table" class="w-full text-sm">
+                        <div class="mt-3 overflow-hidden rounded-lg border border-gray-200">
+                            <table id="stocks-table" class="w-full text-xs">
                                 <tbody class="divide-y divide-gray-200 bg-white">
                                     <!-- Rows will be appended here by JavaScript -->
                                 </tbody>
@@ -29,18 +29,18 @@
                         </div>
 
                         <!-- Save watchlist button -->
-                        <div id="save-watchlist-btn-wrap" class="mt-4">
+                        <div id="save-watchlist-btn-wrap" class="mt-3">
                             <button id="save-watchlist-inline"
-                                class="green-gradient-btn flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition">
-                                <i class="fas fa-bookmark text-sm"></i>
+                                class="green-gradient-btn flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold shadow-sm transition">
+                                <i class="fas fa-bookmark text-xs"></i>
                                 Save Watchlist
                             </button>
                         </div>
                     </div>
                     <!-- Sample watchlists -->
-                    <div id="sample-watchlist-box" class="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                        <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Try a sample watchlist</p>
-                        <div class="flex flex-wrap gap-2">
+                    <div id="sample-watchlist-box" class="mt-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Try a sample watchlist</p>
+                        <div class="flex flex-wrap justify-center gap-1.5">
                             <button class="sample-watchlist rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                                 data-stocks="AAPL,MSFT,GOOGL,NVDA,META">Popular Tech</button>
                             <button class="sample-watchlist rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
@@ -48,9 +48,9 @@
                             <button class="sample-watchlist rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                                 data-stocks="XOM,CVX,COP,SLB,PSX">Energy</button>
                             <button class="sample-watchlist rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                                data-stocks="BRK-B,V,MA,COST,AMZN">Quality Compounders</button>
+                                data-stocks="BRK-B,V,MA,COST,AMZN">Top Compounders</button>
                             <button class="sample-watchlist rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                                data-stocks="AAPL,MSFT,AMZN,NVDA,JPM">S&amp;P 500 Giants</button>
+                                data-stocks="AAPL,MSFT,AMZN,NVDA,JPM">S&amp;P 500 Favorites</button>
                         </div>
                     </div>
                 </aside>
@@ -59,39 +59,39 @@
                 <section class="lg:col-span-8 xl:col-span-8">
 
                     <!-- Summary metrics -->
-                    <div class="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
-                        <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                            <p class="text-sm font-medium text-gray-500">Biggest Dip</p>
-                            <h2 id="metric-biggest-dip" class="mt-2 text-2xl font-bold text-gray-900">--</h2>
-                            <p id="metric-biggest-dip-detail" class="mt-1 text-sm text-gray-500">Waiting for watchlist data</p>
+                    <div class="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
+                        <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                            <p class="text-xs font-medium text-gray-500">Biggest Dip</p>
+                            <h2 id="metric-biggest-dip" class="mt-1 text-xl font-bold text-gray-900">--</h2>
+                            <p id="metric-biggest-dip-detail" class="mt-0.5 text-xs text-gray-500">Waiting for watchlist data</p>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                            <p class="text-sm font-medium text-gray-500">Stocks Below SMA</p>
-                            <h3 id="metric-below-sma" class="mt-2 text-2xl font-bold text-gray-900">--</h3>
-                            <p id="metric-below-sma-detail" class="mt-1 text-sm text-gray-500">Selected SMA period</p>
+                        <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                            <p class="text-xs font-medium text-gray-500">Stocks Below SMA</p>
+                            <h3 id="metric-below-sma" class="mt-1 text-xl font-bold text-gray-900">--</h3>
+                            <p id="metric-below-sma-detail" class="mt-0.5 text-xs text-gray-500">Selected SMA period</p>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                            <p class="text-sm font-medium text-gray-500">Average Watchlist Dip</p>
-                            <h3 id="metric-average-dip" class="mt-2 text-2xl font-bold text-gray-900">--</h3>
-                            <p id="metric-average-dip-detail" class="mt-1 text-sm text-gray-500">Mean distance vs SMA</p>
+                        <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                            <p class="text-xs font-medium text-gray-500">Average Watchlist Dip</p>
+                            <h3 id="metric-average-dip" class="mt-1 text-xl font-bold text-gray-900">--</h3>
+                            <p id="metric-average-dip-detail" class="mt-0.5 text-xs text-gray-500">Mean distance vs SMA</p>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                            <p class="text-sm font-medium text-gray-500">Strongest Above SMA</p>
-                            <h3 id="metric-strongest-above" class="mt-2 text-2xl font-bold text-gray-900">--</h3>
-                            <p id="metric-strongest-above-detail" class="mt-1 text-sm text-gray-500">Best positive spread</p>
+                        <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                            <p class="text-xs font-medium text-gray-500">Strongest Above SMA</p>
+                            <h3 id="metric-strongest-above" class="mt-1 text-xl font-bold text-gray-900">--</h3>
+                            <p id="metric-strongest-above-detail" class="mt-0.5 text-xs text-gray-500">Best positive spread</p>
                         </div>
                     </div>
 
                     <!-- Chart card -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                        <span id="sma-loading" class="block text-center text-blue-500 font-semibold mb-4"></span>
-                        <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                        <span id="sma-loading" class="block text-center text-blue-500 text-xs font-semibold mb-3"></span>
+                        <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <h3 class="text-xl font-bold text-gray-900">Biggest dips vs SMA</h3>
-                                <p class="text-sm text-gray-500">Sorted by distance below the selected moving average.</p>
+                                <h3 class="text-base font-bold text-gray-900">Biggest dips vs SMA</h3>
+                                <p class="text-xs text-gray-500">Sorted by distance below the selected moving average.</p>
                             </div>
-                            <div class="flex items-center gap-3">
-                                <span class="text-sm font-medium text-gray-600">Period:</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-medium text-gray-600">Period:</span>
                                 <div class="custom-select-wrapper">
                                     <div class="custom-select" id="sma-period-custom">
                                         <div class="custom-select-trigger">
@@ -123,31 +123,55 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="relative rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                            <canvas id="stocks-chart" style="height: 320px;"></canvas>
-                            <div id="chart-loading" class="absolute inset-0 flex items-center justify-center rounded-2xl bg-white bg-opacity-80 hidden">
-                                <div class="flex items-center gap-3">
-                                    <div class="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
-                                    <span class="font-medium text-gray-600">Loading chart data...</span>
+                        <div class="relative rounded-xl border border-gray-100 bg-gray-50 p-3">
+                            <canvas id="stocks-chart" style="height: 280px;"></canvas>
+                            <div id="chart-loading" class="absolute inset-0 flex items-center justify-center rounded-xl bg-white bg-opacity-80 hidden">
+                                <div class="flex items-center gap-2">
+                                    <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                                    <span class="text-xs font-medium text-gray-600">Loading chart data...</span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- How to read this + disclaimer -->
-                        <div class="mt-3 space-y-1.5 rounded-xl border border-gray-100 bg-gray-50 p-4 text-xs text-gray-500">
+                        <div class="mt-2.5 space-y-1 rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs text-gray-500">
                             <p><i class="fas fa-info-circle mr-1 text-blue-400"></i><strong class="text-gray-600">How to read this:</strong> Each bar shows how far a stock is trading above or below its moving average. Lower value = deeper dip. Use as a starting point for research - not a buy signal.</p>
                             <p><i class="fas fa-exclamation-circle mr-1 text-amber-400"></i>Research tool, not financial advice. A dip can mean opportunity - or trouble. Always do your own research.</p>
                         </div>
+                    </div>
+
+                    <!-- Newsletter signup -->
+                    <div class="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 shadow-sm">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex items-start gap-3">
+                                <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
+                                    <i class="fas fa-envelope text-xs"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-900">What The Dip? <span class="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-600">Weekly</span></p>
+                                    <p class="mt-0.5 text-xs text-gray-500 leading-snug">A personalized weekly email based on your watchlist.<br>No doomscrolling required.</p>
+                                </div>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2 sm:pl-2">
+                                <input type="email" id="newsletter-email" placeholder="your@email.com"
+                                    class="w-44 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                <button id="newsletter-submit"
+                                    class="gradient-btn shrink-0 rounded-lg px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:opacity-90 whitespace-nowrap">
+                                    SUBSCRIBE
+                                </button>
+                            </div>
+                        </div>
+                        <p id="newsletter-msg" class="mt-2 hidden text-xs text-blue-600"><i class="fas fa-info-circle mr-1"></i>Newsletter not implemented yet. Coming soon. Thanks for your interest!</p>
                     </div>
 
                 </section>
             </div>
 
             <!-- News – full width, 3-column ticker layout -->
-            <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 id="news-title" class="mb-4 text-xl font-bold text-gray-900">News by ticker</h2>
+            <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <h2 id="news-title" class="mb-3 text-base font-bold text-gray-900">News by ticker</h2>
                 <div id="news-feed">
-                    <span id="news-loading" class="block text-center text-blue-500 font-semibold"></span>
+                    <span id="news-loading" class="block text-center text-blue-500 text-xs font-semibold"></span>
                     <!-- News articles will be appended here by JavaScript -->
                 </div>
             </div>
