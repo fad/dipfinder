@@ -173,6 +173,10 @@ const AuthManager = (function() {
         const saveInline = document.getElementById("save-watchlist-btn-wrap");
         if (saveInline) saveInline.classList.remove("hidden");
 
+        // Show sample watchlist box
+        const sampleBox = document.getElementById("sample-watchlist-box");
+        if (sampleBox) sampleBox.classList.remove("hidden");
+
         // Hide profile dropdown
         const profileDropdown = document.getElementById("profile-dropdown");
         if (profileDropdown) profileDropdown.classList.add("hidden");
@@ -196,6 +200,10 @@ const AuthManager = (function() {
         // Hide inline save button (user is already logged in)
         const saveInline = document.getElementById("save-watchlist-btn-wrap");
         if (saveInline) saveInline.classList.add("hidden");
+
+        // Hide sample watchlist box
+        const sampleBox = document.getElementById("sample-watchlist-box");
+        if (sampleBox) sampleBox.classList.add("hidden");
 
         // Show profile dropdown
         const profileDropdown = document.getElementById("profile-dropdown");
