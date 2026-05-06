@@ -261,7 +261,10 @@ function validateStocksArray() {
             } catch (error) {
                 console.warn('Error checking auth status for message:', error);
             }
-            alert(`Your stock list has been trimmed to ${limit} stocks (${authStatus} user limit). Please log in to increase your limit to 8 stocks.`);
+            const trimMsg = authStatus === 'guest'
+                ? `Watchlist trimmed to ${limit} stocks. Log in to save up to 8.`
+                : `Watchlist trimmed to ${limit} stocks (your limit).`;
+            showWatchlistNotice(trimMsg, true);
         }
         
         return true; // Array was modified
@@ -669,14 +672,13 @@ async function updateTableAndChart(period) {
             stopLoadingDots(stocksLoading, 'stocks-loading', '');
             stopLoadingDots(smaLoading, 'sma-loading', '');
             stopLoadingDots(newsLoading, 'news-loading', '');
-            alert('Removed invalid stocks: ' + removedStocks.join(', '));
             updateTableAndChart(period);
             return;
         } else {
-            stopLoadingDots(stocksLoading, 'stocks-loading', 'Failed');
-            stopLoadingDots(smaLoading, 'sma-loading', 'Failed');
+            stopLoadingDots(stocksLoading, 'stocks-loading', '');
+            stopLoadingDots(smaLoading, 'sma-loading', '');
             stopLoadingDots(newsLoading, 'news-loading', '');
-            alert('Failed to fetch stock data.');
+            showWatchlistNotice('Failed to fetch stock data. Try refreshing.', true);
             return;
         }
     }
@@ -713,8 +715,6 @@ async function updateTableAndChart(period) {
         stopLoadingDots(stocksLoading, 'stocks-loading', '');
         stopLoadingDots(smaLoading, 'sma-loading', '');
         stopLoadingDots(newsLoading, 'news-loading', '');
-        // Optionally, show a message to the user
-        alert('Removed invalid stocks: ' + removedStocks.join(', '));
         // Re-run updateTableAndChart to refresh UI with valid stocks only
         updateTableAndChart(period);
         return;
@@ -753,6 +753,17 @@ async function updateTableAndChart(period) {
 
     // Save the content state after everything is loaded
     saveDipfinderContentState();
+}
+
+function showWatchlistNotice(msg, isError = false) {
+    const el = document.getElementById('stocks-loading');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = `block text-center font-semibold ${isError ? 'text-red-500' : 'text-blue-500'}`;
+    setTimeout(() => {
+        el.textContent = '';
+        el.className = 'block text-center text-blue-500 font-semibold';
+    }, 5000);
 }
 
 function showAddError(msg) {
