@@ -17,14 +17,14 @@
         
         { "source": "/", "destination": "/start.html" },
         { "source": "/start", "destination": "/start.html" },
-        { "source": "/app", "destination": "/index.html" },
+        { "source": "/app", "destination": "/app.html" },
         { "source": "/imprint", "destination": "/imprint.html" },
         { "source": "/terms", "destination": "/terms.html" },
-        { "source": "/about", "destination": "/index.html" },
-        { "source": "/screener", "destination": "/index.html" },
-        { "source": "/profile", "destination": "/index.html" },
+        { "source": "/about", "destination": "/app.html" },
+        { "source": "/screener", "destination": "/app.html" },
+        { "source": "/profile", "destination": "/app.html" },
         { "source": "/contact", "destination": "/contact.html" },
         { "source": "/privacy", "destination": "/privacy.html" },
-        { "source": "/((?!api/|.*\\..*).*)", "destination": "/index.html" }
+        { "source": "/((?!api/|.*\\..*).*)", "destination": "/app.html" }
     ]
 }
