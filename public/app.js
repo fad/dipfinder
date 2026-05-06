@@ -98,7 +98,13 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         '/about': {
             file: 'about-content.html',
-            init: null,
+            init: () => {
+                const cta = document.getElementById('about-guest-cta');
+                if (cta) {
+                    const isAuth = window.AuthManager && window.AuthManager.isAuthenticated;
+                    cta.classList.toggle('hidden', !!isAuth);
+                }
+            },
             destroy: null
         }
     };

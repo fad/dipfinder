@@ -246,11 +246,12 @@ function renderSummaryMetrics(stockDataArray, period) {
     const belowCount   = validRows.filter(d => getSmaDiffPercent(d) < 0).length;
     const averageDiff  = validRows.reduce((sum, d) => sum + getSmaDiffPercent(d), 0) / validRows.length;
 
-    if (biggestDipEl)       biggestDipEl.textContent       = `${biggestDip.stock} ${formatPercent(getSmaDiffPercent(biggestDip))}`;
-    if (biggestDipDetailEl) biggestDipDetailEl.textContent = `vs ${period}-Day SMA ${formatCurrency(biggestDip.sma)}`;
+    const biggestDipDiff = getSmaDiffPercent(biggestDip);
+    if (biggestDipEl)       biggestDipEl.textContent       = biggestDipDiff >= 0 ? '–' : `${biggestDip.stock} ${formatPercent(biggestDipDiff)}`;
+    if (biggestDipDetailEl) biggestDipDetailEl.textContent = biggestDipDiff >= 0 ? 'No stocks below SMA' : `vs ${period}-Day SMA ${formatCurrency(biggestDip.sma)}`;
     if (belowSmaEl)         belowSmaEl.textContent         = `${belowCount} / ${validRows.length}`;
     if (belowSmaDetailEl)   belowSmaDetailEl.textContent   = `Trading below ${period}-Day SMA`;
-    if (averageDipEl)       averageDipEl.textContent       = formatPercent(averageDiff);
+    if (averageDipEl)       averageDipEl.textContent       = averageDiff >= 0 ? '–' : formatPercent(averageDiff);
     if (averageDipDetailEl) averageDipDetailEl.textContent = `Average vs ${period}-Day SMA`;
     if (strongestAboveEl)       strongestAboveEl.textContent       = `${strongestAbove.stock} ${formatPercent(getSmaDiffPercent(strongestAbove))}`;
     if (strongestAboveDetailEl) strongestAboveDetailEl.textContent = `vs ${period}-Day SMA ${formatCurrency(strongestAbove.sma)}`;
@@ -1050,12 +1051,19 @@ window.initializeDipfinder = function() {
     });
 
     // Auth change watcher
+    function updateGuestUI(isAuthenticated) {
+        const wrap = document.getElementById('guest-watchlist-wrap');
+        if (wrap) wrap.classList.toggle('hidden', !!isAuthenticated);
+    }
+
     let lastAuthStatus = false;
+    updateGuestUI(window.AuthManager && window.AuthManager.isAuthenticated);
     dipfinderAuthCheckInterval = setInterval(() => {
         try {
             const currentAuthStatus = window.AuthManager && window.AuthManager.isAuthenticated;
             if (currentAuthStatus !== lastAuthStatus) {
                 lastAuthStatus = currentAuthStatus;
+                updateGuestUI(currentAuthStatus);
                 window.MAX_STOCKS = getCurrentStockLimit();
                 const wasModified = validateStocksArray();
                 if (wasModified && document.getElementById('stocks-table')) {

@@ -1,79 +1,84 @@
-        <div class="mx-auto max-w-2xl">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
 
-            <!-- Hero -->
-            <div class="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-8 py-10 text-white shadow-sm">
-                <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-white bg-opacity-20">
-                    <i class="fas fa-chart-line text-2xl text-white"></i>
+            <!-- Left: signup CTA + what's the catch -->
+            <div class="space-y-6 lg:col-span-1">
+
+                <div id="about-guest-cta" class="hidden rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-6 text-center text-white shadow-sm">
+                    <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white bg-opacity-20 mx-auto">
+                        <i class="fas fa-user-plus text-lg"></i>
+                    </div>
+                    <h3 class="mb-2 text-base font-extrabold tracking-tight">Get 10 tickers</h3>
+                    <p class="mb-5 text-xs text-blue-100 leading-relaxed">Free accounts track up to 10 stocks — double the guest limit. Sign up and claim your extra slots.</p>
+                    <a href="/app?signin=1" class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-blue-700 shadow transition hover:bg-blue-50">
+                        Sign up free
+                    </a>
                 </div>
-                <h2 class="mb-2 text-2xl font-extrabold tracking-tight sm:text-3xl">About Dip Finder</h2>
-                <p class="text-blue-100">Find the dip. Skip the noise.</p>
-            </div>
 
-            <!-- Intro -->
-            <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-                <p class="mb-4 text-gray-700 leading-relaxed">
-                    Most investing tools feel like they were built for people who enjoy staring at 47 indicators at once.
-                </p>
-                <p class="mb-4 text-gray-700 leading-relaxed">Dip Finder is different.</p>
-                <p class="mb-1 text-gray-700 leading-relaxed">We help you answer one simple question:</p>
-                <p class="mt-3 text-base font-semibold text-gray-900">Are any of the stocks I already like currently trading at a discount?</p>
-                <p class="mt-4 text-gray-500 text-sm">That's it.</p>
-            </div>
-
-            <!-- How it works -->
-            <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-                <h3 class="mb-5 text-lg font-bold text-gray-900">How it works</h3>
-                <div class="space-y-4">
-                    <div class="flex items-start gap-4">
-                        <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                            <i class="fas fa-list-ul text-sm"></i>
-                        </div>
-                        <p class="text-gray-700 text-sm leading-relaxed pt-1">Dip Finder tracks the stocks on your watchlist and compares their current prices to their 200-day moving average.</p>
-                    </div>
-                    <div class="flex items-start gap-4">
-                        <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
-                            <i class="fas fa-arrow-trend-down text-sm"></i>
-                        </div>
-                        <div class="pt-1">
-                            <p class="text-gray-700 text-sm leading-relaxed">Think of the 200-day moving average as a stock's long-term trend line. When a stock drops below that line, it may be in a dip.</p>
-                            <p class="mt-2 text-gray-500 text-sm leading-relaxed">Not always a screaming buy. Not financial advice. Not magic. But definitely something worth looking at.</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-4">
-                        <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                            <i class="fas fa-chart-bar text-sm"></i>
-                        </div>
-                        <div class="pt-1">
-                            <p class="text-gray-700 text-sm leading-relaxed font-medium mb-1">Your watchlist, ranked by dip</p>
-                            <p class="text-gray-700 text-sm leading-relaxed">Instead of checking every stock one by one, Dip Finder puts your watchlist into a simple chart. You can quickly see which stocks are close to their trend, which are above it, and which are sitting deep in dip territory.</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-4">
-                        <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                            <i class="fas fa-search text-sm"></i>
-                        </div>
-                        <div class="pt-1">
-                            <p class="text-gray-700 text-sm leading-relaxed font-medium mb-1">Want to dig deeper?</p>
-                            <p class="text-gray-700 text-sm leading-relaxed">Once something catches your eye, use the Stock Screener to explore more details and compare other stocks. Dip Finder helps you find the signal. You do the research.</p>
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <h3 class="mb-4 text-lg font-bold text-gray-900">What's the catch?</h3>
+                    <p class="mb-4 text-gray-700 text-sm leading-relaxed">No catch. The basic version is free, and you can start right away without creating an account.</p>
+                    <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-bell text-amber-500 mt-0.5 shrink-0"></i>
+                            <p class="text-amber-800 text-sm leading-relaxed">We plan to add Pro features like personalized dip alerts and watchlist-based email updates — so the dips come to you.</p>
                         </div>
                     </div>
                 </div>
+
             </div>
 
-            <!-- What's the catch -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-                <h3 class="mb-4 text-lg font-bold text-gray-900">What's the catch?</h3>
-                <p class="mb-4 text-gray-700 text-sm leading-relaxed">
-                    No catch. The basic version is free, and you can start right away without creating an account.
-                </p>
-                <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
-                    <div class="flex items-start gap-3">
-                        <i class="fas fa-bell text-amber-500 mt-0.5"></i>
-                        <p class="text-amber-800 text-sm leading-relaxed">
-                            We plan to add optional Pro features like personalized dip alerts and watchlist-based email updates — so instead of constantly checking the market, the dips can come to you.
-                        </p>
+            <!-- Right: main content -->
+            <div class="space-y-6 lg:col-span-3">
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                    <h2 class="mb-1 text-2xl font-extrabold tracking-tight text-gray-900">About Dip Finder</h2>
+                    <p class="mb-6 text-sm text-gray-400">Find the dip. Skip the noise.</p>
+                    <p class="mb-4 text-gray-700 leading-relaxed">Most investing tools feel like they were built for people who enjoy staring at 47 indicators at once.</p>
+                    <p class="mb-4 text-gray-700 leading-relaxed">Dip Finder is different.</p>
+                    <p class="mb-1 text-gray-700 leading-relaxed">We help you answer one simple question:</p>
+                    <p class="mt-3 text-base font-semibold text-gray-900">Are any of the stocks I already like currently trading at a discount?</p>
+                    <p class="mt-4 text-gray-500 text-sm">That's it.</p>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                    <h3 class="mb-5 text-lg font-bold text-gray-900">How it works</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-4">
+                            <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                <i class="fas fa-list-ul text-sm"></i>
+                            </div>
+                            <p class="text-gray-700 text-sm leading-relaxed pt-1">Dip Finder tracks the stocks on your watchlist and compares their current prices to their 200-day moving average.</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                                <i class="fas fa-arrow-trend-down text-sm"></i>
+                            </div>
+                            <div class="pt-1">
+                                <p class="text-gray-700 text-sm leading-relaxed">Think of the 200-day moving average as a stock's long-term trend line. When a stock drops below that line, it may be in a dip.</p>
+                                <p class="mt-2 text-gray-500 text-sm leading-relaxed">Not always a screaming buy. Not financial advice. Not magic. But definitely something worth looking at.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                <i class="fas fa-chart-bar text-sm"></i>
+                            </div>
+                            <div class="pt-1">
+                                <p class="text-gray-700 text-sm leading-relaxed font-medium mb-1">Your watchlist, ranked by dip</p>
+                                <p class="text-gray-700 text-sm leading-relaxed">Instead of checking every stock one by one, Dip Finder puts your watchlist into a simple chart. You can quickly see which stocks are close to their trend, which are above it, and which are sitting deep in dip territory.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                                <i class="fas fa-search text-sm"></i>
+                            </div>
+                            <div class="pt-1">
+                                <p class="text-gray-700 text-sm leading-relaxed font-medium mb-1">Want to dig deeper?</p>
+                                <p class="text-gray-700 text-sm leading-relaxed">Once something catches your eye, use the Stock Screener to explore more details and compare other stocks. Dip Finder helps you find the signal. You do the research.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
         </div>
