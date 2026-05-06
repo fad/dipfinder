@@ -1,58 +1,120 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
 import axios from 'axios';
-import { Document } from 'mongodb';
 
 const CACHE_EXPIRY_STOCKS = 30 * 60 * 1000; // 30 minutes
+
+type DashboardStockCache = {
+  companyName: string;
+  currentPrice: number;
+  previousPrice: number;
+  closes: number[];
+};
+
+type MemoryCacheEntry = {
+  data: DashboardStockCache;
+  timestamp: number;
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _dashboardStockCache: Record<string, MemoryCacheEntry> | undefined;
+}
+
+const memoryCache = globalThis._dashboardStockCache || {};
+globalThis._dashboardStockCache = memoryCache;
+
+function getCachedDashboardStock(data: any): DashboardStockCache | null {
+  const result = data?.chart?.result?.[0];
+  const closes = result?.indicators?.quote?.[0]?.close?.filter((price: unknown) => Number.isFinite(price));
+
+  if (!Array.isArray(closes) || closes.length < 2) {
+    return null;
+  }
+
+  const meta = result.meta || {};
+  return {
+    companyName: meta.longName || meta.shortName || meta.symbol || 'Unknown',
+    currentPrice: closes[closes.length - 1],
+    previousPrice: closes[closes.length - 2],
+    closes
+  };
+}
+
+function calculateSma(closes: number[], period: number) {
+  const recentPrices = closes.slice(-period);
+  const total = recentPrices.reduce((sum, price) => sum + price, 0);
+  return total / recentPrices.length;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   const { stocks, period } = req.body;
-  if (!Array.isArray(stocks) || !period) {
+  const smaPeriod = Number(period);
+  if (!Array.isArray(stocks) || !Number.isFinite(smaPeriod) || smaPeriod <= 0) {
     return res.status(400).json({ error: 'Missing stocks array or period' });
   }
   try {
-    const db = await connectToDatabase();
+    let stockCollectionPromise: Promise<any> | null = null;
+    const getStockCollection = async () => {
+      if (!stockCollectionPromise) {
+        stockCollectionPromise = connectToDatabase().then(db => db.collection('dashboardStocks'));
+      }
+      return stockCollectionPromise;
+    };
+
     const stockResults = await Promise.all(stocks.map(async (symbol: string) => {
-      // Stock data
-      const stockCacheKey = `stock-${symbol}`;
-      const stockCollection = db.collection('stocks');
-      let stockDataDoc = await stockCollection.findOne({ cacheKey: stockCacheKey });
-      let stockData = stockDataDoc ? stockDataDoc.data : null;
-      let stockTimestamp = stockDataDoc ? stockDataDoc.timestamp : 0;
-      if (!stockData || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
+      const normalizedSymbol = symbol.toUpperCase();
+      const stockCacheKey = `dashboard-stock-${normalizedSymbol}`;
+      const memoryEntry = memoryCache[stockCacheKey];
+      let dashboardStock = memoryEntry ? memoryEntry.data : null;
+      let stockTimestamp = memoryEntry ? memoryEntry.timestamp : 0;
+
+      if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
+        const stockCollection = await getStockCollection();
+        const stockDataDoc = await stockCollection.findOne({ cacheKey: stockCacheKey });
+        dashboardStock = stockDataDoc ? stockDataDoc.data as DashboardStockCache : null;
+        stockTimestamp = stockDataDoc ? stockDataDoc.timestamp : 0;
+
+        if (dashboardStock && Date.now() - stockTimestamp <= CACHE_EXPIRY_STOCKS) {
+          memoryCache[stockCacheKey] = { data: dashboardStock, timestamp: stockTimestamp };
+        }
+      }
+
+      if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=200d`;
         const response = await axios.get(url);
-        stockData = response.data;
+        dashboardStock = getCachedDashboardStock(response.data);
+
+        if (!dashboardStock) {
+          throw new Error(`No chart data found for ${symbol}`);
+        }
+
+        const stockCollection = await getStockCollection();
         await stockCollection.updateOne(
           { cacheKey: stockCacheKey },
-          { $set: { cacheKey: stockCacheKey, data: stockData, timestamp: Date.now() } },
+          { $set: { cacheKey: stockCacheKey, data: dashboardStock, timestamp: Date.now() } },
           { upsert: true }
         );
+        memoryCache[stockCacheKey] = { data: dashboardStock, timestamp: Date.now() };
       }
-      // SMA data
-      const smaCacheKey = `sma-${symbol}-${period}`;
-      const smaCollection = db.collection('stocksMA');
-      let smaDataDoc = await smaCollection.findOne({ cacheKey: smaCacheKey });
-      let sma = smaDataDoc ? smaDataDoc.data.sma : null;
-      let smaTimestamp = smaDataDoc ? smaDataDoc.timestamp : 0;
-      if (!sma || Date.now() - smaTimestamp > CACHE_EXPIRY_STOCKS) {
-        const prices = stockData.chart.result[0].indicators.quote[0].close;
-        const lastPrices = prices.slice(-Number(period));
-        const total = lastPrices.reduce((sum: number, price: number) => sum + parseFloat(price as any), 0);
-        sma = total / lastPrices.length;
-        await smaCollection.updateOne(
-          { cacheKey: smaCacheKey },
-          { $set: { cacheKey: smaCacheKey, data: { sma }, timestamp: Date.now() } },
-          { upsert: true }
-        );
+
+      if (!dashboardStock || dashboardStock.closes.length < smaPeriod) {
+        throw new Error(`Not enough data for ${symbol} ${smaPeriod}-day SMA`);
       }
+
+      const sma = calculateSma(dashboardStock.closes, smaPeriod);
+      const relativePrice = dashboardStock.currentPrice / sma - 1;
+
       return {
-        stock: symbol,
-        stockData,
-        sma
+        stock: normalizedSymbol,
+        companyName: dashboardStock.companyName,
+        currentPrice: dashboardStock.currentPrice,
+        previousPrice: dashboardStock.previousPrice,
+        sma,
+        relativePrice
       };
     }));
     res.status(200).json({ results: stockResults });

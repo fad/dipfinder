@@ -483,33 +483,25 @@ async function updateTableAndChart(period) {
     stopLoadingDots(stocksLoading, 'stocks-loading', '');
     stopLoadingDots(smaLoading, 'sma-loading', '');
 
-    // Fetch company names in parallel (can be batched if needed)
-    const companyNamePromises = stocks.map(stock => fetchCompanyName(stock));
-    const companyNameArray = await Promise.all(companyNamePromises);
-
     for (let i = 0; i < stocks.length; i++) {
         const batch = batchResults[i];
         // Remove stock if backend error or no data
-        if (!batch || !batch.stockData) {
+        if (!batch || !Number.isFinite(batch.currentPrice) || !Number.isFinite(batch.sma)) {
             removedStocks.push(stocks[i]);
             continue;
         }
-        const stockData = batch.stockData;
-        const sma = batch.sma;
-        const companyName = companyNameArray[i];
 
-        const prices = stockData.chart.result[0].indicators.quote[0].close;
-        const currentPrice = prices[prices.length - 1];
-        const previousPrice = prices[prices.length - 2];
+        const currentPrice = batch.currentPrice;
+        const previousPrice = batch.previousPrice;
         const dailyChange = ((currentPrice - previousPrice) / previousPrice) * 100;
-        const relativePrice = currentPrice / sma - 1;
+        const relativePrice = Number.isFinite(batch.relativePrice) ? batch.relativePrice : currentPrice / batch.sma - 1;
 
         stockDataArray.push({
-            stock: stocks[i],
-            companyName: companyName,
+            stock: batch.stock || stocks[i],
+            companyName: batch.companyName || batch.stock || stocks[i],
             currentPrice,
             dailyChange,
-            sma,
+            sma: batch.sma,
             relativePrice
         });
     }
