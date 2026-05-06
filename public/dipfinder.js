@@ -4,6 +4,7 @@ let chart; // Global variable to hold the chart instance
 let notificationCache = {}; // Cache for notifications
 window.MAX_STOCKS = 10; // Default for guests, updated by auth.js
 const BASE_URL = window.location.origin;
+const DASHBOARD_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 function stockDataUrl(stock, params = {}) {
     const urlParams = new URLSearchParams({ symbol: stock, ...params });
@@ -106,6 +107,37 @@ async function fetchBatchStockSMA(stocks, period) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Batch fetch failed');
     return data.results;
+}
+
+function getDashboardCacheKey(period) {
+    return `dipfinder-dashboard:${period}:${stocks.join(',')}`;
+}
+
+function loadCachedDashboardData(period) {
+    try {
+        const raw = localStorage.getItem(getDashboardCacheKey(period));
+        if (!raw) return null;
+
+        const cached = JSON.parse(raw);
+        if (!cached || !Array.isArray(cached.rows) || !cached.timestamp) return null;
+        if (Date.now() - cached.timestamp > DASHBOARD_CACHE_TTL) return null;
+
+        return cached.rows;
+    } catch (error) {
+        console.warn('Error reading cached dashboard data:', error);
+        return null;
+    }
+}
+
+function saveCachedDashboardData(period, rows) {
+    try {
+        localStorage.setItem(getDashboardCacheKey(period), JSON.stringify({
+            timestamp: Date.now(),
+            rows
+        }));
+    } catch (error) {
+        console.warn('Error saving cached dashboard data:', error);
+    }
 }
 
 // Minimalistic loading animation helper
@@ -434,6 +466,136 @@ function renderStockTableRows(tableBody, stockDataArray) {
     });
 }
 
+function attachDashboardRowListeners() {
+    attachRemoveStockListeners();
+
+    $("#stocks-table").off("click.dipfinderRows", ".stock-row");
+    $("#stocks-table").on("click.dipfinderRows", ".stock-row", function() {
+        const stockSymbol = $(this).data("stock");
+        if (stockSymbol) {
+            window.spaNavigate(`/screener?stock=${encodeURIComponent(stockSymbol)}`);
+        }
+    });
+}
+
+function renderDashboardData(stockDataArray, period, tableBody) {
+    tableBody.empty();
+    renderSummaryMetrics(stockDataArray, period);
+    renderStockTableRows(tableBody, stockDataArray);
+
+    const chartLabels = [];
+    const relativePrices = [];
+    const backgroundColors = [];
+    const borderColors = [];
+    const chartPointData = [];
+
+    for (const data of stockDataArray) {
+        const diffPercent = getSmaDiffPercent(data);
+        chartLabels.push(data.stock);
+        relativePrices.push(Number.isFinite(diffPercent) ? Number(diffPercent.toFixed(2)) : null);
+        chartPointData.push(data);
+
+        if (diffPercent < 0) {
+            backgroundColors.push('rgba(239, 68, 68, 0.7)');
+            borderColors.push('rgba(220, 38, 38, 1)');
+        } else {
+            backgroundColors.push('rgba(16, 185, 129, 0.7)');
+            borderColors.push('rgba(5, 150, 105, 1)');
+        }
+    }
+
+    if (chart) {
+        chart.destroy();
+    }
+
+    const chartElement = document.getElementById('stocks-chart');
+    if (!chartElement) {
+        console.warn('Chart element not found - skipping chart update');
+        return;
+    }
+
+    const ctx = chartElement.getContext('2d');
+
+    chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: `% vs ${period}-Day SMA`,
+                    data: relativePrices,
+                    stockData: chartPointData,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barThickness: 18,
+                    maxBarThickness: 22
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const data = context.dataset.stockData[context.dataIndex];
+                            if (!data) return `${context.parsed.x}%`;
+                            return [
+                                `Current: ${formatCurrency(data.currentPrice)}`,
+                                `SMA: ${formatCurrency(data.sma)}`,
+                                `Difference: ${formatPercent(getSmaDiffPercent(data))}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: {
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(17, 24, 39, 0.55)' : 'rgba(0, 0, 0, 0.08)';
+                        },
+                        lineWidth: function(context) {
+                            return context.tick.value === 0 ? 2 : 1;
+                        }
+                    },
+                    ticks: {
+                        color: '#374151',
+                        font: {
+                            size: 12
+                        },
+                        callback: function(value) {
+                            return `${value}%`;
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#374151',
+                        font: {
+                            size: 12
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    hideChartLoading();
+    attachDashboardRowListeners();
+}
+
 // Function to update the table and chart
 async function updateTableAndChart(period) {
     // Show loading indicators
@@ -445,6 +607,11 @@ async function updateTableAndChart(period) {
 
     const tableBody = $("#stocks-table tbody");
     tableBody.empty(); // Clear existing table data
+    const cachedDashboardData = loadCachedDashboardData(period);
+    if (cachedDashboardData) {
+        renderDashboardData(cachedDashboardData, period, tableBody);
+    }
+
     const stockDataArray = [];
     let removedStocks = [];
 
@@ -522,125 +689,8 @@ async function updateTableAndChart(period) {
 
     // Sort the watchlist by biggest dip first.
     stockDataArray.sort((a, b) => getSortableSmaDiff(a) - getSortableSmaDiff(b));
-    renderSummaryMetrics(stockDataArray, period);
-
-    // Append the sorted data to the table
-    renderStockTableRows(tableBody, stockDataArray);
-
-    const chartLabels = [];
-    const relativePrices = [];
-    const backgroundColors = [];
-    const borderColors = [];
-    const chartPointData = [];
-
-    for (const data of stockDataArray) {
-        const diffPercent = getSmaDiffPercent(data);
-        chartLabels.push(data.stock);
-        relativePrices.push(Number.isFinite(diffPercent) ? Number(diffPercent.toFixed(2)) : null);
-        chartPointData.push(data);
-
-        // Set the color based on the relative price value
-        if (diffPercent < 0) {
-            backgroundColors.push('rgba(239, 68, 68, 0.7)');
-            borderColors.push('rgba(220, 38, 38, 1)');
-        } else {
-            backgroundColors.push('rgba(16, 185, 129, 0.7)');
-            borderColors.push('rgba(5, 150, 105, 1)');
-        }
-    }
-
-    // Destroy the existing chart instance if it exists
-    if (chart) {
-        chart.destroy();
-    }
-
-    // Update chart - check if element exists first
-    const chartElement = document.getElementById('stocks-chart');
-    if (!chartElement) {
-        console.warn('Chart element not found - skipping chart update');
-        return;
-    }
-    
-    const ctx = chartElement.getContext('2d');
-    
-    chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: chartLabels,
-            datasets: [
-                {
-                    label: `% vs ${period}-Day SMA`,
-                    data: relativePrices,
-                    stockData: chartPointData,
-                    backgroundColor: backgroundColors,
-                    borderColor: borderColors,
-                    borderWidth: 1,
-                    borderRadius: 6,
-                    barThickness: 18,
-                    maxBarThickness: 22
-                }
-            ]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const data = context.dataset.stockData[context.dataIndex];
-                            if (!data) return `${context.parsed.x}%`;
-                            return [
-                                `Current: ${formatCurrency(data.currentPrice)}`,
-                                `SMA: ${formatCurrency(data.sma)}`,
-                                `Difference: ${formatPercent(getSmaDiffPercent(data))}`
-                            ];
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    grid: {
-                        color: function(context) {
-                            return context.tick.value === 0 ? 'rgba(17, 24, 39, 0.55)' : 'rgba(0, 0, 0, 0.08)';
-                        },
-                        lineWidth: function(context) {
-                            return context.tick.value === 0 ? 2 : 1;
-                        }
-                    },
-                    ticks: {
-                        color: '#374151',
-                        font: {
-                            size: 12
-                        },
-                        callback: function(value) {
-                            return `${value}%`;
-                        }
-                    }
-                },
-                y: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#374151',
-                        font: {
-                            size: 12
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // Hide chart loading indicator
-    hideChartLoading();
+    saveCachedDashboardData(period, stockDataArray);
+    renderDashboardData(stockDataArray, period, tableBody);
 
     // Fetch and display news (after main data is loaded)
     const newsFeed = $("#news-feed");
@@ -668,19 +718,6 @@ async function updateTableAndChart(period) {
 
     stopLoadingDots(newsLoading, 'news-loading', 'Loaded');
 
-    // Add event listeners to remove buttons
-    attachRemoveStockListeners();
-
-    // Add click handlers for stock rows to navigate to screener
-    $("#stocks-table").off("click.dipfinderRows", ".stock-row");
-    $("#stocks-table").on("click.dipfinderRows", ".stock-row", function() {
-        const stockSymbol = $(this).data("stock");
-        if (stockSymbol) {
-            // Navigate to screener using the SPA router
-            window.spaNavigate(`/screener?stock=${encodeURIComponent(stockSymbol)}`);
-        }
-    });
-    
     // Save the content state after everything is loaded
     saveDipfinderContentState();
 }
