@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – Dip Finder</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/styles/styles.css">
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; margin: 0; padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; color: #f8fafc; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-bottom: 2rem; }
+    #error-msg { color: #f87171; background: #1e1e2e; border: 1px solid #f87171; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: none; }
+    #loading { color: #94a3b8; }
+    .stats { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1rem 1.5rem; min-width: 130px; }
+    .stat-card .value { font-size: 1.75rem; font-weight: 700; color: #38bdf8; }
+    .stat-card .label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+    .search-bar { margin-bottom: 1rem; }
+    .search-bar input { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 0.5rem 1rem; color: #e2e8f0; font-size: 0.875rem; width: 280px; outline: none; }
+    .search-bar input:focus { border-color: #38bdf8; }
+    .search-bar input::placeholder { color: #64748b; }
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #334155; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    thead tr { background: #1e293b; }
+    th { padding: 0.75rem 1rem; text-align: left; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.7rem; white-space: nowrap; cursor: pointer; user-select: none; }
+    th:hover { color: #e2e8f0; }
+    th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+    th.sorted .sort-arrow { opacity: 1; color: #38bdf8; }
+    tbody tr { border-top: 1px solid #1e293b; transition: background 0.1s; }
+    tbody tr:hover { background: #1e293b; }
+    td { padding: 0.65rem 1rem; color: #cbd5e1; white-space: nowrap; }
+    td.email { color: #f1f5f9; font-weight: 500; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+    .badge-green { background: #14532d; color: #86efac; }
+    .badge-gray  { background: #1e293b; color: #64748b; border: 1px solid #334155; }
+    .badge-blue  { background: #0c2845; color: #7dd3fc; }
+    .no-data { text-align: center; padding: 3rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <h1>Admin</h1>
+  <p class="subtitle">Signed-up users</p>
+  <div id="error-msg"></div>
+  <div id="loading">Loading…</div>
+  <div id="content" style="display:none">
+    <div class="stats" id="stats"></div>
+    <div class="search-bar">
+      <input type="text" id="search" placeholder="Search by name or email…" oninput="renderTable()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('name')">Name <span class="sort-arrow" id="arrow-name">↕</span></th>
+            <th onclick="sortBy('email')">Email <span class="sort-arrow" id="arrow-email">↕</span></th>
+            <th onclick="sortBy('createdDate')">Joined <span class="sort-arrow" id="arrow-createdDate">↕</span></th>
+            <th onclick="sortBy('isVerified')">Verified <span class="sort-arrow" id="arrow-isVerified">↕</span></th>
+            <th onclick="sortBy('newsletterSubscribed')">Newsletter <span class="sort-arrow" id="arrow-newsletterSubscribed">↕</span></th>
+            <th onclick="sortBy('totalLoginCount')">Logins <span class="sort-arrow" id="arrow-totalLoginCount">↕</span></th>
+            <th onclick="sortBy('lastLoginAt')">Last Login <span class="sort-arrow" id="arrow-lastLoginAt">↕</span></th>
+            <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="user-rows"></tbody>
+      </table>
+    </div>
+    <p style="margin-top:0.75rem; color:#64748b; font-size:0.75rem;" id="row-count"></p>
+  </div>
+
+  <script>
+    let allUsers = [];
+    let sortKey = 'createdDate';
+    let sortDir = -1; // -1 = desc, 1 = asc
+
+    function fmt(dateStr) {
+      if (!dateStr) return '—';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function sortBy(key) {
+      if (sortKey === key) { sortDir *= -1; }
+      else { sortKey = key; sortDir = -1; }
+      renderTable();
+    }
+
+    function getVal(user, key) {
+      if (key === 'watchlist') return (user.watchlist || []).length;
+      if (key === 'totalLoginCount') return user.totalLoginCount || 0;
+      if (key === 'isVerified') return user.isVerified ? 1 : 0;
+      if (key === 'newsletterSubscribed') return user.newsletterSubscribed ? 1 : 0;
+      if (key === 'createdDate' || key === 'lastLoginAt') return user[key] ? new Date(user[key]).getTime() : 0;
+      return (user[key] || '').toString().toLowerCase();
+    }
+
+    function renderTable() {
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      let users = allUsers.filter(u =>
+        !q ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.name || '').toLowerCase().includes(q)
+      );
+
+      users.sort((a, b) => {
+        const av = getVal(a, sortKey), bv = getVal(b, sortKey);
+        return av < bv ? -sortDir : av > bv ? sortDir : 0;
+      });
+
+      // Update sort arrows
+      document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
+      ['name','email','createdDate','isVerified','newsletterSubscribed','totalLoginCount','lastLoginAt','watchlist'].forEach(k => {
+        const el = document.getElementById('arrow-' + k);
+        if (!el) return;
+        if (k === sortKey) {
+          el.textContent = sortDir === -1 ? '↓' : '↑';
+          el.closest('th').classList.add('sorted');
+        } else {
+          el.textContent = '↕';
+        }
+      });
+
+      const tbody = document.getElementById('user-rows');
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="no-data">No users found</td></tr>';
+      } else {
+        tbody.innerHTML = users.map(u => {
+          const watchlist = (u.watchlist || []);
+          const watchlistTip = watchlist.length ? watchlist.join(', ') : '';
+          return `<tr>
+            <td>${u.name || '<span style="color:#64748b">—</span>'}</td>
+            <td class="email">${u.email || ''}</td>
+            <td>${fmt(u.createdDate)}</td>
+            <td>${u.isVerified
+              ? '<span class="badge badge-green">Yes</span>'
+              : '<span class="badge badge-gray">No</span>'}</td>
+            <td>${u.newsletterSubscribed
+              ? '<span class="badge badge-blue">Yes</span>'
+              : '<span class="badge badge-gray">No</span>'}</td>
+            <td>${u.totalLoginCount || 0}</td>
+            <td>${fmt(u.lastLoginAt)}</td>
+            <td title="${watchlistTip}">${watchlist.length ? watchlist.length : '<span style="color:#64748b">0</span>'}</td>
+          </tr>`;
+        }).join('');
+      }
+      document.getElementById('row-count').textContent =
+        users.length === allUsers.length
+          ? `${allUsers.length} user${allUsers.length !== 1 ? 's' : ''} total`
+          : `Showing ${users.length} of ${allUsers.length}`;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.style.display = 'block';
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    async function load() {
+      const token = localStorage.getItem('token');
+      if (!token) { showError('Not logged in. Please log in at /app first.'); return; }
+
+      let data;
+      try {
+        const res = await fetch('/api/admin?action=list-users', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        data = await res.json();
+        if (!res.ok) { showError(data.error || 'Request failed'); return; }
+      } catch (e) {
+        showError('Network error: ' + e.message);
+        return;
+      }
+
+      allUsers = data.users || [];
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      // Stats
+      const verified = allUsers.filter(u => u.isVerified).length;
+      const newsletter = allUsers.filter(u => u.newsletterSubscribed).length;
+      const withWatchlist = allUsers.filter(u => u.watchlist?.length).length;
+      document.getElementById('stats').innerHTML = [
+        { value: allUsers.length, label: 'Total Users' },
+        { value: verified, label: 'Verified' },
+        { value: newsletter, label: 'Newsletter' },
+        { value: withWatchlist, label: 'Have Watchlist' },
+      ].map(s => `<div class="stat-card"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`).join('');
+
+      renderTable();
+    }
+
+    load();
+  </script>
+</body>
+</html>
