@@ -62,6 +62,18 @@ function stopLoadingDots(intervalId, elementId, finalText = '') {
     }
 }
 
+// ── Chart loading UI ─────────────────────────────────────────────────────────
+
+function showChartLoading() {
+    const el = document.getElementById('chart-loading');
+    if (el) el.classList.remove('hidden');
+}
+
+function hideChartLoading() {
+    const el = document.getElementById('chart-loading');
+    if (el) el.classList.add('hidden');
+}
+
 // ── Stock limit helpers ───────────────────────────────────────────────────────
 
 function getCurrentStockLimit() {

@@ -52,17 +52,7 @@ function getSmaDiffClasses(diffPercent) {
     return 'bg-green-100 text-green-700';
 }
 
-// ── Chart / loading UI ────────────────────────────────────────────────────────
-
-function showChartLoading() {
-    const el = document.getElementById('chart-loading');
-    if (el) el.classList.remove('hidden');
-}
-
-function hideChartLoading() {
-    const el = document.getElementById('chart-loading');
-    if (el) el.classList.add('hidden');
-}
+// ── Period display ────────────────────────────────────────────────────────────
 
 function updatePeriodDisplay(period) {
     const el = document.getElementById('selected-period-display');
