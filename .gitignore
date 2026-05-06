@@ -102,6 +102,4 @@ build/
 *.sw?
 .vercel
 
-# MD files
-*.md
 .env*.local
