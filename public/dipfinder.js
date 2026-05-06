@@ -363,9 +363,8 @@ function buildTickerNewsSection(ticker, articles) {
 
     return `
         <section>
-            <div class="mb-3 flex items-center gap-3">
+            <div class="mb-3">
                 <h3 class="text-base font-bold text-gray-900">${escapeHtml(ticker)}</h3>
-                <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">${deduped.length} articles</span>
             </div>
             <div class="space-y-3" data-news-group="${escapeHtml(ticker)}">
                 ${visibleHtml}${hiddenHtml}
