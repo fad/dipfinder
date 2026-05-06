@@ -3,83 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact & Support - DipFinder</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Contact - Dip Finder</title>
+    <meta name="description" content="Get in touch with the Dip Finder team.">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="styles/styles.css">
-    <style>
-        .gradient-btn {
-            background: linear-gradient(to right, #3b82f6, #8b5cf6);
-            color: #fff;
-            transition: background 0.2s;
-        }
-        .gradient-btn:hover {
-            background: linear-gradient(to right, #2563eb, #7c3aed);
-        }
-        .contact-card {
-            transition: all 0.3s ease;
-        }
-        .contact-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.15);
-        }
-    </style>
 </head>
-<body class="bg-gray-100 text-gray-900 min-h-screen flex flex-col">
-    <div class="flex-1 flex flex-col container mx-auto p-4">
-        <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-md mb-8">
-            <h1 class="text-center text-4xl font-extrabold tracking-tight">DipFinder</h1>
-            <p class="text-center text-lg font-light">Contact & Support</p>
-        </header>
-        
-        <button onclick="window.location.href='index.html'" class="mb-6 self-start gradient-btn px-4 py-2 rounded-md shadow">
-            <i class="fas fa-arrow-left mr-2"></i>Back To Homepage
-        </button>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 text-gray-900 antialiased">
 
-        <div class="flex-1 flex justify-center">
-            <!-- Contact Information -->
-            <div class="bg-white p-8 rounded-lg shadow-md contact-card max-w-2xl w-full">
-                <div class="text-center mb-6">
-                    <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <i class="fas fa-envelope text-white text-2xl"></i>
+    <!-- Back link -->
+    <div class="px-6 py-5">
+        <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-blue-600">
+            <i class="fas fa-arrow-left text-xs"></i> Back to Dip Finder
+        </a>
+    </div>
+
+    <main class="mx-auto max-w-2xl px-6 pb-16">
+
+        <!-- Header -->
+        <div class="mb-10 text-center">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 shadow-md">
+                <i class="fas fa-envelope text-xl text-white"></i>
+            </div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-gray-900">Get in Touch</h1>
+            <p class="mt-2 text-gray-500">We're here to help with any questions or issues.</p>
+        </div>
+
+        <!-- Contact card -->
+        <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+            <div class="space-y-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <i class="fas fa-envelope"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Get in Touch</h2>
-                    <p class="text-gray-600">We're here to help with any questions or issues you may have</p>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Email Support</h3>
+                        <p class="mt-0.5 text-sm text-gray-500">Get help with your account, technical issues, or general questions.</p>
+                        <a href="mailto:info@dipfinder.com" class="mt-1.5 inline-block text-sm font-semibold text-blue-600 transition hover:text-blue-800">
+                            info@dipfinder.com
+                        </a>
+                    </div>
                 </div>
-
-                <div class="space-y-6">
-                    <div class="flex items-start space-x-4">
-                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <i class="fas fa-envelope text-blue-600"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">Email Support</h3>
-                            <p class="text-gray-600 text-sm mb-2">Get help with your account, technical issues, or general questions</p>
-                            <a href="mailto:info@dipfinder.com" class="text-blue-600 hover:text-blue-800 font-medium transition-colors">
-                                info@dipfinder.com
-                            </a>
-                        </div>
+                <div class="flex items-start gap-4">
+                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600">
+                        <i class="fas fa-clock"></i>
                     </div>
-
-                    <div class="flex items-start space-x-4">
-                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <i class="fas fa-clock text-green-600"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">Response Time</h3>
-                            <p class="text-gray-600 text-sm">We typically respond within 24 hours during business days</p>
-                        </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Response Time</h3>
+                        <p class="mt-0.5 text-sm text-gray-500">We typically respond within 24 hours during business days.</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <footer class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg shadow-md text-center mt-8">
-            <div class="flex justify-center space-x-6">
-                <a href="privacy.html" class="hover:text-blue-200 transition-colors">Terms</a>
-                <a href="contact.html" class="hover:text-blue-200 transition-colors">Contact</a>
+        <!-- FAQ -->
+        <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+            <h2 class="mb-6 text-lg font-bold text-gray-900">Frequently Asked Questions</h2>
+            <div class="space-y-5">
+                <div class="border-l-2 border-blue-400 pl-4">
+                    <h3 class="text-sm font-semibold text-gray-900">How do I reset my password?</h3>
+                    <p class="mt-1 text-sm text-gray-500">Click "Forgot password?" on the sign-in form and follow the instructions sent to your email.</p>
+                </div>
+                <div class="border-l-2 border-indigo-400 pl-4">
+                    <h3 class="text-sm font-semibold text-gray-900">How many stocks can I track?</h3>
+                    <p class="mt-1 text-sm text-gray-500">Guest users can track up to 10 stocks. Registered users can track up to 20.</p>
+                </div>
+                <div class="border-l-2 border-violet-400 pl-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Is there a subscription plan?</h3>
+                    <p class="mt-1 text-sm text-gray-500">Not yet. Dip Finder is free with no ads. We may add Pro features in the future.</p>
+                </div>
+                <div class="border-l-2 border-teal-400 pl-4">
+                    <h3 class="text-sm font-semibold text-gray-900">How often is stock data updated?</h3>
+                    <p class="mt-1 text-sm text-gray-500">We update data approximately every 5 minutes. Dip Finder does not provide real-time data and does not guarantee accuracy.</p>
+                </div>
+                <div class="border-l-2 border-amber-400 pl-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Do you offer investment advice?</h3>
+                    <p class="mt-1 text-sm text-gray-500">No. Dip Finder is a research tool only. Nothing on this site constitutes financial advice.</p>
+                </div>
             </div>
-        </footer>
-    </div>
+        </div>
+
+    </main>
+
 </body>
 </html>
