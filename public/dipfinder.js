@@ -952,14 +952,6 @@ window.initializeDipfinder = function() {
         if (event.which === 13) $('#add-stock').click();
     });
 
-    // Hero "Start Free" — scroll/focus the watchlist input
-    $(document).on('click.dipfinder', '#hero-start-free', function() {
-        const input = document.getElementById('new-stock');
-        if (input) {
-            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            setTimeout(() => input.focus(), 300);
-        }
-    });
 
     // Sample watchlist buttons
     $(document).on('click.dipfinder', '.sample-watchlist', function() {

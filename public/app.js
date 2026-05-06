@@ -49,6 +49,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.getElementById('main-content');
     let currentPageCleanup = null; // To hold the cleanup function for the current page
 
+    // ── Per-route SEO metadata ────────────────────────────────────────────────
+    const routeMeta = {
+        '/':         { title: 'Dip Finder – Find Dips in Stocks You Already Want to Own',    description: 'Track your watchlist and instantly see which stocks are trading furthest below their moving average. Free, no account required.' },
+        '/screener': { title: 'Stock Screener – Dip Finder',                                  description: 'Screen any stock by SMA distance, price, volume, and fundamentals. Powered by Dip Finder.' },
+        '/about':    { title: 'About – Dip Finder',                                           description: 'Learn how Dip Finder helps you spot buying opportunities in stocks you already want to own.' },
+        '/contact':  { title: 'Contact – Dip Finder',                                         description: 'Get in touch with the Dip Finder team.' },
+        '/privacy':  { title: 'Privacy Policy – Dip Finder',                                  description: 'Read the Dip Finder privacy policy.' },
+        '/profile':  { title: 'Profile – Dip Finder',                                         description: 'Manage your Dip Finder account and saved watchlist.' },
+    };
+
+    function updatePageMeta(path) {
+        const meta = routeMeta[path] || routeMeta['/'];
+        document.title = meta.title;
+        const setMeta = (sel, val) => { const el = document.querySelector(sel); if (el) el.setAttribute('content', val); };
+        setMeta('meta[name="description"]',         meta.description);
+        setMeta('meta[property="og:title"]',        meta.title);
+        setMeta('meta[property="og:description"]',  meta.description);
+        setMeta('meta[name="twitter:title"]',       meta.title);
+        setMeta('meta[name="twitter:description"]', meta.description);
+    }
+
     const routes = {
         '/': {
             file: 'dipfinder-content.html',
@@ -141,7 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(filename);
             if (response.ok) {
                 mainContent.innerHTML = await response.text();
-                
+                updatePageMeta(path);
+
                 // Update navigation highlighting - call with a slight delay to ensure DOM is ready
                 setTimeout(() => {
                     updateNavigation(path);
