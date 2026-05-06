@@ -391,6 +391,21 @@ function saveSelectedPeriod(period) {
     localStorage.setItem('selectedPeriod', period);
 }
 
+// ── DB watchlist sync ─────────────────────────────────────────────────────────
+
+async function saveWatchlistToDb() {
+    try {
+        if (!window.AuthManager || !window.AuthManager.isAuthenticated) return;
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        await fetch(`${BASE_URL}/api/user?action=save-watchlist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ stocks })
+        });
+    } catch (e) { /* silent — localStorage remains source of truth */ }
+}
+
 // ── Loading dots ──────────────────────────────────────────────────────────────
 
 function startLoadingDots(elementId) {
@@ -423,7 +438,7 @@ function stopLoadingDots(intervalId, elementId, finalText = '') {
 
 function getCurrentStockLimit() {
     try {
-        if (window.AuthManager && window.AuthManager.isAuthenticated) return 8;
+        if (window.AuthManager && window.AuthManager.isAuthenticated) return 10;
     } catch (error) {
         console.warn('Error checking authentication status:', error);
     }
@@ -454,7 +469,7 @@ function validateStocksArray() {
                 console.warn('Error checking auth status for message:', e);
             }
             const msg = authStatus === 'guest'
-                ? `Watchlist trimmed to ${limit} stocks. Log in to save up to 8.`
+                ? `Watchlist trimmed to ${limit} stocks. Log in to save up to 10.`
                 : `Watchlist trimmed to ${limit} stocks (your limit).`;
             showWatchlistNotice(msg, true);
         }
@@ -477,7 +492,7 @@ function addStockWithValidation(newStock) {
         }
         return {
             success: false,
-            error: `Stock limit reached (${limit} stocks). ${authStatus === 'guest' ? 'Please log in to increase your limit to 8 stocks.' : ''}`
+            error: `Stock limit reached (${limit} stocks). ${authStatus === 'guest' ? 'Please log in to increase your limit to 10 stocks.' : ''}`
         };
     }
     return { success: true };
@@ -492,6 +507,7 @@ function removeStockFromUI(stockToRemove) {
 
     stocks = stocks.filter(s => s !== stockToRemove);
     saveStocks();
+    saveWatchlistToDb();
 
     try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
 
@@ -915,6 +931,7 @@ window.initializeDipfinder = function() {
 
         stocks.push(newStock);
         saveStocks();
+        saveWatchlistToDb();
 
         const newStockData = {
             stock:         batch.stock || newStock,
@@ -973,6 +990,7 @@ window.initializeDipfinder = function() {
         const period = $('#sma-period').val() || '200';
         stocks = $(this).data('stocks').split(',');
         saveStocks();
+        saveWatchlistToDb();
         try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
         updateTableAndChart(period);
     });
@@ -999,6 +1017,19 @@ window.initializeDipfinder = function() {
             console.warn('Error checking authentication status:', error);
         }
     }, 1000);
+
+    // Watchlist restore: fired by auth.js after fetching DB stocks on login
+    window.addEventListener('dipfinder:watchlistRestored', function() {
+        try {
+            const restored = JSON.parse(localStorage.getItem('stocks') || '[]');
+            if (JSON.stringify(restored) !== JSON.stringify(stocks)) {
+                stocks = restored;
+                const period = $('#sma-period').val() || '200';
+                try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
+                if (document.getElementById('stocks-table')) updateTableAndChart(period);
+            }
+        } catch (e) { console.warn('Error handling watchlistRestored:', e); }
+    });
 
     // localStorage sync watcher
     dipfinderLocalStorageCheckInterval = setInterval(() => {

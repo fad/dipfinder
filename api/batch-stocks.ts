@@ -5,7 +5,7 @@ import { verifyJWT } from './lib/auth';
 import axios from 'axios';
 
 const GUEST_STOCK_LIMIT = 5;
-const AUTH_STOCK_LIMIT = 8;
+const AUTH_STOCK_LIMIT = 10;
 
 type DashboardStockCache = {
   companyName: string;

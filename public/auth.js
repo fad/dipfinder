@@ -113,17 +113,18 @@ const AuthManager = (function() {
 /*console.log("Server token verification response:", res.status, data);*/ 
             
             if (res.ok && data.valid) {
-/*console.log("Server confirmed token valid");*/ 
+/*console.log("Server confirmed token valid");*/
                 const userData = data.user;
-                
+
                 // Update cached state with fresh server data
-                localStorage.setItem("lastAuthState", JSON.stringify({ 
-                    isAuthenticated: true, 
-                    user: userData 
+                localStorage.setItem("lastAuthState", JSON.stringify({
+                    isAuthenticated: true,
+                    user: userData
                 }));
-                
+
                 showLoggedInUI(userData);
                 updateGlobalAuthState(true, userData);
+                restoreWatchlistFromDb();
                 return true;
             } else {
 /*console.log("Server says token invalid, clearing and showing guest UI");*/ 
@@ -147,15 +148,15 @@ const AuthManager = (function() {
         
         // Update MAX_STOCKS if it exists
         if (typeof window.MAX_STOCKS !== 'undefined') {
-            window.MAX_STOCKS = authenticated ? 20 : 10;
+            window.MAX_STOCKS = authenticated ? 10 : 5;
         }
-        
+
         // Update stock limit message if it exists
         const stockLimitMessage = document.getElementById("stock-limit-message");
         if (stockLimitMessage) {
-            stockLimitMessage.textContent = authenticated 
-                ? "You can only have up to 20 stocks."
-                : "You can only have up to 10 stocks. To increase this limit to 20, please log in.";
+            stockLimitMessage.textContent = authenticated
+                ? "You can only have up to 10 stocks."
+                : "You can only have up to 5 stocks. Log in to track up to 10.";
         }
     }
     
@@ -260,6 +261,7 @@ const AuthManager = (function() {
                 setTimeout(() => {
                     closeAuthModal();
                     showLoggedInUI(userData);
+                    restoreWatchlistFromDb();
                 }, 800);
             } else {
                 showAuthError(data.error || data.msg || "Login failed. Please try again.");
@@ -374,6 +376,23 @@ const AuthManager = (function() {
         }
     }
     
+    // Restore watchlist from DB after login and dispatch event so dipfinder.js refreshes
+    async function restoreWatchlistFromDb() {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const res = await fetch(`${BASE_URL}/api/user?action=get-watchlist`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (Array.isArray(data.stocks) && data.stocks.length > 0) {
+                localStorage.setItem("stocks", JSON.stringify(data.stocks));
+                window.dispatchEvent(new CustomEvent("dipfinder:watchlistRestored"));
+            }
+        } catch (e) { /* silent — local stocks remain */ }
+    }
+
     // Logout
     function logout() {
         localStorage.removeItem("token");
