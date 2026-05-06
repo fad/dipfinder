@@ -146,6 +146,13 @@ function formatNewsDate(value) {
     if (!value) return 'Recent';
     const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
     if (Number.isNaN(date.getTime())) return 'Recent';
+    const diff = Date.now() - date.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
     return date.toLocaleDateString();
 }
 
@@ -291,15 +298,14 @@ function getArticleKey(article) {
 }
 
 function renderNewsArticle(article, hidden) {
-    const summary = article.summary || 'Summary unavailable from this source.';
     const hiddenClass = hidden ? ' hidden' : '';
     return `
-        <article class="ticker-news-item${hiddenClass}">
-            <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer" class="block text-sm font-semibold text-gray-900 transition hover:text-blue-700 hover:underline">
-                ${escapeHtml(article.headline || 'Untitled article')}
+        <article class="ticker-news-item${hiddenClass} rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm transition hover:shadow-md hover:border-blue-100">
+            <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer" class="block">
+                <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-blue-500">${escapeHtml(article.source || 'News')}</p>
+                <p class="text-sm font-semibold leading-snug text-gray-900 transition group-hover:text-blue-700">${escapeHtml(article.headline || 'Untitled article')}</p>
+                <p class="mt-2 text-xs text-gray-400">${formatNewsDate(article.datetime)}</p>
             </a>
-            <p class="mt-1 text-xs text-gray-500">${escapeHtml(article.source || 'Unknown source')} - ${formatNewsDate(article.datetime)}</p>
-            <p class="mt-1 text-sm text-gray-600">${escapeHtml(truncateString(summary, 150))}</p>
         </article>
     `;
 }
@@ -333,19 +339,19 @@ function appendTickerNewsSection(newsFeed, ticker, articles) {
         });
     if (deduped.length === 0) return;
 
-    const visibleHtml = deduped.slice(0, 3).map(a => renderNewsArticle(a, false)).join('');
-    const hiddenHtml  = deduped.slice(3, 6).map(a => renderNewsArticle(a, true)).join('');
-    const buttonHtml  = deduped.length > 3
-        ? `<button type="button" class="view-more-news mt-3 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700" data-ticker="${escapeHtml(ticker)}">View more news</button>`
+    const visibleHtml = deduped.slice(0, 4).map(a => renderNewsArticle(a, false)).join('');
+    const hiddenHtml  = deduped.slice(4, 8).map(a => renderNewsArticle(a, true)).join('');
+    const buttonHtml  = deduped.length > 4
+        ? `<button type="button" class="view-more-news mt-4 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700" data-ticker="${escapeHtml(ticker)}">View more news</button>`
         : '';
 
     newsFeed.append(`
-        <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4 last:mb-0">
-            <div class="mb-3 flex items-center justify-between gap-3">
+        <section class="mb-6 last:mb-0">
+            <div class="mb-3 flex items-center gap-3">
                 <h3 class="text-base font-bold text-gray-900">${escapeHtml(ticker)}</h3>
-                <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">${deduped.length} articles</span>
+                <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">${deduped.length} articles</span>
             </div>
-            <div class="space-y-3" data-news-group="${escapeHtml(ticker)}">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-news-group="${escapeHtml(ticker)}">
                 ${visibleHtml}${hiddenHtml}
             </div>
             ${buttonHtml}

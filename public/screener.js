@@ -647,33 +647,42 @@ window.initializeScreener = function(params) {
     }
 
 
+    function formatNewsDate(value) {
+        if (!value) return '';
+        const ms = typeof value === 'number' ? value * 1000 : new Date(value).getTime();
+        const diff = Date.now() - ms;
+        if (diff < 60000)       return 'just now';
+        if (diff < 3600000)     return `${Math.floor(diff / 60000)}m ago`;
+        if (diff < 86400000)    return `${Math.floor(diff / 3600000)}h ago`;
+        if (diff < 2592000000)  return `${Math.floor(diff / 86400000)}d ago`;
+        return new Date(ms).toLocaleDateString();
+    }
+
     function renderNews(news) {
         const newsContainer = $('#news-container');
-        newsContainer.empty(); // Clear previous news
+        newsContainer.empty();
 
-        // Update news title with current stock
         const currentStock = $("#screener-stock-input").val().toUpperCase() || window.screenerContentCache.currentStock;
-        if (currentStock) {
-            $('#news-title').text(`Latest News for ${currentStock}`);
-        } else {
-            $('#news-title').text('Latest News');
-        }
+        $('#news-title').text(currentStock ? `Latest News for ${currentStock}` : 'Latest News');
 
         if (!news || news.length === 0) {
             newsContainer.html('<p class="text-gray-500">No news found for this stock.</p>');
             return;
         }
 
-        // Format news similar to dipfinder.js (title and date only)
-        news.slice(0, 10).forEach(item => {
-            const date = new Date(item.datetime * 1000).toLocaleDateString();
-            newsContainer.append(`
-                <div class="p-4 border-b border-gray-200">
-                    <a href="${item.url}" target="_blank" class="text-lg font-semibold text-gray-900 hover:text-gray-700 hover:underline transition-colors block">${item.headline}</a>
-                    <p class="text-sm text-gray-500 mt-1">${date} - ${item.source}</p>
-                </div>
-            `);
-        });
+        const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+        const cards = news.slice(0, 10).map(item => `
+            <article class="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm transition hover:shadow-md hover:border-blue-100">
+                <a href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="block">
+                    <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-blue-500">${escHtml(item.source || 'News')}</p>
+                    <p class="text-sm font-semibold leading-snug text-gray-900">${escHtml(item.headline || 'Untitled article')}</p>
+                    <p class="mt-2 text-xs text-gray-400">${formatNewsDate(item.datetime)}</p>
+                </a>
+            </article>
+        `).join('');
+
+        newsContainer.html(`<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">${cards}</div>`);
     }
 
     async function loadStockData(stock) {
@@ -718,6 +727,15 @@ window.initializeScreener = function(params) {
             
             // Save the state after everything is rendered
             saveScreenerContentState();
+
+            // Scroll to news if requested (e.g. from dashboard "More news" link)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('scrollTo') === 'news') {
+                setTimeout(() => {
+                    const newsEl = document.getElementById('news-container');
+                    if (newsEl) newsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
+            }
 
         } catch (error) {
             console.error("Error loading stock data:", error);
