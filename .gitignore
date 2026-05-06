@@ -104,3 +104,4 @@ build/
 
 # MD files
 *.md
+.env*.local

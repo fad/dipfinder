@@ -8,8 +8,7 @@
     "build": "npm run build:backend",
     "build:backend": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json",
-    "start": "vercel dev",
-    "dev": "vercel dev",
+    "local": "vercel dev --listen 3000 --yes",
     "test": "npm run check"
   },
   "keywords": [],
