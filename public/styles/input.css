@@ -102,6 +102,66 @@ html.dark-mode .shadow-2xl {
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35) !important;
 }
 
+/* ── Watchlist row hover ─────────────────────────────────────────────────── */
+
+html.dark-mode .stock-row:hover {
+    background: #1e293b !important;
+}
+
+/* ── Autocomplete suggestion box ─────────────────────────────────────────── */
+
+.ticker-suggestion-box {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-height: 180px;
+    overflow-y: auto;
+    font-size: 14px;
+}
+
+.ticker-suggestion {
+    padding: 8px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.ticker-suggestion:hover {
+    background: #f1f5f9;
+}
+
+.ticker-symbol {
+    font-weight: 600;
+    color: #2563eb;
+}
+
+.ticker-name {
+    color: #6b7280;
+    margin-left: 8px;
+}
+
+html.dark-mode .ticker-suggestion-box {
+    background: #111827 !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark-mode .ticker-suggestion {
+    border-bottom-color: #1e293b !important;
+}
+
+html.dark-mode .ticker-suggestion:hover {
+    background: #1e293b !important;
+}
+
+html.dark-mode .ticker-symbol {
+    color: #60a5fa !important;
+}
+
+html.dark-mode .ticker-name {
+    color: #9ca3af !important;
+}
+
 /* ── Custom select component ─────────────────────────────────────────────── */
 
 .custom-select-wrapper {

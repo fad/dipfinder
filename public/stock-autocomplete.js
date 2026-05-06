@@ -538,16 +538,10 @@ function initStockAutocomplete(inputElementId, options = {}) {
     // Create the suggestion box
     const suggestionBox = document.createElement('div');
     suggestionBox.id = config.suggestionBoxId;
+    suggestionBox.className = 'ticker-suggestion-box';
     suggestionBox.style.position = 'absolute';
-    suggestionBox.style.background = '#fff';
-    suggestionBox.style.border = '1px solid #ccc';
-    suggestionBox.style.borderRadius = '4px';
-    suggestionBox.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
     suggestionBox.style.zIndex = '1000';
     suggestionBox.style.display = 'none';
-    suggestionBox.style.maxHeight = '180px';
-    suggestionBox.style.overflowY = 'auto';
-    suggestionBox.style.fontSize = '14px';
     
     // Insert suggestion box after the input element
     inputElement.parentNode.insertBefore(suggestionBox, inputElement.nextSibling);
@@ -582,11 +576,9 @@ function initStockAutocomplete(inputElementId, options = {}) {
         }
 
         suggestionBox.innerHTML = matches.map(item =>
-            `<div class="ticker-suggestion" style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;" 
-                  onmouseover="this.style.backgroundColor='#f5f5f5'" 
-                  onmouseout="this.style.backgroundColor='white'">
-                <span style="font-weight:bold;color:#2563eb;">${item.ticker}</span> 
-                <span style="color:#666;margin-left:8px;">${item.name}</span>
+            `<div class="ticker-suggestion">
+                <span class="ticker-symbol">${item.ticker}</span>
+                <span class="ticker-name">${item.name}</span>
             </div>`
         ).join('');
 
