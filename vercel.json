@@ -16,9 +16,8 @@
         { "source": "/verify-captcha", "destination": "/api/user?action=verify-captcha" },
         
         { "source": "/start", "destination": "/start.html" },
-        { "source": "/impressum", "destination": "/impressum.html" },
-        { "source": "/datenschutz", "destination": "/datenschutz.html" },
-        { "source": "/barrierefreiheit", "destination": "/barrierefreiheit.html" },
+        { "source": "/imprint", "destination": "/imprint.html" },
+        { "source": "/terms", "destination": "/terms.html" },
         { "source": "/about", "destination": "/index.html" },
         { "source": "/screener", "destination": "/index.html" },
         { "source": "/profile", "destination": "/index.html" },

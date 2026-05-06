@@ -11,7 +11,6 @@
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 text-gray-900 antialiased">
 
-    <!-- Back link -->
     <div class="px-6 py-5">
         <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-blue-600">
             <i class="fas fa-arrow-left text-xs"></i> Back to Dip Finder
@@ -20,68 +19,132 @@
 
     <main class="mx-auto max-w-2xl px-6 pb-16">
 
-        <!-- Header -->
         <div class="mb-10 text-center">
             <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 shadow-md">
                 <i class="fas fa-shield-alt text-xl text-white"></i>
             </div>
             <h1 class="text-3xl font-extrabold tracking-tight text-gray-900">Privacy Policy</h1>
-            <p class="mt-2 text-sm text-gray-500">Last updated: September 2024</p>
+            <p class="mt-2 text-sm text-gray-500">Last updated: May 2025</p>
         </div>
 
         <div class="space-y-6">
 
+            <!-- Overview -->
             <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-gray-900">Overview</h2>
                 <p class="text-sm leading-relaxed text-gray-600">
-                    <span class="obf-name" data-v="RnJhbmsgRHVmZm5lcg=="></span>, including its affiliates ("dipfinder.com"), collects, stores, and uses your personal information in connection with and in order to provide and develop Dip Finder products, services, and websites ("Services") according to this Privacy Policy.
+                    <span class="obf-name" data-v="RnJhbmsgRHVmZm5lcg=="></span> ("Dip Finder", "we", "us") operates dipfinder.com. This Privacy Policy explains what data we collect, how we use it, and your rights. By using Dip Finder you agree to this policy. Please stop using the service if you do not agree.
                 </p>
                 <p class="mt-4 text-sm leading-relaxed text-gray-600">
-                    All dipfinder.com Services are governed by this Privacy Policy. By using or accessing a Dip Finder Service you give your consent to the processing, use, and disclosure of your collected data. Please do not use any dipfinder.com Services if you do not agree to this Privacy Policy.
+                    We reserve the right to update this policy at any time. Continued use of the service constitutes acceptance of any changes.
                 </p>
                 <p class="mt-4 text-sm leading-relaxed text-gray-600">
-                    dipfinder.com reserves the right to modify this Privacy Policy. Your continued use of Services will signify your acceptance of the changes.
-                </p>
-                <p class="mt-4 text-sm leading-relaxed text-gray-600">
-                    For questions about this Privacy Policy, please contact us at <a class="obf-email text-blue-600 hover:underline" data-v="aW5mb0BkaXBmaW5kZXIuY29t" href="#"></a>.
-                </p>
-                <p class="mt-4 text-sm text-gray-500">
-                    <a href="/contact" class="text-blue-600 hover:underline">German privacy policy (Datenschutzerklärung)</a> available on request.
+                    For questions, contact us at <a class="obf-email text-blue-600 hover:underline" data-v="aW5mb0BkaXBmaW5kZXIuY29t" href="#"></a>.
                 </p>
             </div>
 
+            <!-- Hosting -->
             <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-                <h2 class="mb-4 text-base font-bold text-gray-900">What do we do with your data?</h2>
+                <h2 class="mb-4 text-base font-bold text-gray-900">Hosting</h2>
                 <p class="text-sm leading-relaxed text-gray-600">
-                    Collected data helps us understand how our Services are used so we can make well-informed improvements. We only use personal data when absolutely necessary.
+                    Dip Finder is hosted by Vercel Inc. (340 Pine Street, Suite 900, San Francisco, CA 94104, USA). Personal data collected on this website - including IP addresses, request metadata, and communication data - is stored on Vercel's servers. Use of Vercel is based on our legitimate interest in reliable website delivery (Art. 6 Abs. 1 lit. f GDPR).
+                </p>
+            </div>
+
+            <!-- Data we collect -->
+            <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-gray-900">Data We Collect</h2>
+
+                <h3 class="mb-2 mt-4 text-sm font-semibold text-gray-900">Account data</h3>
+                <p class="text-sm leading-relaxed text-gray-600">
+                    If you register, we store your email address and a hashed (bcrypt) password in our database (MongoDB). No payment information is collected or stored. Legal basis: contract performance (Art. 6 Abs. 1 lit. b GDPR).
+                </p>
+
+                <h3 class="mb-2 mt-6 text-sm font-semibold text-gray-900">Watchlist data</h3>
+                <p class="text-sm leading-relaxed text-gray-600">
+                    Your watchlist of stock tickers is stored in your browser's localStorage. If you are logged in, it is also stored on our servers to sync across devices. Watchlists contain only ticker symbols - no personal data.
+                </p>
+
+                <h3 class="mb-2 mt-6 text-sm font-semibold text-gray-900">Authentication tokens</h3>
+                <p class="text-sm leading-relaxed text-gray-600">
+                    After login, a JWT (JSON Web Token) is stored in your browser's localStorage. The token contains your email address and an expiry date. We do not use cookies for authentication.
+                </p>
+
+                <h3 class="mb-2 mt-6 text-sm font-semibold text-gray-900">Technical data</h3>
+                <p class="text-sm leading-relaxed text-gray-600">
+                    Standard server logs may include your IP address, browser type, and page access times. This data is used solely to operate the service and is not used for profiling.
                 </p>
 
                 <h3 class="mb-2 mt-6 text-sm font-semibold text-gray-900">Email</h3>
-                <p class="text-sm leading-relaxed text-gray-600">If you contact us by email, we retain your email address to enable continued communication.</p>
-
-                <h3 class="mb-2 mt-6 text-sm font-semibold text-gray-900">Account data</h3>
-                <p class="text-sm leading-relaxed text-gray-600">If you create an account, we store your email address and a hashed password. We do not store payment information.</p>
-
-                <h3 class="mb-2 mt-6 text-sm font-semibold text-gray-900">Website</h3>
                 <p class="text-sm leading-relaxed text-gray-600">
-                    To deliver the website we collect standard technical data such as your browser type and IP address. This data is stored in log files and not used for any other purpose.
+                    If you contact us by email, we retain your address to enable continued communication.
                 </p>
-                <p class="mt-3 text-sm leading-relaxed text-gray-600">
-                    We may save cookies on your device to make our services work correctly. Cookies are small files that allow our services to identify you and provide the appropriate content.
+            </div>
+
+            <!-- Third-party services -->
+            <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-gray-900">Third-Party Services</h2>
+
+                <h3 class="mb-2 mt-4 text-sm font-semibold text-gray-900">Yahoo Finance</h3>
+                <p class="text-sm leading-relaxed text-gray-600">
+                    Stock prices and moving averages are fetched from Yahoo Finance. Only ticker symbols are transmitted - no personal data. See <a href="https://legal.yahoo.com/us/en/yahoo/privacy/index.html" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Yahoo's Privacy Policy</a>.
+                </p>
+
+                <h3 class="mb-2 mt-6 text-sm font-semibold text-gray-900">Analytics (Umami)</h3>
+                <p class="text-sm leading-relaxed text-gray-600">
+                    We use Umami Analytics, a cookie-free, privacy-friendly analytics tool. It collects only anonymised usage statistics (pages visited, browser type). No personal data is stored or shared with third parties.
+                </p>
+
+                <h3 class="mb-2 mt-6 text-sm font-semibold text-gray-900">CAPTCHA (Cloudflare Turnstile)</h3>
+                <p class="text-sm leading-relaxed text-gray-600">
+                    The registration form uses Cloudflare Turnstile to prevent automated abuse. Your IP address may be transmitted to Cloudflare, Inc. (101 Townsend St, San Francisco, CA 94107, USA). See <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Cloudflare's Privacy Policy</a>.
+                </p>
+            </div>
+
+            <!-- Your rights -->
+            <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-gray-900">Your Rights</h2>
+                <p class="text-sm leading-relaxed text-gray-600 mb-4">Under GDPR and applicable law, you have the right to:</p>
+                <ul class="space-y-2 text-sm leading-relaxed text-gray-600">
+                    <li class="flex items-start gap-2"><i class="fas fa-check text-blue-400 mt-0.5 flex-shrink-0"></i> Access the personal data we hold about you (Art. 15 GDPR)</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-check text-blue-400 mt-0.5 flex-shrink-0"></i> Correct inaccurate data (Art. 16 GDPR)</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-check text-blue-400 mt-0.5 flex-shrink-0"></i> Request deletion of your data (Art. 17 GDPR)</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-check text-blue-400 mt-0.5 flex-shrink-0"></i> Restrict how we process your data (Art. 18 GDPR)</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-check text-blue-400 mt-0.5 flex-shrink-0"></i> Object to processing (Art. 21 GDPR)</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-check text-blue-400 mt-0.5 flex-shrink-0"></i> Data portability (Art. 20 GDPR)</li>
+                </ul>
+                <p class="mt-4 text-sm leading-relaxed text-gray-600">
+                    To exercise any of these rights, contact us at <a class="obf-email text-blue-600 hover:underline" data-v="aW5mb0BkaXBmaW5kZXIuY29t" href="#"></a>. You also have the right to lodge a complaint with your local data protection authority. In Baden-Württemberg, the supervisory authority is the Landesbeauftragter für den Datenschutz und die Informationsfreiheit (LfDI BW).
+                </p>
+            </div>
+
+            <!-- Data retention -->
+            <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-gray-900">Data Retention</h2>
+                <p class="text-sm leading-relaxed text-gray-600">
+                    We retain personal data only as long as necessary for the purposes described in this policy. Account data is retained for the lifetime of your account. Upon a valid deletion request or account closure, your data will be removed unless we are legally required to retain it.
                 </p>
             </div>
 
         </div>
-
     </main>
 
     <script>
+        var addr1 = [65,108,101,109,97,110,110,101,110,115,116,114,46,32,51];
+        var addr2 = [55,56,52,53,57,32,77,252,104,108,104,97,117,115,101,110];
+        document.querySelectorAll('.obf-name').forEach(function(el) {
+            el.textContent = atob(el.dataset.v);
+        });
+        document.querySelectorAll('.obf-addr-1').forEach(function(el) {
+            el.textContent = String.fromCharCode.apply(null, addr1);
+        });
+        document.querySelectorAll('.obf-addr-2').forEach(function(el) {
+            el.textContent = String.fromCharCode.apply(null, addr2);
+        });
         document.querySelectorAll('.obf-email').forEach(function(el) {
             var e = atob(el.dataset.v);
             el.textContent = e;
             el.href = 'mailto:' + e;
-        });
-        document.querySelectorAll('.obf-name').forEach(function(el) {
-            el.textContent = atob(el.dataset.v);
         });
     </script>
 </body>

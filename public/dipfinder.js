@@ -596,6 +596,15 @@ function renderDashboardData(stockDataArray, period, tableBody) {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            onClick: function(event, elements) {
+                if (elements.length > 0) {
+                    const symbol = chartLabels[elements[0].index];
+                    if (symbol) window.spaNavigate(`/screener?stock=${encodeURIComponent(symbol)}`);
+                }
+            },
+            onHover: function(event, elements) {
+                if (event.native) event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
