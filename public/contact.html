@@ -39,9 +39,8 @@
                     <div>
                         <h3 class="font-semibold text-gray-900">Email Support</h3>
                         <p class="mt-0.5 text-sm text-gray-500">Get help with your account, technical issues, or general questions.</p>
-                        <a href="mailto:info@dipfinder.com" class="mt-1.5 inline-block text-sm font-semibold text-blue-600 transition hover:text-blue-800">
-                            info@dipfinder.com
-                        </a>
+                        <a class="obf-email mt-1.5 inline-block text-sm font-semibold text-blue-600 transition hover:text-blue-800"
+                           data-v="aW5mb0BkaXBmaW5kZXIuY29t" href="#"></a>
                     </div>
                 </div>
                 <div class="flex items-start gap-4">
@@ -85,5 +84,12 @@
 
     </main>
 
+    <script>
+        document.querySelectorAll('.obf-email').forEach(function(el) {
+            var e = atob(el.dataset.v);
+            el.textContent = e;
+            el.href = 'mailto:' + e;
+        });
+    </script>
 </body>
 </html>

@@ -33,7 +33,7 @@
 
             <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
                 <p class="text-sm leading-relaxed text-gray-600">
-                    Frank Duffner, including its affiliates ("dipfinder.com"), collects, stores, and uses your personal information in connection with and in order to provide and develop Dip Finder products, services, and websites ("Services") according to this Privacy Policy.
+                    <span class="obf-name" data-v="RnJhbmsgRHVmZm5lcg=="></span>, including its affiliates ("dipfinder.com"), collects, stores, and uses your personal information in connection with and in order to provide and develop Dip Finder products, services, and websites ("Services") according to this Privacy Policy.
                 </p>
                 <p class="mt-4 text-sm leading-relaxed text-gray-600">
                     All dipfinder.com Services are governed by this Privacy Policy. By using or accessing a Dip Finder Service you give your consent to the processing, use, and disclosure of your collected data. Please do not use any dipfinder.com Services if you do not agree to this Privacy Policy.
@@ -42,7 +42,7 @@
                     dipfinder.com reserves the right to modify this Privacy Policy. Your continued use of Services will signify your acceptance of the changes.
                 </p>
                 <p class="mt-4 text-sm leading-relaxed text-gray-600">
-                    For questions about this Privacy Policy, please contact us at <a href="mailto:info@dipfinder.com" class="text-blue-600 hover:underline">info@dipfinder.com</a>.
+                    For questions about this Privacy Policy, please contact us at <a class="obf-email text-blue-600 hover:underline" data-v="aW5mb0BkaXBmaW5kZXIuY29t" href="#"></a>.
                 </p>
                 <p class="mt-4 text-sm text-gray-500">
                     <a href="/contact" class="text-blue-600 hover:underline">German privacy policy (Datenschutzerklärung)</a> available on request.
@@ -74,5 +74,15 @@
 
     </main>
 
+    <script>
+        document.querySelectorAll('.obf-email').forEach(function(el) {
+            var e = atob(el.dataset.v);
+            el.textContent = e;
+            el.href = 'mailto:' + e;
+        });
+        document.querySelectorAll('.obf-name').forEach(function(el) {
+            el.textContent = atob(el.dataset.v);
+        });
+    </script>
 </body>
 </html>
