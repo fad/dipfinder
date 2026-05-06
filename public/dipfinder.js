@@ -755,6 +755,52 @@ async function updateTableAndChart(period) {
     saveDipfinderContentState();
 }
 
+function showAddError(msg) {
+    let errorBox = document.getElementById('stock-add-error');
+    if (!errorBox) {
+        errorBox = document.createElement('div');
+        errorBox.id = 'stock-add-error';
+        errorBox.className = 'mt-2 text-sm text-red-600';
+        const parent = document.getElementById('new-stock').parentNode;
+        parent.appendChild(errorBox);
+    }
+    errorBox.textContent = msg;
+    setTimeout(() => { if (errorBox) errorBox.textContent = ''; }, 4000);
+}
+
+function appendTickerNewsSection(newsFeed, ticker, articles) {
+    const deduped = [];
+    const seen = new Set();
+    [...articles]
+        .sort((a, b) => getNewsTimestamp(b.datetime) - getNewsTimestamp(a.datetime))
+        .forEach(article => {
+            const key = getArticleKey(article);
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            deduped.push(article);
+        });
+    if (deduped.length === 0) return;
+
+    const visibleHtml = deduped.slice(0, 3).map(a => renderNewsArticle(a, false)).join('');
+    const hiddenHtml = deduped.slice(3, 6).map(a => renderNewsArticle(a, true)).join('');
+    const buttonHtml = deduped.length > 3
+        ? `<button type="button" class="view-more-news mt-3 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700" data-ticker="${escapeHtml(ticker)}">View more news</button>`
+        : '';
+
+    newsFeed.append(`
+        <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4 last:mb-0">
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <h3 class="text-base font-bold text-gray-900">${escapeHtml(ticker)}</h3>
+                <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">${deduped.length} articles</span>
+            </div>
+            <div class="space-y-3" data-news-group="${escapeHtml(ticker)}">
+                ${visibleHtml}${hiddenHtml}
+            </div>
+            ${buttonHtml}
+        </section>
+    `);
+}
+
 window.initializeDipfinder = function() {
     // Helper functions for the custom select dropdown. These need to be defined
     // before they are used.
@@ -965,63 +1011,95 @@ window.initializeDipfinder = function() {
 
     $('#add-stock').click(async function() {
         const newStock = $('#new-stock').val().toUpperCase();
-        if (!newStock) {
-            resetAddButton();
-            return;
-        }
+        if (!newStock) return;
 
         const msgBox = document.getElementById('stock-add-error');
         if (msgBox) msgBox.textContent = '';
 
         const validation = addStockWithValidation(newStock);
         if (!validation.success) {
-            let errorBox = document.getElementById('stock-add-error');
-            if (!errorBox) {
-                errorBox = document.createElement('div');
-                errorBox.id = 'stock-add-error';
-                errorBox.style.color = 'red';
-                errorBox.style.margin = '8px 0';
-                errorBox.style.fontSize = '14px';
-                const parent = document.getElementById('new-stock').parentNode;
-                if (parent.nextSibling) {
-                    parent.parentNode.insertBefore(errorBox, parent.nextSibling);
-                } else {
-                    parent.parentNode.appendChild(errorBox);
-                }
-            }
-            errorBox.textContent = validation.error;
-            setTimeout(() => { if(errorBox) errorBox.textContent = ''; }, 4000);
-            resetAddButton();
+            showAddError(validation.error);
             return;
         }
 
-        const stockData = await fetchStockData(newStock);
-        if (!stockData || stockData.error) {
-            let errorBox = document.getElementById('stock-add-error');
-            if (!errorBox) {
-                errorBox = document.createElement('div');
-                errorBox.id = 'stock-add-error';
-                errorBox.style.color = 'red';
-                errorBox.style.margin = '8px 0';
-                errorBox.style.fontSize = '14px';
-                const parent = document.getElementById('new-stock').parentNode;
-                if (parent.nextSibling) {
-                    parent.parentNode.insertBefore(errorBox, parent.nextSibling);
-                } else {
-                    parent.parentNode.appendChild(errorBox);
-                }
-            }
-            errorBox.textContent = `Failed to fetch data for ${newStock}. Please check the ticker and try again.`;
-            setTimeout(() => { if(errorBox) errorBox.textContent = ''; }, 4000);
-            resetAddButton();
+        // Show loading state
+        const loadingEl = document.getElementById('stocks-loading');
+        const input = document.getElementById('new-stock');
+        if (loadingEl) loadingEl.textContent = 'Checking ticker…';
+        if (input) input.disabled = true;
+
+        const period = periodSelect.val() || '200';
+        let batchResults;
+        try {
+            batchResults = await fetchBatchStockSMA([newStock], period);
+        } catch (err) {
+            if (loadingEl) loadingEl.textContent = '';
+            if (input) input.disabled = false;
+            showAddError(`Failed to fetch data for ${newStock}. Please check the ticker.`);
             return;
         }
 
+        const batch = batchResults && batchResults[0];
+        if (!batch || !Number.isFinite(batch.currentPrice) || !Number.isFinite(batch.sma)) {
+            if (loadingEl) loadingEl.textContent = '';
+            if (input) input.disabled = false;
+            showAddError(`No valid data found for ${newStock}. Please check the ticker.`);
+            return;
+        }
+
+        // Stock is valid — add to list
         stocks.push(newStock);
         saveStocks();
-        updateTableAndChart(periodSelect.val());
-        $('#new-stock').val('');
-        resetAddButton();
+
+        const newStockData = {
+            stock: batch.stock || newStock,
+            companyName: batch.companyName || newStock,
+            currentPrice: batch.currentPrice,
+            dailyChange: ((batch.currentPrice - batch.previousPrice) / batch.previousPrice) * 100,
+            sma: batch.sma,
+            relativePrice: Number.isFinite(batch.relativePrice) ? batch.relativePrice : (batch.currentPrice / batch.sma - 1)
+        };
+
+        // Append new row and re-attach remove listeners for it
+        const tableBody = $('#stocks-table tbody');
+        renderStockTableRows(tableBody, [newStockData]);
+        attachRemoveStockListeners();
+
+        // Update chart in-place
+        if (chart) {
+            const diffPercent = getSmaDiffPercent(newStockData);
+            chart.data.labels.push(newStockData.stock);
+            const ds = chart.data.datasets[0];
+            ds.data.push(Number.isFinite(diffPercent) ? Number(diffPercent.toFixed(2)) : null);
+            if (diffPercent < 0) {
+                ds.backgroundColor.push('rgba(239, 68, 68, 0.7)');
+                ds.borderColor.push('rgba(220, 38, 38, 1)');
+            } else {
+                ds.backgroundColor.push('rgba(16, 185, 129, 0.7)');
+                ds.borderColor.push('rgba(5, 150, 105, 1)');
+            }
+            if (ds.stockData) {
+                ds.stockData.push(newStockData);
+                renderSummaryMetrics(ds.stockData, period);
+            }
+            chart.update();
+        }
+
+        // Invalidate dashboard cache (sort order may be stale)
+        try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
+
+        // Clear input and loading
+        if (input) { input.value = ''; input.disabled = false; }
+        if (loadingEl) loadingEl.textContent = '';
+
+        // Fetch and append news in background
+        fetchNews(newStock).then(articles => {
+            if (articles && articles.length > 0) {
+                appendTickerNewsSection($('#news-feed'), newStock, articles);
+            }
+        });
+
+        saveDipfinderContentState();
     });
 
     $('#new-stock').keypress(function(event) {
