@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /Users/fad/_repos/DipFinder/public/*.js)",
+      "Bash(ls -la /Users/fad/_repos/DipFinder/public/*.css)",
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
+    ]
+  }
+}
