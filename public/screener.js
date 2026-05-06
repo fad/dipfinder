@@ -6,6 +6,7 @@ window.screenerContentCache = window.screenerContentCache || {
     companyOverviewHtml: null,
     chartData: null,
     fundamentalsGridHtml: null,
+    historyData: null,
     newsContainerHtml: null,
     currentStock: null,
     isInitialized: false,
@@ -16,6 +17,8 @@ window.screenerContentCache = window.screenerContentCache || {
 window.initializeScreener = function(params) {
     const BASE_URL = window.location.origin;
     let screenerChart;
+    let historyCharts = [];
+    let lastHistoryData = null;
     let eventListeners = []; // Keep track of added event listeners
     let autocompleteInstance = null; // To hold the autocomplete instance
 
@@ -326,6 +329,166 @@ window.initializeScreener = function(params) {
                 </div>
             </div>
         `);
+
+        renderFundamentalsHistory(fundamentals.history || null);
+    }
+
+    function renderFundamentalsHistory(history) {
+        const container = document.getElementById('fundamentals-history');
+        if (!container) return;
+
+        // Destroy any previous history chart instances
+        historyCharts.forEach(c => c.destroy());
+        historyCharts = [];
+
+        if (!history || history.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        lastHistoryData = history;
+
+        const years = history.map(d => String(d.year));
+
+        // ── chart config helpers ──────────────────────────────────────────────
+        const baseOptions = (yLabel, isPercent) => ({
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => isPercent ? `${ctx.parsed.y.toFixed(1)}%` : `$${ctx.parsed.y.toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#6B7280', font: { size: 11 } } },
+                y: {
+                    grid: { color: 'rgba(0,0,0,0.06)' },
+                    ticks: {
+                        color: '#6B7280', font: { size: 11 },
+                        callback: v => isPercent ? `${v}%` : `$${v}`
+                    }
+                }
+            }
+        });
+
+        const barColors = (values, posColor, negColor) =>
+            values.map(v => v == null ? '#E5E7EB' : v >= 0 ? posColor : negColor);
+
+        // ── four chart definitions ────────────────────────────────────────────
+        const charts = [
+            {
+                id: 'hc-eps', title: 'Earnings Per Share', subtitle: 'Annual basic EPS (USD)',
+                icon: 'fa-dollar-sign',
+                data: history.map(d => d.eps),
+                colors: () => barColors(history.map(d => d.eps), '#6366F1', '#EF4444'),
+                isPercent: false,
+            },
+            {
+                id: 'hc-rps', title: 'Revenue Per Share', subtitle: 'Annual revenue ÷ shares (USD)',
+                icon: 'fa-chart-bar',
+                data: history.map(d => d.revenuePerShare),
+                colors: () => history.map(() => '#3B82F6'),
+                isPercent: false,
+            },
+            {
+                id: 'hc-margins', title: 'Margins', subtitle: '',
+                icon: 'fa-percentage',
+                isMulti: true,
+                datasets: [
+                    { label: 'Gross',     data: history.map(d => d.grossMargin),     color: '#6366F1' },
+                    { label: 'Operating', data: history.map(d => d.operatingMargin), color: '#8B5CF6' },
+                    { label: 'Net',       data: history.map(d => d.netMargin),       color: '#14B8A6' },
+                ],
+                isPercent: true,
+            },
+            {
+                id: 'hc-shares', title: 'Shares Outstanding', subtitle: 'Basic shares (millions)',
+                icon: 'fa-users',
+                data: history.map(d => d.sharesMillions),
+                colors: () => history.map(() => '#94A3B8'),
+                isPercent: false,
+                isRaw: true,
+            },
+        ];
+
+        // ── render container ─────────────────────────────────────────────────
+        container.innerHTML = `
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 class="mb-1 text-xl font-bold text-gray-900">Financial History</h2>
+                <p class="mb-5 text-sm text-gray-500">Annual figures from SEC filings.</p>
+                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                    ${charts.map(c => `
+                        <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                            <div class="mb-3 flex items-center gap-2">
+                                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 text-xs">
+                                    <i class="fas ${c.icon}"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-800">${c.title}</p>
+                                    ${c.isMulti ? `<div class="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
+                                        ${c.datasets.map(ds => `<span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full" style="background:${ds.color}"></span>${ds.label}</span>`).join('')}
+                                    </div>` : `<p class="text-xs text-gray-400">${c.subtitle}</p>`}
+                                </div>
+                            </div>
+                            <div style="height:160px"><canvas id="${c.id}"></canvas></div>
+                        </div>
+                    `).join('')}
+                </div>
+                <p class="mt-3 text-xs text-gray-400"><i class="fas fa-info-circle mr-1"></i>Source: Finnhub (SEC filings). Data may be unavailable for non-US or recently listed companies.</p>
+            </div>
+        `;
+
+        // ── instantiate charts ────────────────────────────────────────────────
+        charts.forEach(def => {
+            const canvas = document.getElementById(def.id);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let cfg;
+
+            if (def.isMulti) {
+                cfg = {
+                    type: 'bar',
+                    data: {
+                        labels: years,
+                        datasets: def.datasets.map(ds => ({
+                            label: ds.label,
+                            data: ds.data,
+                            backgroundColor: ds.color + 'CC',
+                            borderColor: ds.color,
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }))
+                    },
+                    options: { ...baseOptions('', true), plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + '%' : 'N/A'}` } } } }
+                };
+            } else {
+                const values = def.data;
+                const opts = baseOptions('', def.isPercent);
+                if (def.isRaw) {
+                    opts.scales.y.ticks.callback = v => v >= 1000 ? `${(v/1000).toFixed(1)}B` : `${v}M`;
+                    opts.plugins.tooltip.callbacks.label = ctx => `${ctx.parsed.y >= 1000 ? (ctx.parsed.y/1000).toFixed(2) + 'B' : ctx.parsed.y + 'M'} shares`;
+                }
+                cfg = {
+                    type: 'bar',
+                    data: {
+                        labels: years,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: def.colors(),
+                            borderColor: def.colors().map(c => c.replace(/CC$/, '')),
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }]
+                    },
+                    options: opts
+                };
+            }
+
+            historyCharts.push(new Chart(ctx, cfg));
+        });
     }
 
     function renderChart(timeseries, smaData) {
@@ -525,7 +688,10 @@ window.initializeScreener = function(params) {
         $("#screener-loading").show().text(`Loading data for ${stock}...`);
         $("#company-overview").html('');
         $("#fundamentals-grid").html('');
+        $("#fundamentals-history").html('');
         $("#news-container").html('');
+        historyCharts.forEach(c => c.destroy()); historyCharts = [];
+        lastHistoryData = null;
         if (screenerChart) screenerChart.destroy();
         $("#screener-sma-loading").text(`Loading chart data for ${stock}...`).show();
 
@@ -628,7 +794,9 @@ window.initializeScreener = function(params) {
         if (fundamentalsGrid) {
             window.screenerContentCache.fundamentalsGridHtml = fundamentalsGrid.innerHTML;
         }
-        
+
+        window.screenerContentCache.historyData = lastHistoryData;
+
         if (newsContainer) {
             window.screenerContentCache.newsContainerHtml = newsContainer.innerHTML;
         }
@@ -729,6 +897,11 @@ window.initializeScreener = function(params) {
         } else {
 /*console.log('Fundamentals grid element not found or no cached HTML available');*/ 
             return false;
+        }
+
+        // Restore financial history charts
+        if (window.screenerContentCache.historyData) {
+            renderFundamentalsHistory(window.screenerContentCache.historyData);
         }
 
         // Restore news container

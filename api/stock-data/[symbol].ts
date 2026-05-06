@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 // Handle fundamentals data
 async function handleFundamentals(db: any, symbol: string, res: VercelResponse) {
-  const cacheKey = `fundamentals-v5-${symbol}`; // Updated cache key to force refresh with corrected margin logic
+  const cacheKey = `fundamentals-v7-${symbol}`;
   const collection = db.collection('fundamentals');
   
   // Check cache
@@ -91,6 +91,61 @@ async function handleFundamentals(db: any, symbol: string, res: VercelResponse) 
   const metrics = metricsResponse.data?.metric || {};
   const quote = quoteResponse.data;
   const financials = financialsResponse.data?.data?.[0] || {};
+
+  // ── Financial history from annual filings ──────────────────────────────────
+  // Helper: find a value in a report section (ic / bs) by concept name
+  function findReportVal(items: any[], ...concepts: string[]): number | null {
+    if (!Array.isArray(items)) return null;
+    for (const concept of concepts) {
+      const found = items.find((i: any) => i.concept === concept);
+      if (found?.value != null && found.value !== 0) return found.value as number;
+    }
+    return null;
+  }
+
+  const annualFilings = (financialsResponse.data?.data || [])
+    .filter((f: any) => f.quarter === 0)
+    .sort((a: any, b: any) => b.year - a.year)
+    .slice(0, 5);
+
+  const history = annualFilings.map((filing: any) => {
+    const ic: any[] = filing.report?.ic || [];
+    const bs: any[] = filing.report?.bs || [];
+
+    const revenue = findReportVal(ic,
+      'us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax',
+      'us-gaap_Revenues',
+      'us-gaap_SalesRevenueNet',
+      'us-gaap_RevenueFromContractWithCustomerIncludingAssessedTax',
+      'us-gaap_RevenueFromContractWithCustomer'
+    );
+    const grossProfit  = findReportVal(ic, 'us-gaap_GrossProfit');
+    const opIncome     = findReportVal(ic, 'us-gaap_OperatingIncomeLoss', 'us-gaap_OperatingIncome');
+    const netIncome    = findReportVal(ic, 'us-gaap_NetIncomeLoss', 'us-gaap_NetIncome', 'us-gaap_ProfitLoss');
+    const epsRaw       = findReportVal(ic, 'us-gaap_EarningsPerShareBasic', 'us-gaap_EarningsPerShareDiluted');
+    const shares       = findReportVal(bs,
+      'us-gaap_CommonStockSharesOutstanding',
+      'us-gaap_CommonStockSharesIssued',
+      'us-gaap_WeightedAverageNumberOfSharesOutstandingBasic'
+    );
+
+    const eps             = epsRaw ?? (netIncome != null && shares != null && shares > 0 ? netIncome / shares : null);
+    const revenuePerShare = revenue != null && shares != null && shares > 0 ? revenue / shares : null;
+    const grossMargin     = revenue != null && grossProfit  != null && revenue > 0 ? (grossProfit  / revenue) * 100 : null;
+    const operatingMargin = revenue != null && opIncome     != null && revenue > 0 ? (opIncome     / revenue) * 100 : null;
+    const netMargin       = revenue != null && netIncome    != null && revenue > 0 ? (netIncome    / revenue) * 100 : null;
+
+    return {
+      year:             filing.year as number,
+      eps:              eps             != null ? parseFloat(eps.toFixed(2))             : null,
+      revenuePerShare:  revenuePerShare != null ? parseFloat(revenuePerShare.toFixed(2)) : null,
+      grossMargin:      grossMargin     != null ? parseFloat(grossMargin.toFixed(1))     : null,
+      operatingMargin:  operatingMargin != null ? parseFloat(operatingMargin.toFixed(1)) : null,
+      netMargin:        netMargin       != null ? parseFloat(netMargin.toFixed(1))       : null,
+      sharesMillions:   shares          != null ? parseFloat((shares / 1e6).toFixed(0))  : null,
+    };
+  }).filter((d: any) => d.year).reverse(); // oldest→newest for left-to-right charts
+  // ─────────────────────────────────────────────────────────────────────────────
 
   if (!profile.name && !quote.c) {
     return res.status(404).json({ error: `No data found for symbol ${symbol}` });
@@ -139,7 +194,10 @@ async function handleFundamentals(db: any, symbol: string, res: VercelResponse) 
     dividendRate: metrics.dividendPerShareAnnual || null,
     payoutRatio: metrics.payoutRatioTTM ? (metrics.payoutRatioTTM <= 1 ? metrics.payoutRatioTTM * 100 : metrics.payoutRatioTTM) : null,
     beta: metrics.beta || null,
-    bookValue: metrics.bookValuePerShareQuarterly || null
+    bookValue: metrics.bookValuePerShareQuarterly || null,
+
+    // Annual filing history (oldest → newest, up to 5 years)
+    history: history.length > 0 ? history : null,
   };
 
   // Cache the result
