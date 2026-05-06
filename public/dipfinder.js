@@ -952,6 +952,24 @@ window.initializeDipfinder = function() {
         if (event.which === 13) $('#add-stock').click();
     });
 
+    // Hero "Start Free" — scroll/focus the watchlist input
+    $(document).on('click.dipfinder', '#hero-start-free', function() {
+        const input = document.getElementById('new-stock');
+        if (input) {
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => input.focus(), 300);
+        }
+    });
+
+    // Sample watchlist buttons
+    $(document).on('click.dipfinder', '.sample-watchlist', function() {
+        const period = $('#sma-period').val() || '200';
+        stocks = $(this).data('stocks').split(',');
+        saveStocks();
+        try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
+        updateTableAndChart(period);
+    });
+
     $(document).on('click.dipfinder', '.stock-row', function() {
         const stockSymbol = $(this).data('stock');
         if (stockSymbol) window.spaNavigate(`/screener?stock=${encodeURIComponent(stockSymbol)}`);
