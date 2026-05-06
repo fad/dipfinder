@@ -119,7 +119,66 @@
 
     <div class="relative z-10 mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
 
-        <!-- Hovering Authentication Modal -->
+        <!-- Stock Limit Modal -->
+        <div id="limit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-60 px-4 flex">
+            <div class="relative flex w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+                <!-- Left panel -->
+                <div class="hidden md:flex md:w-2/5 flex-col justify-between bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-8 text-white">
+                    <div>
+                        <div class="mb-8 flex items-center gap-2.5">
+                            <picture>
+                                <source srcset="/img/logo.avif" type="image/avif">
+                                <img src="/img/logo.png" width="32" height="32" alt="Dip Finder logo" style="border-radius:7px;">
+                            </picture>
+                            <span class="text-base font-extrabold tracking-wide">Dip Finder</span>
+                        </div>
+                        <h2 class="mb-3 text-2xl font-extrabold leading-snug">Save your watchlist. Never lose your picks.</h2>
+                        <p class="text-sm leading-relaxed text-blue-100">A free account keeps your watchlist synced across devices and unlocks more stocks.</p>
+                    </div>
+                    <div class="mt-8 space-y-3">
+                        <div class="flex items-center gap-3 text-sm text-blue-100">
+                            <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white bg-opacity-20">
+                                <i class="fas fa-bookmark text-xs text-white"></i>
+                            </div>
+                            Sync watchlist across devices
+                        </div>
+                        <div class="flex items-center gap-3 text-sm text-blue-100">
+                            <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white bg-opacity-20">
+                                <i class="fas fa-list text-xs text-white"></i>
+                            </div>
+                            Track up to 10 stocks
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right panel -->
+                <div class="flex flex-1 flex-col justify-center p-8">
+                    <button id="limit-modal-close"
+                        class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 focus:outline-none"
+                        aria-label="Close">&times;</button>
+
+                    <p class="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+                        <i class="fas fa-lock text-xs"></i> Stock limit reached (5 stocks)
+                    </p>
+                    <h3 class="mb-2 text-2xl font-extrabold text-gray-900">Double your limit!</h3>
+                    <p class="mb-8 text-sm text-gray-500">Free accounts track up to 10 stocks.<br>Sign up and claim your extra slots.</p>
+                    <div class="space-y-3">
+                        <button id="limit-modal-register"
+                            class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
+                            <i class="fas fa-user-plus mr-2"></i>Create Free Account
+                        </button>
+                        <button id="limit-modal-login"
+                            class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                            Already have an account? Sign in
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Authentication Modal -->
         <!-- Authentication Modal -->
         <div id="auth-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-60 px-4 flex">
             <div id="auth-modal-content" class="relative flex w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -320,16 +379,34 @@
         </div>
 
     </div>
-    <div class="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
-        <footer class="rounded-2xl border border-gray-200 bg-white p-4 text-center text-sm font-semibold text-gray-600 shadow-sm">
-            <div class="flex justify-center space-x-6">
-                <a href="/imprint" class="transition-colors hover:text-blue-600">Imprint</a>
-                <a href="/privacy" class="transition-colors hover:text-blue-600">Privacy Policy</a>
-                <a href="/terms" class="transition-colors hover:text-blue-600">Terms of Use</a>
-                <a href="/contact" class="transition-colors hover:text-blue-600">Contact</a>
-            </div>
-        </footer>
+    <!-- ── Disclaimer bar ──────────────────────────────────────────────────── -->
+    <div class="relative z-10 border-t border-amber-100 bg-amber-50 px-6 py-4">
+        <div class="mx-auto flex max-w-7xl items-start gap-3 text-sm text-amber-800">
+            <i class="fas fa-exclamation-circle mt-0.5 flex-shrink-0 text-amber-500"></i>
+            <p>Dip Finder is a research tool, not financial advice. A dip can mean opportunity - or trouble. Always do your own research before making any investment decision.</p>
+        </div>
     </div>
+
+    <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+    <footer class="relative z-10 border-t border-gray-200 bg-white px-6 py-10">
+        <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row">
+            <div class="flex items-center gap-3">
+                <picture>
+                    <source srcset="/img/logo.avif" type="image/avif">
+                    <img src="/img/logo.png" width="28" height="28" alt="Dip Finder logo" style="border-radius:6px;">
+                </picture>
+                <span class="font-bold text-gray-800">Dip Finder</span>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
+                <a href="/about" class="transition hover:text-gray-900">About</a>
+                <a href="/contact" class="transition hover:text-gray-900">Contact</a>
+                <a href="/imprint" class="transition hover:text-gray-900">Imprint</a>
+                <a href="/privacy" class="transition hover:text-gray-900">Privacy Policy</a>
+                <a href="/terms" class="transition hover:text-gray-900">Terms of Use</a>
+            </div>
+            <p class="text-sm text-gray-400">&copy; 2025 Dip Finder</p>
+        </div>
+    </footer>
     <script src="turnstile-config.js"></script>
 </body>
 

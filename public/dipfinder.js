@@ -539,7 +539,8 @@ function addStockWithValidation(newStock) {
         }
         return {
             success: false,
-            error: `Stock limit reached (${limit} stocks). ${authStatus === 'guest' ? 'Please log in to increase your limit to 10 stocks.' : ''}`
+            limitReached: true,
+            error: `Stock limit reached (${limit} stocks).${authStatus !== 'guest' ? ' You have reached your limit.' : ''}`
         };
     }
     return { success: true };
@@ -952,7 +953,12 @@ window.initializeDipfinder = function() {
 
         const validation = addStockWithValidation(newStock);
         if (!validation.success) {
-            showAddError(validation.error);
+            const isGuest = !window.AuthManager || !window.AuthManager.isAuthenticated;
+            if (isGuest && validation.limitReached && window.showLimitModal) {
+                window.showLimitModal();
+            } else {
+                showAddError(validation.error);
+            }
             return;
         }
 

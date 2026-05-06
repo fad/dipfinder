@@ -46,6 +46,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // ── Stock limit modal ─────────────────────────────────────────────────────
+    const limitModal        = document.getElementById('limit-modal');
+    const limitModalClose   = document.getElementById('limit-modal-close');
+    const limitModalRegister = document.getElementById('limit-modal-register');
+    const limitModalLogin   = document.getElementById('limit-modal-login');
+
+    window.showLimitModal = function() {
+        if (limitModal) limitModal.classList.remove('hidden');
+    };
+
+    function closeLimitModal() {
+        if (limitModal) limitModal.classList.add('hidden');
+    }
+
+    if (limitModalClose) limitModalClose.addEventListener('click', closeLimitModal);
+
+    if (limitModal) limitModal.addEventListener('click', function(e) {
+        if (e.target === limitModal) closeLimitModal();
+    });
+
+    function openAuthFromLimit(mode) {
+        closeLimitModal();
+        const authModal = document.getElementById('auth-modal');
+        if (authModal) {
+            authModal.classList.remove('hidden');
+            if (mode === 'register') {
+                document.getElementById('auth-options-register')?.click();
+            } else {
+                document.getElementById('auth-options-login')?.click();
+            }
+        }
+    }
+
+    if (limitModalRegister) limitModalRegister.addEventListener('click', () => openAuthFromLimit('register'));
+    if (limitModalLogin)    limitModalLogin.addEventListener('click',    () => openAuthFromLimit('login'));
+
     const mainContent = document.getElementById('main-content');
     let currentPageCleanup = null; // To hold the cleanup function for the current page
 
