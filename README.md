@@ -7,6 +7,7 @@ Watchlist monitor that shows which stocks are trading furthest below their selec
 ```bash
 npm install
 npm run local        # starts vercel dev on port 3000
+npm run watch:css    # in a second terminal — rebuilds styles.css on every class change
 ```
 
 Copy `.env.example` to `.env` (or set env vars in your shell) before starting:
@@ -23,10 +24,13 @@ Copy `.env.example` to `.env` (or set env vars in your shell) before starting:
 
 ```bash
 npm run build        # TypeScript compile + Tailwind CSS
-npm run build:css    # CSS only (regenerate styles.css from input.css)
+npm run build:css    # CSS only — regenerate styles.css from input.css
+npm run watch:css    # CSS watch mode for active development
 ```
 
-Tailwind scans `public/**/*.html` and `public/**/*.js` for class names. Run `build:css` after adding new utility classes to templates.
+Tailwind scans `public/**/*.html` and `public/**/*.js` for class names and removes unused ones from the output. Run `build:css` (or keep `watch:css` running) after adding new utility classes — otherwise the new classes will be missing from `styles.css` and only visible in local dev if you notice the gap before deploying.
+
+Tailwind class names must appear as complete strings in source files. Dynamically constructed class names (e.g. `'bg-' + color + '-100'`) will be silently dropped from the build output.
 
 ## Deploy
 
