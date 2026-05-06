@@ -15,7 +15,9 @@
         { "source": "/auth", "destination": "/api/user?action=verify-token" },
         { "source": "/verify-captcha", "destination": "/api/user?action=verify-captcha" },
         
+        { "source": "/", "destination": "/start.html" },
         { "source": "/start", "destination": "/start.html" },
+        { "source": "/app", "destination": "/index.html" },
         { "source": "/imprint", "destination": "/imprint.html" },
         { "source": "/terms", "destination": "/terms.html" },
         { "source": "/about", "destination": "/index.html" },

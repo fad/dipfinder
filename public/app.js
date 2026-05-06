@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const routes = {
-        '/': {
+        '/app': {
             file: 'dipfinder-content.html',
             init: (params) => { if (window.initializeDipfinder) window.initializeDipfinder(params); },
             destroy: () => { if (window.destroyDipfinder) window.destroyDipfinder(); }
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 /*console.log('Updating navigation for path:', currentPath);*/ 
         
         // Direct DOM selection for each navigation button
-        const homeButton = document.querySelector('a[href="/"][data-link]');
+        const homeButton = document.querySelector('a[href="/app"][data-link]');
         const screenerButton = document.querySelector('a[href="/screener"][data-link]');
         
         if (homeButton && screenerButton) {
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const inactiveClasses = 'inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700';
             
             // Update home button
-            homeButton.className = currentPath === '/' ? activeClasses : inactiveClasses;
+            homeButton.className = currentPath === '/app' ? activeClasses : inactiveClasses;
 /*console.log('Home button updated:', homeButton.className);*/ 
             
             // Preserve icon for screener button
@@ -140,9 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const loadContent = async (fullPath) => {
-        // Default to '/' if path is empty or just a hash
+        // Default to '/app' if path is empty or just a hash
         if (fullPath === '' || fullPath === '#') {
-            fullPath = '/';
+            fullPath = '/app';
         }
 
         // Run cleanup for the previous page
