@@ -661,47 +661,65 @@ window.showAuthSuccess = AuthManager.showAuthSuccess;
 // Initialize authentication when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     AuthManager.init();
-    
-    // Set up auth modal event listeners
-    const authButton = document.getElementById("auth-button");
+
+    // ── Modal open / close ────────────────────────────────────────────────────
+    const authButton = document.getElementById('auth-button');
     if (authButton) {
-        authButton.addEventListener("click", function() {
-            document.getElementById("auth-modal").classList.remove("hidden");
+        authButton.addEventListener('click', function() {
+            document.getElementById('auth-modal').classList.remove('hidden');
         });
     }
-    
-    const authModalClose = document.getElementById("auth-modal-close");
-    if (authModalClose) {
-        authModalClose.addEventListener("click", AuthManager.closeAuthModal);
-    }
-    
-    const forgotOkBtn = document.getElementById("forgot-ok-btn");
-    if (forgotOkBtn) {
-        forgotOkBtn.addEventListener("click", AuthManager.closeAuthModal);
-    }
-    
-    // Profile dropdown toggle
-    const profileDropdown = document.getElementById("profile-dropdown");
-    const profileMenu = document.getElementById("profile-menu");
-    if (profileDropdown && profileMenu) {
-        profileDropdown.addEventListener("click", function(e) {
-            e.stopPropagation();
-            profileMenu.classList.toggle("hidden");
-        });
-        
-        // Close dropdown when clicking outside
-        document.addEventListener("click", function() {
-            profileMenu.classList.add("hidden");
+
+    // Close on backdrop click (but not on content click)
+    const authModal = document.getElementById('auth-modal');
+    const authModalContent = document.getElementById('auth-modal-content');
+    if (authModal) {
+        authModal.addEventListener('click', function(e) {
+            if (e.target === authModal) AuthManager.closeAuthModal();
         });
     }
-    
-    // Setup forgot password link
-    const forgotLink = document.getElementById("forgot-password-link");
-    if (forgotLink) {
-        forgotLink.addEventListener("click", function() {
-            AuthManager.showForgotForm();
-        });
+    if (authModalContent) {
+        authModalContent.addEventListener('click', function(e) { e.stopPropagation(); });
     }
+
+    const authModalClose = document.getElementById('auth-modal-close');
+    if (authModalClose) authModalClose.addEventListener('click', AuthManager.closeAuthModal);
+
+    // ── Auth-options screen ───────────────────────────────────────────────────
+    const authOptionsLogin    = document.getElementById('auth-options-login');
+    const authOptionsRegister = document.getElementById('auth-options-register');
+    if (authOptionsLogin)    authOptionsLogin.addEventListener('click', AuthManager.showLoginForm);
+    if (authOptionsRegister) authOptionsRegister.addEventListener('click', AuthManager.showRegisterForm);
+
+    // ── Login form ────────────────────────────────────────────────────────────
+    const loginForm      = document.getElementById('login-form');
+    const loginBtn       = document.getElementById('login-btn');
+    const loginCancelBtn = document.getElementById('login-cancel-btn');
+    if (loginForm)      loginForm.addEventListener('submit', function(e) { e.preventDefault(); AuthManager.login(); });
+    if (loginBtn)       loginBtn.addEventListener('click', AuthManager.login);
+    if (loginCancelBtn) loginCancelBtn.addEventListener('click', AuthManager.closeAuthModal);
+
+    // ── Forgot password form ──────────────────────────────────────────────────
+    const forgotForm    = document.getElementById('forgot-form');
+    const forgotBackBtn = document.getElementById('forgot-back-btn');
+    const forgotOkBack  = document.getElementById('forgot-ok-back-btn');
+    const forgotLink    = document.getElementById('forgot-password-link');
+    if (forgotForm)    forgotForm.addEventListener('submit', function(e) { e.preventDefault(); AuthManager.forgotPassword(); });
+    if (forgotBackBtn) forgotBackBtn.addEventListener('click', AuthManager.showLoginForm);
+    if (forgotOkBack)  forgotOkBack.addEventListener('click', AuthManager.showLoginForm);
+    if (forgotLink)    forgotLink.addEventListener('click', AuthManager.showForgotForm);
+
+    // ── Register form ─────────────────────────────────────────────────────────
+    const registerForm      = document.getElementById('register-form');
+    const registerBtn       = document.getElementById('register-btn');
+    const registerCancelBtn = document.getElementById('register-cancel-btn');
+    if (registerForm)      registerForm.addEventListener('submit', function(e) { e.preventDefault(); AuthManager.register(); });
+    if (registerBtn)       registerBtn.addEventListener('click', AuthManager.register);
+    if (registerCancelBtn) registerCancelBtn.addEventListener('click', AuthManager.closeAuthModal);
+
+    // ── Logout ────────────────────────────────────────────────────────────────
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) logoutBtn.addEventListener('click', AuthManager.logout);
 });
 
 // Export for module usage if needed

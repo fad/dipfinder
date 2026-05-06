@@ -1,4 +1,51 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // ── Theme toggle ──────────────────────────────────────────────────────────
+    function updateThemeToggle() {
+        const isDark = document.documentElement.classList.contains('dark-mode');
+        const toggle = document.getElementById('theme-toggle');
+        const icon   = document.getElementById('theme-toggle-icon');
+        if (!toggle || !icon) return;
+        toggle.setAttribute('aria-pressed', String(isDark));
+        toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+        icon.className = isDark ? 'fas fa-sun text-base' : 'fas fa-moon text-base';
+    }
+
+    updateThemeToggle();
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function() {
+            const isDark = document.documentElement.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeToggle();
+        });
+    }
+
+    // ── Profile dropdown ──────────────────────────────────────────────────────
+    const profileBtn         = document.getElementById('profile-btn');
+    const profileDropdownMenu = document.getElementById('profile-dropdown-menu');
+
+    if (profileBtn && profileDropdownMenu) {
+        profileBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            profileDropdownMenu.classList.toggle('hidden');
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!profileDropdownMenu) return;
+        if (profileBtn && !profileBtn.contains(e.target) && !profileDropdownMenu.contains(e.target)) {
+            profileDropdownMenu.classList.add('hidden');
+        }
+    });
+
+    const profileNavLink = document.getElementById('profile-nav-link');
+    if (profileNavLink) {
+        profileNavLink.addEventListener('click', function() {
+            if (profileDropdownMenu) profileDropdownMenu.classList.add('hidden');
+        });
+    }
+
+
     const mainContent = document.getElementById('main-content');
     let currentPageCleanup = null; // To hold the cleanup function for the current page
 

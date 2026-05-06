@@ -73,8 +73,7 @@
                     <!-- Profile dropdown - hidden initially -->
                     <div class="relative hidden" id="profile-dropdown">
                         <button id="profile-btn"
-                            class="green-gradient-btn flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition"
-                            onclick="toggleProfileMenu()">
+                            class="green-gradient-btn flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition">
                             <i class="fas fa-user-circle text-sm"></i>
                             Profile Settings
                             <i class="fas fa-chevron-down text-xs ml-1"></i>
@@ -90,12 +89,11 @@
                                 </p>
                             </div>
                             <div class="p-2">
-                                <a href="/profile" data-link 
-                                        onclick="document.getElementById('profile-dropdown-menu').classList.add('hidden');"
+                                <a href="/profile" data-link id="profile-nav-link"
                                         class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-600">
                                     <i class="fas fa-user mr-3 text-blue-500"></i>Profile Page
                                 </a>
-                                <button onclick="logout()" 
+                                <button id="logout-btn"
                                         class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50">
                                     <i class="fas fa-sign-out-alt mr-3 text-red-500"></i>Logout
                                 </button>
@@ -108,8 +106,8 @@
         <!-- End menu bar -->
 
         <!-- Hovering Authentication Modal -->
-        <div id="auth-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-60 px-4 flex" onclick="closeAuthModalOnBackdrop(event)">
-            <div class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl" onclick="event.stopPropagation()">
+        <div id="auth-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-60 px-4 flex">
+            <div id="auth-modal-content" class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl">
                 <button id="auth-modal-close"
                     class="absolute right-4 top-4 text-2xl font-bold text-gray-400 transition-colors hover:text-gray-700 focus:outline-none"
                     aria-label="Close">&times;</button>
@@ -142,18 +140,18 @@
                 </div>
 
                 <div id="auth-options" class="space-y-3">
-                    <button onclick="showLoginForm()"
+                    <button id="auth-options-login"
                         class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg font-medium transition-colors">
                         <i class="fas fa-sign-in-alt mr-2"></i>Login
                     </button>
-                    <button onclick="showRegisterForm()"
+                    <button id="auth-options-register"
                         class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-medium transition-colors">
                         <i class="fas fa-user-plus mr-2"></i>Register
                     </button>
                 </div>
 
                 <!-- Login Form -->
-                <form id="login-form" class="hidden space-y-4" onsubmit="event.preventDefault(); login();">
+                <form id="login-form" class="hidden space-y-4">
                     <div>
                         <label for="login-email" class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-envelope mr-2"></i>Email
@@ -171,11 +169,11 @@
                                placeholder="Enter your password" required>
                     </div>
                     
-                    <button id="login-btn" type="button" onclick="login()"
+                    <button id="login-btn" type="button"
                         class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
                         <i class="fas fa-sign-in-alt mr-2"></i>Login
                     </button>
-                    <button type="button" onclick="closeAuthModal()"
+                    <button id="login-cancel-btn" type="button"
                         class="w-full rounded-xl bg-gray-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-gray-600">
                         <i class="fas fa-times mr-2"></i>Cancel
                     </button>
@@ -186,7 +184,7 @@
                 </form>
 
                 <!-- Forgot Password Form -->
-                <form id="forgot-form" class="hidden space-y-4" onsubmit="event.preventDefault(); forgotPassword();">
+                <form id="forgot-form" class="hidden space-y-4">
                     <div>
                         <label for="forgot-email" class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-envelope mr-2"></i>Email Address
@@ -201,7 +199,7 @@
                         <i class="fas fa-paper-plane mr-2"></i>Send Reset Link
                     </button>
                     
-                    <button type="button" onclick="showLoginForm()" 
+                    <button id="forgot-back-btn" type="button"
                             class="w-full rounded-xl bg-gray-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-gray-600">
                         <i class="fas fa-arrow-left mr-2"></i>Back to Login
                     </button>
@@ -214,14 +212,14 @@
                     </div>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">Email Sent!</h3>
                     <p class="text-gray-700 text-sm">If the email exists in our system, a password reset link has been sent.</p>
-                    <button type="button" onclick="showLoginForm()" 
+                    <button id="forgot-ok-back-btn" type="button"
                             class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
                         <i class="fas fa-sign-in-alt mr-2"></i>Back to Login
                     </button>
                 </div>
 
                 <!-- Register Form -->
-                <form id="register-form" class="hidden space-y-4" onsubmit="event.preventDefault(); register();">
+                <form id="register-form" class="hidden space-y-4">
                     <div>
                         <label for="register-email" class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-envelope mr-2"></i>Email
@@ -262,11 +260,11 @@
                         </div>
                     </div>
                     
-                    <button id="register-btn" type="button" onclick="register()"
+                    <button id="register-btn" type="button"
                         class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
                         <i class="fas fa-user-plus mr-2"></i>Create Account
                     </button>
-                    <button type="button" onclick="closeAuthModal()"
+                    <button id="register-cancel-btn" type="button"
                         class="w-full rounded-xl bg-gray-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-gray-600">
                         <i class="fas fa-times mr-2"></i>Cancel
                     </button>
@@ -294,58 +292,6 @@
         </footer>
     </div>
     <script src="turnstile-config.js"></script>
-    <script>
-        // Function to close auth modal when clicking on backdrop
-        function closeAuthModalOnBackdrop(event) {
-            // Only close if the click was directly on the backdrop (not on child elements)
-            if (event.target === event.currentTarget) {
-                closeAuthModal();
-            }
-        }
-        
-        function toggleProfileMenu() {
-            const menu = document.getElementById('profile-dropdown-menu');
-            if (menu.classList.contains('hidden')) {
-                menu.classList.remove('hidden');
-            } else {
-                menu.classList.add('hidden');
-            }
-        }
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const dropdown = document.getElementById('profile-dropdown-menu');
-            const button = document.getElementById('profile-btn');
-            
-            if (dropdown && button && !button.contains(event.target) && !dropdown.contains(event.target)) {
-                dropdown.classList.add('hidden');
-            }
-        });
-
-        function updateThemeToggle() {
-            const isDark = document.documentElement.classList.contains('dark-mode');
-            const toggle = document.getElementById('theme-toggle');
-            const icon = document.getElementById('theme-toggle-icon');
-
-            if (!toggle || !icon) return;
-
-            toggle.setAttribute('aria-pressed', String(isDark));
-            toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
-            icon.className = isDark ? 'fas fa-sun text-base' : 'fas fa-moon text-base';
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            updateThemeToggle();
-            const toggle = document.getElementById('theme-toggle');
-            if (!toggle) return;
-
-            toggle.addEventListener('click', function() {
-                const isDark = document.documentElement.classList.toggle('dark-mode');
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                updateThemeToggle();
-            });
-        });
-    </script>
 </body>
 
 </html>
