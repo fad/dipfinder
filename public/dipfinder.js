@@ -232,8 +232,9 @@ function removeStockFromUI(stockToRemove) {
 }
 
 function attachRemoveStockListeners() {
-    $(document).off('click.dipfinder', '.remove-stock');
-    $(document).on('click.dipfinder', '.remove-stock', function(e) {
+    // Direct binding (not delegated) so clicks fire even when the button's
+    // onclick has already called stopPropagation() to prevent row navigation.
+    $('.remove-stock').off('click.dipfinderRemove').on('click.dipfinderRemove', function(e) {
         e.stopPropagation();
         removeStockFromUI($(this).data('stock'));
     });
