@@ -336,10 +336,10 @@ function renderNewsByTicker(newsFeed, newsByTicker) {
         const padding = group.length < 3
             ? Array(3 - group.length).fill('<div></div>').join('')
             : '';
-        return `<div class="grid grid-cols-3 gap-5">${cells}${padding}</div>`;
+        return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">${cells}${padding}</div>`;
     }).join('');
 
-    newsFeed.html(`<div class="space-y-8">${rowsHtml}</div>`);
+    newsFeed.html(`<div style="display:flex;flex-direction:column;gap:32px;">${rowsHtml}</div>`);
 }
 
 function buildTickerNewsSection(ticker, articles) {
