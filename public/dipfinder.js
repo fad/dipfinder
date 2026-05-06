@@ -263,7 +263,7 @@ function renderStockTableRows(tableBody, stockDataArray) {
         const diffClasses = getSmaDiffClasses(diffPercent);
 
         tableBody.append(`
-            <tr class="stock-row grid cursor-pointer gap-3 px-4 py-4 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${data.stock}">
+            <tr class="stock-row grid cursor-pointer gap-3 px-4 py-2 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${data.stock}">
                 <td class="min-w-0">
                     <div class="text-sm font-medium text-gray-900">${data.stock}</div>
                     <div class="truncate text-sm text-gray-500">${truncateString(data.companyName, 30)}</div>
@@ -321,12 +321,28 @@ function renderNewsByTicker(newsFeed, newsByTicker) {
         `);
         return;
     }
-    tickers.forEach(ticker => {
-        appendTickerNewsSection(newsFeed, ticker, newsByTicker[ticker]);
-    });
+
+    // Group tickers in rows of 3; each row is a 3-col grid
+    const rows = [];
+    for (let i = 0; i < tickers.length; i += 3) {
+        rows.push(tickers.slice(i, i + 3));
+    }
+
+    const rowsHtml = rows.map(group => {
+        const cells = group.map(ticker =>
+            `<div>${buildTickerNewsSection(ticker, newsByTicker[ticker])}</div>`
+        ).join('');
+        // Pad to 3 cols so borders stay consistent
+        const padding = group.length < 3
+            ? Array(3 - group.length).fill('<div></div>').join('')
+            : '';
+        return `<div class="grid grid-cols-3 gap-5">${cells}${padding}</div>`;
+    }).join('');
+
+    newsFeed.html(`<div class="space-y-8">${rowsHtml}</div>`);
 }
 
-function appendTickerNewsSection(newsFeed, ticker, articles) {
+function buildTickerNewsSection(ticker, articles) {
     const deduped = [];
     const seen = new Set();
     [...articles]
@@ -337,26 +353,50 @@ function appendTickerNewsSection(newsFeed, ticker, articles) {
             seen.add(key);
             deduped.push(article);
         });
-    if (deduped.length === 0) return;
+    if (deduped.length === 0) return '';
 
     const visibleHtml = deduped.slice(0, 4).map(a => renderNewsArticle(a, false)).join('');
     const hiddenHtml  = deduped.slice(4, 8).map(a => renderNewsArticle(a, true)).join('');
     const buttonHtml  = deduped.length > 4
-        ? `<button type="button" class="view-more-news mt-4 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700" data-ticker="${escapeHtml(ticker)}">View more news</button>`
+        ? `<button type="button" class="view-more-news mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700" data-ticker="${escapeHtml(ticker)}">View more news</button>`
         : '';
 
-    newsFeed.append(`
-        <section class="mb-6 last:mb-0">
+    return `
+        <section>
             <div class="mb-3 flex items-center gap-3">
                 <h3 class="text-base font-bold text-gray-900">${escapeHtml(ticker)}</h3>
                 <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">${deduped.length} articles</span>
             </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2" data-news-group="${escapeHtml(ticker)}">
+            <div class="space-y-3" data-news-group="${escapeHtml(ticker)}">
                 ${visibleHtml}${hiddenHtml}
             </div>
             ${buttonHtml}
         </section>
-    `);
+    `;
+}
+
+function appendTickerNewsSection(newsFeed, ticker, articles) {
+    const html = buildTickerNewsSection(ticker, articles);
+    if (!html) return;
+    const wrapper = newsFeed.find('.space-y-8');
+    if (wrapper.length) {
+        const lastRow = wrapper.children('.grid').last();
+        const cells = lastRow.children('div');
+        if (lastRow.length && cells.length < 3) {
+            // There's room in the last row — replace an empty padding cell or append
+            const emptyCell = cells.filter((_, el) => el.innerHTML.trim() === '').first();
+            if (emptyCell.length) {
+                emptyCell.html(html);
+            } else {
+                lastRow.append(`<div>${html}</div>`);
+            }
+        } else {
+            // Start a new row
+            wrapper.append(`<div class="grid grid-cols-3 gap-5"><div>${html}</div><div></div><div></div></div>`);
+        }
+    } else {
+        newsFeed.append(html);
+    }
 }
 
 // ── Inline notices ────────────────────────────────────────────────────────────
