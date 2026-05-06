@@ -216,9 +216,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load
     loadContent(window.location.pathname + window.location.search);
-    
+
     // Also directly update navigation for initial load (fallback)
     setTimeout(() => {
         updateNavigation(window.location.pathname);
     }, 100);
+
+    // Auto-open auth modal when arriving via ?signin=1
+    if (new URLSearchParams(window.location.search).get('signin') === '1') {
+        setTimeout(() => {
+            const modal = document.getElementById('auth-modal');
+            if (modal) modal.classList.remove('hidden');
+        }, 150);
+    }
 });
