@@ -5,6 +5,11 @@ let notificationCache = {}; // Cache for notifications
 window.MAX_STOCKS = 10; // Default for guests, updated by auth.js
 const BASE_URL = window.location.origin;
 
+function stockDataUrl(stock, params = {}) {
+    const urlParams = new URLSearchParams({ symbol: stock, ...params });
+    return `${BASE_URL}/api/stock-data?${urlParams.toString()}`;
+}
+
 // --- SPA Lifecycle variables ---
 let dipfinderAuthCheckInterval;
 let dipfinderLocalStorageCheckInterval;
@@ -48,7 +53,7 @@ function truncateString(str, num) {
 async function fetchStockData(stock) {
     let response;
     try {
-        response = await fetch(`${BASE_URL}/api/stock-data/${stock}?action=price`);
+        response = await fetch(stockDataUrl(stock, { action: 'price' }));
         if (!response.ok) {
             throw new Error(`Error fetching data for ${stock}: ${response.statusText}`);
         }
@@ -64,14 +69,14 @@ async function fetchStockData(stock) {
 
 // Function to fetch SMA data from the Node.js proxy server
 async function fetchSMA(stock, period) {
-    const response = await fetch(`${BASE_URL}/api/stock-data/${stock}?action=sma&period=${period}`);
+    const response = await fetch(stockDataUrl(stock, { action: 'sma', period }));
     const data = await response.json();
     return data;
 }
 
 // Function to fetch company name from the Node.js proxy server
 async function fetchCompanyName(stock) {
-    const response = await fetch(`${BASE_URL}/api/stock-data/${stock}?action=company-name`);
+    const response = await fetch(stockDataUrl(stock, { action: 'company-name' }));
     const data = await response.json();
     return data.name;
 }
@@ -79,7 +84,7 @@ async function fetchCompanyName(stock) {
 // Function to fetch news from the Node.js proxy server
 async function fetchNews(stock) {
     try {
-        const response = await fetch(`${BASE_URL}/api/stock-data/${stock}?action=news`);
+        const response = await fetch(stockDataUrl(stock, { action: 'news' }));
         if (!response.ok) {
             throw new Error(`Error fetching news for ${stock}: ${response.statusText}`);
         }

@@ -1,13 +1,14 @@
 {
     "version": 2,
     "rewrites": [
+        { "source": "/api/stock-data/:symbol", "destination": "/api/stock-data?symbol=:symbol" },
         { "source": "/api/(.*)", "destination": "/api/$1" },
         
-        { "source": "/stocks/:symbol", "destination": "/api/stock-data/:symbol?action=price" },
-        { "source": "/sma/:symbol", "destination": "/api/stock-data/:symbol?action=sma" },
-        { "source": "/news/:symbol", "destination": "/api/stock-data/:symbol?action=news" },
-        { "source": "/company-name/:symbol", "destination": "/api/stock-data/:symbol?action=company-name" },
-        { "source": "/fundamentals/:symbol", "destination": "/api/stock-data/:symbol?action=fundamentals" },
+        { "source": "/stocks/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=price" },
+        { "source": "/sma/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=sma" },
+        { "source": "/news/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=news" },
+        { "source": "/company-name/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=company-name" },
+        { "source": "/fundamentals/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=fundamentals" },
         { "source": "/batch-stocks", "destination": "/api/batch-stocks" },
         { "source": "/login", "destination": "/api/user?action=login" },
         { "source": "/register", "destination": "/api/user?action=register" },

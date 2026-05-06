@@ -18,11 +18,16 @@ window.initializeScreener = function(params) {
     let screenerChart;
     let eventListeners = []; // Keep track of added event listeners
     let autocompleteInstance = null; // To hold the autocomplete instance
+
+    function stockDataUrl(stock, params = {}) {
+        const urlParams = new URLSearchParams({ symbol: stock, ...params });
+        return `${BASE_URL}/api/stock-data?${urlParams.toString()}`;
+    }
     
     async function fetchFundamentals(stock) {
         try {
             // Use consolidated stock-data endpoint with fundamentals action
-            const apiUrl = `${BASE_URL}/api/stock-data/${stock}?action=fundamentals`;
+            const apiUrl = stockDataUrl(stock, { action: 'fundamentals' });
 /*console.log(`Fetching fundamentals from: ${apiUrl}`);*/ 
             
             const res = await fetch(apiUrl);
@@ -55,7 +60,7 @@ window.initializeScreener = function(params) {
     async function fetchStockTimeseries(stock) {
         // Use consolidated stock-data endpoint
 /*console.log(`Fetching price data for ${stock}`);*/ 
-        const url = `${BASE_URL}/api/stock-data/${stock}?action=price`;
+        const url = stockDataUrl(stock, { action: 'price' });
 /*console.log(`API URL: ${url}`);*/ 
         
         try {
@@ -88,7 +93,7 @@ window.initializeScreener = function(params) {
 
     async function fetchSMA(stock, period = 200) {
         // Use consolidated stock-data endpoint with SMA action
-        const res = await fetch(`${BASE_URL}/api/stock-data/${stock}?action=sma&period=${period}`);
+        const res = await fetch(stockDataUrl(stock, { action: 'sma', period }));
         if (!res.ok) return null;
         return await res.json();
     }
@@ -96,7 +101,7 @@ window.initializeScreener = function(params) {
     async function fetchSMATimeSeries(stock, period = 200) {
         // Use consolidated stock-data endpoint with SMA time series action
 /*console.log(`Fetching SMA data for ${stock} with period ${period}`);*/ 
-        const url = `${BASE_URL}/api/stock-data/${stock}?action=sma-timeseries&period=${period}`;
+        const url = stockDataUrl(stock, { action: 'sma-timeseries', period });
 /*console.log(`SMA API URL: ${url}`);*/ 
         
         try {
@@ -128,7 +133,7 @@ window.initializeScreener = function(params) {
     }
 
     async function fetchNews(stock) {
-        const res = await fetch(`${BASE_URL}/api/stock-data/${stock}?action=news`);
+        const res = await fetch(stockDataUrl(stock, { action: 'news' }));
         if (!res.ok) return [];
         const data = await res.json();
         return data.news || [];
