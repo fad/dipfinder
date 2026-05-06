@@ -1,7 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
 import { calculateSma, CACHE_EXPIRY_STOCKS } from './lib/stocks';
+import { verifyJWT } from './lib/auth';
 import axios from 'axios';
+
+const GUEST_STOCK_LIMIT = 5;
+const AUTH_STOCK_LIMIT = 8;
 
 type DashboardStockCache = {
   companyName: string;
@@ -49,6 +53,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const smaPeriod = Number(period);
   if (!Array.isArray(stocks) || !Number.isFinite(smaPeriod) || smaPeriod <= 0) {
     return res.status(400).json({ error: 'Missing stocks array or period' });
+  }
+
+  // Enforce stock limit server-side
+  const authHeader = req.headers.authorization;
+  let stockLimit = GUEST_STOCK_LIMIT;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      verifyJWT(authHeader.slice(7));
+      stockLimit = AUTH_STOCK_LIMIT;
+    } catch {
+      // invalid/expired token — apply guest limit
+    }
+  }
+  if (stocks.length > stockLimit) {
+    return res.status(400).json({ error: `Stock limit exceeded (max ${stockLimit})` });
   }
   try {
     let stockCollectionPromise: Promise<any> | null = null;

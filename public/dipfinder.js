@@ -99,9 +99,12 @@ async function fetchNews(stock) {
 
 // Function to batch fetch stock and SMA data
 async function fetchBatchStockSMA(stocks, period) {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = localStorage.getItem('token');
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`${BASE_URL}/api/batch-stocks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ stocks, period })
     });
     const data = await res.json();
