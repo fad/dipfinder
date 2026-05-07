@@ -244,11 +244,13 @@ export function buildNewsletterHtml({
   stocks,
   smaPeriod,
   unsubscribeUrl,
+  viewOnlineUrl,
 }: {
   name: string;
   stocks: NewsletterStockRow[];
   smaPeriod: number;
   unsubscribeUrl: string;
+  viewOnlineUrl?: string;
 }): string {
   const dateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -301,9 +303,7 @@ export function buildNewsletterHtml({
   <!-- Pre-header bar -->
   <div style="padding:8px 16px; display:table; width:100%; box-sizing:border-box;">
     <span style="display:table-cell; color:#94a3b8; font-size:0.75em;">${dateLabel}</span>
-    <span style="display:table-cell; text-align:right;">
-      <a href="https://dipfinder.com/app" style="color:#64748b; font-size:0.75em; text-decoration:none;">View Online</a>
-    </span>
+    ${viewOnlineUrl ? `<span style="display:table-cell; text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b; font-size:0.75em; text-decoration:none;">View Online</a></span>` : ''}
   </div>
 
   <!-- Header -->
@@ -316,7 +316,7 @@ export function buildNewsletterHtml({
 
   <!-- Body -->
   <div style="padding:28px 32px;">
-    <p style="color:#475569; margin:0 0 24px; line-height:1.6; font-size:0.9em;">Hi ${name}, here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.</p>
+    <p style="color:#1e293b; margin:0 0 24px; line-height:1.6; font-size:0.9em;"><strong>Good morning</strong><br><span style="color:#475569;">Here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.</span></p>
 
     <!-- Chart -->
     <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:24px;">
@@ -370,16 +370,18 @@ export async function sendNewsletterEmail({
   stocks,
   smaPeriod,
   unsubscribeUrl,
+  viewOnlineUrl,
 }: {
   to: string;
   name: string;
   stocks: NewsletterStockRow[];
   smaPeriod: number;
   unsubscribeUrl: string;
+  viewOnlineUrl?: string;
 }): Promise<boolean> {
   const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const subject = `Your Weekly Dip Report — ${shortDate}`;
-  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl });
+  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl });
   return sendEmail({ to, subject, html });
 }
 
