@@ -36,6 +36,12 @@
     .badge-gray  { background: #1e293b; color: #64748b; border: 1px solid #334155; }
     .badge-blue  { background: #0c2845; color: #7dd3fc; }
     .no-data { text-align: center; padding: 3rem; color: #64748b; }
+    .actions { margin-bottom: 1.5rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+    .btn { display: inline-block; padding: 0.5rem 1.1rem; border-radius: 7px; font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-sky { background: #38bdf8; color: #0f172a; }
+    .btn-sky:hover:not(:disabled) { opacity: 0.85; }
+    #newsletter-status { font-size: 0.8rem; color: #94a3b8; }
   </style>
 </head>
 <body>
@@ -45,6 +51,10 @@
   <div id="loading">Loading…</div>
   <div id="content" style="display:none">
     <div class="stats" id="stats"></div>
+    <div class="actions">
+      <button class="btn btn-sky" id="send-newsletter-btn" onclick="sendTestNewsletter()">Send Test Newsletter</button>
+      <span id="newsletter-status"></span>
+    </div>
     <div class="search-bar">
       <input type="text" id="search" placeholder="Search by name or email…" oninput="renderTable()">
     </div>
@@ -188,6 +198,35 @@
       ].map(s => `<div class="stat-card"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`).join('');
 
       renderTable();
+    }
+
+    async function sendTestNewsletter() {
+      const btn = document.getElementById('send-newsletter-btn');
+      const status = document.getElementById('newsletter-status');
+      btn.disabled = true;
+      status.textContent = 'Sending…';
+      status.style.color = '#94a3b8';
+
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/newsletter-send', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          status.textContent = 'Error: ' + (data.error || res.status);
+          status.style.color = '#f87171';
+        } else {
+          status.textContent = `Sent ${data.sent}, failed ${data.failed}, skipped ${data.skipped}`;
+          status.style.color = data.sent > 0 ? '#4ade80' : '#94a3b8';
+        }
+      } catch (e) {
+        status.textContent = 'Network error: ' + e.message;
+        status.style.color = '#f87171';
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     load();
