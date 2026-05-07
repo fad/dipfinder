@@ -88,7 +88,7 @@ async function fetchBatchStockSMA(stocks, period) {
 }
 
 function getDashboardCacheKey(period) {
-    return `dipfinder-dashboard:${period}:${stocks.join(',')}`;
+    return `dipfinder-dashboard:${period}:${[...stocks].sort().join(',')}`;
 }
 
 function loadCachedDashboardData(period) {
@@ -729,6 +729,17 @@ async function updateTableAndChart(period) {
     const stockDataArray = [];
     let removedStocks = [];
 
+    // Kick off news fetch immediately — it's independent of SMA data
+    const newsFeed = $('#news-feed');
+    newsFeed.html(`
+        <div class="flex items-center gap-2 py-6 text-gray-400">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent shrink-0"></div>
+            <span class="text-sm">Loading news…</span>
+        </div>
+    `);
+    if (stocks.length > 0) $('#news-title').text('News by ticker');
+    const newsPromise = Promise.all(stocks.map(stock => fetchNews(stock)));
+
     let batchResults;
     try {
         batchResults = await fetchBatchStockSMA(stocks, period);
@@ -790,16 +801,7 @@ async function updateTableAndChart(period) {
     saveCachedDashboardData(period, stockDataArray);
     renderDashboardData(stockDataArray, period, tableBody);
 
-    const newsFeed = $('#news-feed');
-    newsFeed.html(`
-        <div class="flex items-center gap-2 py-6 text-gray-400">
-            <div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent shrink-0"></div>
-            <span class="text-sm">Loading news…</span>
-        </div>
-    `);
-    if (stocks.length > 0) $('#news-title').text('News by ticker');
-
-    const newsResults = await Promise.all(stocks.map(stock => fetchNews(stock)));
+    const newsResults = await newsPromise;
     newsCache = {};
     stocks.forEach((stock, i) => {
         newsCache[stock] = Array.isArray(newsResults[i]) ? newsResults[i] : [];

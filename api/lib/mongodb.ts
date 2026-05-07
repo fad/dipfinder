@@ -17,19 +17,31 @@ let cachedClient = globalThis._mongoClient;
 let cachedDb = globalThis._mongoDb;
 
 export async function connectToDatabase(): Promise<Db> {
-  if (cachedDb) return cachedDb;
   if (!uri || !dbName) throw new Error('Missing MongoDB connection env vars');
-  if (!cachedClient) {
+
+  // Verify cached connection is still alive before reusing
+  if (cachedClient && cachedDb) {
     try {
-      cachedClient = new MongoClient(uri);
-      await cachedClient.connect();
-      globalThis._mongoClient = cachedClient;
-/*console.log('MongoDB connected successfully');*/ 
-    } catch (err) {
-      console.error('MongoDB connection failed:', err);
-      throw err;
+      await cachedDb.command({ ping: 1 });
+      return cachedDb;
+    } catch {
+      // Connection dropped — reset and reconnect below
+      cachedClient = undefined;
+      cachedDb = undefined;
+      globalThis._mongoClient = undefined;
+      globalThis._mongoDb = undefined;
     }
   }
+
+  try {
+    cachedClient = new MongoClient(uri);
+    await cachedClient.connect();
+    globalThis._mongoClient = cachedClient;
+  } catch (err) {
+    console.error('MongoDB connection failed:', err);
+    throw err;
+  }
+
   cachedDb = cachedClient.db(dbName);
   globalThis._mongoDb = cachedDb;
   return cachedDb;
