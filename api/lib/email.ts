@@ -213,40 +213,30 @@ export interface NewsletterStockRow {
   currentPrice: number;
   sma: number;
   relativePrice: number;
+  topNews?: { headline: string; url: string; source: string; datetime: number }[];
 }
 
-function generateBarChartUrl(stocks: NewsletterStockRow[], smaPeriod: number): string {
+function generateBarChartUrl(stocks: NewsletterStockRow[]): string {
   const labels = stocks.map(s => s.symbol);
   const data = stocks.map(s => Math.round(s.relativePrice * 1000) / 10);
-  const colors = stocks.map(s => s.relativePrice < 0 ? '#f87171' : '#4ade80');
+  const colors = stocks.map(s => s.relativePrice < 0 ? '#ef4444' : '#22c55e');
 
-  // Chart.js 2.x syntax (QuickChart default)
   const cfg = {
     type: 'bar',
     data: {
       labels,
-      datasets: [{
-        label: '',
-        data,
-        backgroundColor: colors,
-      }],
+      datasets: [{ label: '', data, backgroundColor: colors }],
     },
     options: {
       legend: { display: false },
       scales: {
-        xAxes: [{
-          ticks: { fontColor: '#94a3b8', fontSize: 11 },
-          gridLines: { display: false },
-        }],
-        yAxes: [{
-          ticks: { fontColor: '#94a3b8', fontSize: 10, callback: "function(v){return v+'%'}" },
-          gridLines: { color: '#1e293b' },
-        }],
+        xAxes: [{ ticks: { fontColor: '#475569', fontSize: 11 }, gridLines: { display: false } }],
+        yAxes: [{ ticks: { fontColor: '#64748b', fontSize: 10, callback: "function(v){return v+'%'}" }, gridLines: { color: '#e2e8f0' } }],
       },
     },
   };
 
-  return `https://quickchart.io/chart?w=556&h=220&bkg=%230f172a&c=${encodeURIComponent(JSON.stringify(cfg))}`;
+  return `https://quickchart.io/chart?w=556&h=200&bkg=%23ffffff&c=${encodeURIComponent(JSON.stringify(cfg))}`;
 }
 
 /**
@@ -271,61 +261,99 @@ export async function sendNewsletterEmail({
   const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const subject = `Your Weekly Dip Report — ${shortDate}`;
 
-  const barChartUrl = generateBarChartUrl(stocks, smaPeriod);
+  const barChartUrl = generateBarChartUrl(stocks);
 
   const rows = stocks.map(s => {
     const pct = (s.relativePrice * 100).toFixed(1);
-    const color = s.relativePrice < 0 ? '#f87171' : '#4ade80';
+    const dipColor = s.relativePrice < 0 ? '#dc2626' : '#16a34a';
+    const dipBg = s.relativePrice < 0 ? '#fef2f2' : '#f0fdf4';
     const sign = s.relativePrice > 0 ? '+' : '';
     return `<tr>
-      <td style="padding:10px 14px; font-weight:700; color:#f1f5f9; border-bottom:1px solid #1e293b;">${s.symbol}</td>
-      <td style="padding:10px 14px; color:#94a3b8; font-size:0.85em; border-bottom:1px solid #1e293b;">${s.companyName}</td>
-      <td style="padding:10px 14px; color:#e2e8f0; text-align:right; border-bottom:1px solid #1e293b;">$${s.currentPrice.toFixed(2)}</td>
-      <td style="padding:10px 14px; color:#e2e8f0; text-align:right; border-bottom:1px solid #1e293b;">$${s.sma.toFixed(2)}</td>
-      <td style="padding:10px 14px; text-align:right; font-weight:700; color:${color}; border-bottom:1px solid #1e293b;">${sign}${pct}%</td>
+      <td style="padding:10px 14px; font-weight:700; color:#1e293b; border-bottom:1px solid #f1f5f9; white-space:nowrap;">${s.symbol}</td>
+      <td style="padding:10px 14px; color:#64748b; font-size:0.85em; border-bottom:1px solid #f1f5f9;">${s.companyName}</td>
+      <td style="padding:10px 14px; color:#1e293b; text-align:right; border-bottom:1px solid #f1f5f9; white-space:nowrap;">$${s.currentPrice.toFixed(2)}</td>
+      <td style="padding:10px 14px; color:#64748b; text-align:right; border-bottom:1px solid #f1f5f9; white-space:nowrap;">$${s.sma.toFixed(2)}</td>
+      <td style="padding:10px 14px; text-align:right; border-bottom:1px solid #f1f5f9; white-space:nowrap;">
+        <span style="background:${dipBg}; color:${dipColor}; font-weight:700; font-size:0.82em; padding:3px 8px; border-radius:999px;">${sign}${pct}%</span>
+      </td>
     </tr>`;
   }).join('');
 
+  const newsCards = stocks.filter(s => s.topNews?.length).map(s => {
+    const items = (s.topNews || []).map(n => `
+      <a href="${n.url}" style="display:block; text-decoration:none; padding:10px 0; border-bottom:1px solid #f1f5f9;">
+        <span style="font-size:0.78em; font-weight:600; color:#2563eb; text-transform:uppercase; letter-spacing:0.05em;">${n.source}</span>
+        <p style="margin:3px 0 0; color:#1e293b; font-size:0.875em; line-height:1.4;">${n.headline}</p>
+      </a>`).join('');
+
+    const pct = (s.relativePrice * 100).toFixed(1);
+    const dipColor = s.relativePrice < 0 ? '#dc2626' : '#16a34a';
+    const sign = s.relativePrice > 0 ? '+' : '';
+
+    return `
+    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:12px; overflow:hidden;">
+      <div style="padding:12px 16px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; align-items:center;">
+        <span style="font-weight:800; color:#1e293b; font-size:0.95em; margin-right:8px;">${s.symbol}</span>
+        <span style="color:#64748b; font-size:0.8em; flex:1;">${s.companyName}</span>
+        <span style="font-weight:700; color:${dipColor}; font-size:0.85em;">${sign}${pct}%</span>
+      </div>
+      <div style="padding:0 16px;">${items}</div>
+    </div>`;
+  }).join('');
+
   const html = `
-<div style="font-family:system-ui,Arial,sans-serif; max-width:620px; margin:0 auto; background:#0f172a; color:#e2e8f0; border-radius:12px; overflow:hidden; border:1px solid #1e293b;">
-  <div style="padding:24px 32px; background:#1e293b; border-bottom:1px solid #334155;">
-    <h1 style="margin:0; font-size:1.4rem; color:#f8fafc; font-weight:800;">Dip Finder</h1>
-    <p style="margin:4px 0 0; color:#94a3b8; font-size:0.82em;">Weekly Dip Report &nbsp;·&nbsp; ${dateLabel}</p>
+<div style="font-family:system-ui,-apple-system,Arial,sans-serif; max-width:620px; margin:0 auto; background:#f8fafc;">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#2563eb,#7c3aed); padding:28px 32px;">
+    <h1 style="margin:0; font-size:1.5rem; color:#ffffff; font-weight:800; letter-spacing:-0.02em;">Dip Finder</h1>
+    <p style="margin:6px 0 0; color:#bfdbfe; font-size:0.82em;">Weekly Dip Report &nbsp;·&nbsp; ${dateLabel}</p>
   </div>
 
+  <!-- Body -->
   <div style="padding:28px 32px;">
-    <p style="color:#cbd5e1; margin:0 0 20px; line-height:1.5;">Hi ${name}, here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA — biggest dips first.</p>
+    <p style="color:#475569; margin:0 0 24px; line-height:1.6; font-size:0.9em;">Hi ${name}, here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA — biggest dips first.</p>
 
-    <div style="margin-bottom:24px; border-radius:8px; overflow:hidden; border:1px solid #1e293b;">
-      <img src="${barChartUrl}" width="556" height="220" alt="Watchlist dip chart" style="display:block;">
+    <!-- Chart -->
+    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:24px;">
+      <img src="${barChartUrl}" width="556" height="200" alt="Watchlist dip chart" style="display:block;">
     </div>
 
-    <table style="width:100%; border-collapse:collapse; font-size:0.875rem; background:#0f172a; border-radius:8px; overflow:hidden; border:1px solid #1e293b;">
-      <thead>
-        <tr style="background:#1e293b;">
-          <th style="padding:8px 14px; text-align:left; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Ticker</th>
-          <th style="padding:8px 14px; text-align:left; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Company</th>
-          <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Price</th>
-          <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">${smaPeriod}d SMA</th>
-          <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">vs SMA</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
+    <!-- Table -->
+    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:28px;">
+      <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+        <thead>
+          <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+            <th style="padding:10px 14px; text-align:left; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">Ticker</th>
+            <th style="padding:10px 14px; text-align:left; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">Company</th>
+            <th style="padding:10px 14px; text-align:right; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">Price</th>
+            <th style="padding:10px 14px; text-align:right; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">${smaPeriod}d SMA</th>
+            <th style="padding:10px 14px; text-align:right; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">vs SMA</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
 
+    ${newsCards ? `
+    <!-- News -->
+    <h2 style="margin:0 0 14px; font-size:0.75em; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em;">This Week's News</h2>
+    ${newsCards}` : ''}
+
+    <!-- CTA -->
     <div style="margin-top:28px; text-align:center;">
-      <a href="https://dipfinder.com/app" style="display:inline-block; background:#38bdf8; color:#0f172a; padding:11px 28px; border-radius:7px; text-decoration:none; font-weight:700; font-size:0.9em;">Open Dip Finder ↗</a>
+      <a href="https://dipfinder.com/app" style="display:inline-block; background:linear-gradient(135deg,#2563eb,#7c3aed); color:#ffffff; padding:12px 32px; border-radius:8px; text-decoration:none; font-weight:700; font-size:0.9em; letter-spacing:0.01em;">Open Dip Finder ↗</a>
     </div>
   </div>
 
-  <div style="padding:16px 32px; background:#1e293b; border-top:1px solid #334155; text-align:center;">
-    <p style="color:#475569; font-size:0.75em; margin:0; line-height:1.6;">
+  <!-- Footer -->
+  <div style="padding:16px 32px; background:#1e293b; text-align:center;">
+    <p style="color:#64748b; font-size:0.73em; margin:0; line-height:1.7;">
       You're receiving this because you subscribed to the Dip Finder newsletter.<br>
-      <a href="${unsubscribeUrl}" style="color:#64748b; text-decoration:underline;">Unsubscribe</a>
+      <a href="${unsubscribeUrl}" style="color:#94a3b8; text-decoration:underline;">Unsubscribe</a>
     </p>
   </div>
+
 </div>`;
 
   return sendEmail({ to, subject, html });
