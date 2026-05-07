@@ -12,77 +12,12 @@
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Dip Finder – Know when your stocks go on sale">
     <meta name="twitter:description" content="You know which stocks you want. Dip Finder tells you when they go on sale. Free, no account needed.">
-    <script>
-        // Redirect logged-in users straight to the app
-        try {
-            const token = localStorage.getItem('token');
-            if (token) {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                if (payload && payload.exp * 1000 > Date.now()) {
-                    window.location.replace('/app');
-                }
-            }
-        } catch (e) { /* invalid token — show landing page */ }
-    </script>
+    <script src="/start-redirect.js"></script>
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="styles/start.css">
     <script defer src="https://cloud.umami.is/script.js" data-website-id="f347f270-ebbc-47e2-9eee-abda99ec906a"></script>
-    <style>
-        .lp-hero-bg {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 40%, #5b21b6 100%);
-            position: relative;
-        }
-        .lp-hero-bg > .hero-content { position: relative; z-index: 1; }
-        .lp-step-line::after {
-            content: '';
-            display: block;
-            width: 2px;
-            height: 2rem;
-            background: #e2e8f0;
-            margin: 0.5rem auto 0;
-        }
-        .lp-step-line:last-child::after { display: none; }
-        .lp-feature-card:hover { transform: translateY(-2px); }
-        .lp-feature-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-
-        /* Hero preview: subtle scale-up entrance */
-        @keyframes fadeScaleIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to   { opacity: 1; transform: scale(1); }
-        }
-        .hero-preview-wrap {
-            animation: fadeScaleIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
-            will-change: transform;
-        }
-        .hero-preview-wrap img { display: block; }
-
-        /* Staggered text entrance */
-        @keyframes fadeSlideUp {
-            from { opacity: 0; transform: translateY(22px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .hero-line {
-            opacity: 0;
-            animation: fadeSlideUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-        span.hero-line { display: block; }
-
-        /* Scroll reveal */
-        .reveal {
-            opacity: 0;
-            transform: translateY(28px);
-            transition: opacity 0.65s ease, transform 0.65s ease;
-        }
-        .reveal.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .reveal-delay-1 { transition-delay: 0.1s; }
-        .reveal-delay-2 { transition-delay: 0.2s; }
-        .reveal-delay-3 { transition-delay: 0.3s; }
-        .reveal-delay-4 { transition-delay: 0.4s; }
-    </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 text-gray-900 antialiased">
 
@@ -294,43 +229,7 @@
         </div>
     </footer>
 
-    <script>
-        // ── Parallax on scroll ──────────────────────────────────────────────────
-        const heroSection  = document.getElementById('hero-section');
-        const heroText     = document.getElementById('hero-text');
-        const heroPreview  = document.getElementById('hero-preview-wrap');
-
-        if (heroSection && heroText && heroPreview) {
-            let ticking = false;
-
-            window.addEventListener('scroll', () => {
-                if (ticking) return;
-                requestAnimationFrame(() => {
-                    const scrollY      = window.scrollY;
-                    const heroHeight   = heroSection.offsetHeight;
-                    if (scrollY > heroHeight) { ticking = false; return; }
-
-                    // Text drifts up gently; image lags slightly behind
-                    heroText.style.transform    = `translateY(${scrollY * 0.12}px)`;
-                    heroPreview.style.transform = `translateY(${scrollY * 0.05}px)`;
-                    ticking = false;
-                });
-                ticking = true;
-            });
-        }
-
-        // ── Scroll reveal ───────────────────────────────────────────────────────
-        const revealObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                    revealObserver.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.12 });
-
-        document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
-    </script>
+    <script src="/start.js" defer></script>
 
 </body>
 </html>
