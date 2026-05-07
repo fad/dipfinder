@@ -298,18 +298,25 @@ export function buildNewsletterHtml({
   return `
 <div style="font-family:system-ui,-apple-system,Arial,sans-serif; max-width:620px; margin:0 auto; background:#f8fafc;">
 
+  <!-- Pre-header bar -->
+  <div style="padding:8px 16px; display:table; width:100%; box-sizing:border-box;">
+    <span style="display:table-cell; color:#94a3b8; font-size:0.75em;">${dateLabel}</span>
+    <span style="display:table-cell; text-align:right;">
+      <a href="https://dipfinder.com/app" style="color:#64748b; font-size:0.75em; text-decoration:none;">View Online</a>
+    </span>
+  </div>
+
   <!-- Header -->
-  <a href="https://dipfinder.com" style="display:block; text-decoration:none; background:linear-gradient(135deg,#2563eb,#7c3aed); padding:28px 32px;">
-    <div style="margin-bottom:6px;">
-      <img src="https://dipfinder.com/img/logo.png" width="28" height="28" alt="" style="display:inline-block; vertical-align:middle; border-radius:5px; margin-right:10px;">
-      <span style="font-size:1.5rem; color:#ffffff; font-weight:800; letter-spacing:-0.02em; vertical-align:middle;">Dip Finder</span>
+  <a href="https://dipfinder.com" style="display:block; text-decoration:none; background:linear-gradient(135deg,#2563eb,#7c3aed); padding:32px 32px 28px; text-align:center;">
+    <div>
+      <img src="https://dipfinder.com/img/logo.png" width="32" height="32" alt="" style="display:inline-block; vertical-align:middle; border-radius:6px; margin-right:10px;">
+      <span style="font-size:1.6rem; color:#ffffff; font-weight:800; letter-spacing:-0.02em; vertical-align:middle;">Dip Finder</span>
     </div>
-    <p style="margin:0; color:#bfdbfe; font-size:0.82em;">Weekly Dip Report &nbsp;·&nbsp; ${dateLabel}</p>
   </a>
 
   <!-- Body -->
   <div style="padding:28px 32px;">
-    <p style="color:#475569; margin:0 0 24px; line-height:1.6; font-size:0.9em;">Hi ${name}, here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA — biggest dips first.</p>
+    <p style="color:#475569; margin:0 0 24px; line-height:1.6; font-size:0.9em;">Hi ${name}, here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.</p>
 
     <!-- Chart -->
     <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:24px;">
