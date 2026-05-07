@@ -213,6 +213,7 @@ export interface NewsletterStockRow {
   currentPrice: number;
   sma: number;
   relativePrice: number;
+  chartUrl?: string;
 }
 
 /**
@@ -241,9 +242,13 @@ export async function sendNewsletterEmail({
     const pct = (s.relativePrice * 100).toFixed(1);
     const color = s.relativePrice < 0 ? '#f87171' : '#4ade80';
     const sign = s.relativePrice > 0 ? '+' : '';
+    const chart = s.chartUrl
+      ? `<img src="${s.chartUrl}" width="180" height="55" alt="${s.symbol} chart" style="display:block; border-radius:4px;">`
+      : '';
     return `<tr>
       <td style="padding:10px 14px; font-weight:700; color:#f1f5f9; border-bottom:1px solid #1e293b;">${s.symbol}</td>
       <td style="padding:10px 14px; color:#94a3b8; font-size:0.85em; border-bottom:1px solid #1e293b;">${s.companyName}</td>
+      <td style="padding:10px 14px; border-bottom:1px solid #1e293b;">${chart}</td>
       <td style="padding:10px 14px; color:#e2e8f0; text-align:right; border-bottom:1px solid #1e293b;">$${s.currentPrice.toFixed(2)}</td>
       <td style="padding:10px 14px; color:#e2e8f0; text-align:right; border-bottom:1px solid #1e293b;">$${s.sma.toFixed(2)}</td>
       <td style="padding:10px 14px; text-align:right; font-weight:700; color:${color}; border-bottom:1px solid #1e293b;">${sign}${pct}%</td>
@@ -265,6 +270,7 @@ export async function sendNewsletterEmail({
         <tr style="background:#1e293b;">
           <th style="padding:8px 14px; text-align:left; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Ticker</th>
           <th style="padding:8px 14px; text-align:left; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Company</th>
+          <th style="padding:8px 14px; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">50d Chart</th>
           <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Price</th>
           <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">${smaPeriod}d SMA</th>
           <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">vs SMA</th>

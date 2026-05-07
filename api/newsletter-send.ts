@@ -14,6 +14,39 @@ const CRON_SECRET = process.env.CRON_SECRET;
 const NEWSLETTER_SMA_PERIOD = 50;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
 
+function generateSparklineUrl(closes: number[], smaPeriod: number): string {
+  const raw = closes.slice(-100);
+
+  // Rolling SMA over raw points
+  const smaLine: (number | null)[] = raw.map((_, i) => {
+    if (i < smaPeriod - 1) return null;
+    const slice = raw.slice(i - smaPeriod + 1, i + 1);
+    return Math.round(slice.reduce((a, b) => a + b, 0) / smaPeriod * 100) / 100;
+  });
+
+  // Downsample to 40 points for URL length
+  const step = Math.max(1, Math.floor(raw.length / 40));
+  const prices = raw.filter((_, i) => i % step === 0).map(p => Math.round(p * 100) / 100);
+  const sma = smaLine.filter((_, i) => i % step === 0);
+
+  const cfg = {
+    type: 'line',
+    data: {
+      labels: prices.map((_, i) => i),
+      datasets: [
+        { data: prices, borderColor: '#38bdf8', borderWidth: 2, fill: false, pointRadius: 0, tension: 0.2 },
+        { data: sma, borderColor: '#fbbf24', borderWidth: 1.5, borderDash: [3, 3], fill: false, pointRadius: 0, spanGaps: true },
+      ],
+    },
+    options: {
+      scales: { x: { display: false }, y: { display: false } },
+      plugins: { legend: { display: false } },
+    },
+  };
+
+  return `https://quickchart.io/chart?w=180&h=55&bkg=%230f172a&c=${encodeURIComponent(JSON.stringify(cfg))}`;
+}
+
 type DashboardStockCache = {
   companyName: string;
   currentPrice: number;
@@ -108,6 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         currentPrice: number;
         sma: number;
         relativePrice: number;
+        chartUrl: string;
       }[] = [];
 
       for (const symbol of watchlist) {
@@ -121,6 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               currentPrice: data.currentPrice,
               sma,
               relativePrice: data.currentPrice / sma - 1,
+              chartUrl: generateSparklineUrl(data.closes, NEWSLETTER_SMA_PERIOD),
             });
           }
         } catch (err) {
