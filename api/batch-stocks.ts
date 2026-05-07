@@ -139,6 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         relativePrice
       };
     }));
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.status(200).json({ results: stockResults });
   } catch (error) {
     console.error('Error in /api/batch-stocks:', error);

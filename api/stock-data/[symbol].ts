@@ -207,6 +207,7 @@ async function handleFundamentals(db: any, symbol: string, res: VercelResponse) 
     { upsert: true }
   );
 
+  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
   return res.status(200).json(fundamentalData);
 }
 
@@ -230,6 +231,7 @@ async function handleNews(db: any, symbol: string, res: VercelResponse) {
     { upsert: true }
   );
 
+  res.setHeader('Cache-Control', 'public, max-age=180, stale-while-revalidate=1800');
   return res.status(200).json(result);
 }
 
@@ -254,6 +256,7 @@ async function handleCompanyName(db: any, symbol: string, res: VercelResponse) {
     { upsert: true }
   );
 
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   return res.status(200).json(result);
 }
 
@@ -280,6 +283,7 @@ async function handleStockPrice(db: any, symbol: string, res: VercelResponse) {
     { upsert: true }
   );
 
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   return res.status(200).json(data);
 }
 
@@ -298,6 +302,7 @@ async function handleSMA(db: any, symbol: string, period: number, res: VercelRes
 
   const sma = calculateSma(prices, period);
 
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   return res.status(200).json({ sma: parseFloat(sma.toFixed(2)) });
 }
 
@@ -312,12 +317,10 @@ async function handleSMATimeSeries(symbol: string, period: number, res: VercelRe
     // Check cache
     const cached = await collection.findOne({ cacheKey });
     if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_STOCKS) {
-/*console.log(`Returning cached SMA timeseries for ${symbol}`);*/ 
+      res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
       return res.status(200).json(cached.data);
     }
-    
-    // Fetch from Yahoo Finance if not in cache
-/*console.log(`Fetching SMA timeseries data for ${symbol}`);*/ 
+
     const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2y`);
     const data = response.data;
 
@@ -350,7 +353,7 @@ async function handleSMATimeSeries(symbol: string, period: number, res: VercelRe
       { upsert: true }
     );
 
-/*console.log(`Returning fresh SMA timeseries for ${symbol}`);*/ 
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     return res.status(200).json(responseData);
   } catch (error) {
     console.error(`Error in handleSMATimeSeries for ${symbol}:`, error);
