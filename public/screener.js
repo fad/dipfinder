@@ -512,9 +512,17 @@ window.initializeScreener = function(params) {
     function cutoffForTimeframe(tf) {
         const now = new Date();
         if (tf === 'MAX') return new Date(0);
-        const map = { '1M': 1, '3M': 3, '6M': 6, '1Y': 12, '2Y': 24, '5Y': 60 };
+        const map = { '1M': 1, '3M': 3, '6M': 6, '1Y': 12 };
         const months = map[tf] || 12;
         return new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+    }
+
+    function tickFormatForTimeframe(dateStr, tf) {
+        const d = new Date(dateStr);
+        if (tf === '1M' || tf === '3M') {
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     }
 
     function applyTimeframe(tf) {
@@ -539,6 +547,10 @@ window.initializeScreener = function(params) {
         screenerChart.data.labels = dates;
         screenerChart.data.datasets[0].data = prices;
         screenerChart.data.datasets[1].data = smaValues;
+        // Update tick format to match new timeframe
+        screenerChart.options.scales.x.ticks.callback = function(val) {
+            return tickFormatForTimeframe(this.getLabelForValue(val), tf);
+        };
         screenerChart.update('none');
 
         // Update button active states
@@ -632,8 +644,7 @@ window.initializeScreener = function(params) {
                             maxTicksLimit: 12,
                             maxRotation: 0,
                             callback: function(val) {
-                                const d = new Date(this.getLabelForValue(val));
-                                return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                                return tickFormatForTimeframe(this.getLabelForValue(val), currentTimeframe);
                             }
                         }
                     },

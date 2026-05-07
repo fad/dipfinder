@@ -210,10 +210,27 @@ function updatePeriodDisplay(period) {
 
 // ── Chart loading UI ─────────────────────────────────────────────────────────
 
+// SVG icon for vertical bars (click to switch TO vertical)
+const ICON_VERTICAL = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+// SVG icon for horizontal bars (click to switch TO horizontal)
+const ICON_HORIZONTAL = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg>';
+
+function updateChartOrientBtn() {
+    const btn = document.getElementById('chart-orient-btn');
+    if (!btn) return;
+    // Icon shows what you'll switch TO; title explains action
+    if (chartOrientation === 'y') {
+        btn.innerHTML = ICON_VERTICAL;
+        btn.title = 'Switch to vertical bars';
+    } else {
+        btn.innerHTML = ICON_HORIZONTAL;
+        btn.title = 'Switch to horizontal bars';
+    }
+}
+
 function toggleChartOrientation() {
     chartOrientation = chartOrientation === 'y' ? 'x' : 'y';
-    const btn = document.getElementById('chart-orient-btn');
-    if (btn) btn.title = chartOrientation === 'y' ? 'Switch to vertical bars' : 'Switch to horizontal bars';
+    updateChartOrientBtn();
     if (lastRenderCache.data) {
         renderDashboardData(lastRenderCache.data, lastRenderCache.period, lastRenderCache.tableBody);
     }
