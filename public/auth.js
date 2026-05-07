@@ -381,7 +381,7 @@ const AuthManager = (function() {
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
-            const res = await fetch(`${BASE_URL}/api/user?action=get-watchlist`, {
+            const res = await fetch(`${BASE_URL}/api/watchlist`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (!res.ok) return;

@@ -445,7 +445,7 @@ async function saveWatchlistToDb() {
         if (!window.AuthManager || !window.AuthManager.isAuthenticated) return;
         const token = localStorage.getItem('token');
         if (!token) return;
-        await fetch(`${BASE_URL}/api/user?action=save-watchlist`, {
+        await fetch(`${BASE_URL}/api/watchlist`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ stocks })
