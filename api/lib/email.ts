@@ -261,7 +261,7 @@ export function buildNewsletterHtml({
     const dipColor = s.relativePrice < 0 ? '#dc2626' : '#16a34a';
     const dipBg = s.relativePrice < 0 ? '#fef2f2' : '#f0fdf4';
     const sign = s.relativePrice > 0 ? '+' : '';
-    const href = `https://dipfinder.com/app?ticker=${s.symbol}`;
+    const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
     const linkStyle = 'display:block; padding:10px 14px; text-decoration:none; color:inherit;';
     return `<tr>
       <td style="padding:0; border-bottom:1px solid #f1f5f9; white-space:nowrap;"><a href="${href}" style="${linkStyle} font-weight:700; color:#1e293b;">${s.symbol}</a></td>
@@ -282,7 +282,7 @@ export function buildNewsletterHtml({
     const pct = (s.relativePrice * 100).toFixed(1);
     const dipColor = s.relativePrice < 0 ? '#dc2626' : '#16a34a';
     const sign = s.relativePrice > 0 ? '+' : '';
-    const href = `https://dipfinder.com/app?ticker=${s.symbol}`;
+    const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
 
     return `
     <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:12px; overflow:hidden;">
