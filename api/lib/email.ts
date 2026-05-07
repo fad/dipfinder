@@ -230,13 +230,13 @@ function generateBarChartUrl(stocks: NewsletterStockRow[]): string {
     options: {
       legend: { display: false },
       scales: {
-        xAxes: [{ ticks: { fontColor: '#475569', fontSize: 11 }, gridLines: { display: false } }],
-        yAxes: [{ ticks: { fontColor: '#64748b', fontSize: 10 }, gridLines: { color: '#e2e8f0' } }],
+        xAxes: [{ ticks: { fontColor: '#94a3b8', fontSize: 11 }, gridLines: { display: false } }],
+        yAxes: [{ ticks: { fontColor: '#64748b', fontSize: 10 }, gridLines: { color: '#1e293b' } }],
       },
     },
   };
 
-  return `https://quickchart.io/chart?w=556&h=200&bkg=%23ffffff&c=${encodeURIComponent(JSON.stringify(cfg))}`;
+  return `https://quickchart.io/chart?w=556&h=200&bkg=%230f172a&c=${encodeURIComponent(JSON.stringify(cfg))}`;
 }
 
 /**
