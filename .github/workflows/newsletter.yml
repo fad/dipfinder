@@ -14,6 +14,7 @@ jobs:
           STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" \
             -X POST \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS_SECRET }}" \
             -H "Content-Type: application/json" \
             https://dipfinder.com/api/newsletter-send)
           BODY=$(cat /tmp/response.json)
