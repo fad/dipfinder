@@ -8,14 +8,38 @@
   <link rel="stylesheet" href="/styles/styles.css">
   <style>
     body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; margin: 0; padding: 2rem; }
-    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; color: #f8fafc; }
-    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-bottom: 2rem; }
+    .header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem; }
+    .header img { width: 32px; height: 32px; border-radius: 6px; }
+    h1 { font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin: 0; }
+    .ext-links { display: flex; gap: 1rem; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; }
+    .ext-links a { color: #38bdf8; text-decoration: none; font-size: 0.8rem; }
+    .ext-links a:hover { text-decoration: underline; }
+    .ext-links .sep { color: #334155; }
     #error-msg { color: #f87171; background: #1e1e2e; border: 1px solid #f87171; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: none; }
     #loading { color: #94a3b8; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid #334155; margin-bottom: 1.5rem; }
+    .tab { padding: 0.6rem 1.25rem; font-size: 0.85rem; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s; }
+    .tab:hover { color: #e2e8f0; }
+    .tab.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Dashboard */
     .stats { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
     .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1rem 1.5rem; min-width: 130px; }
     .stat-card .value { font-size: 1.75rem; font-weight: 700; color: #38bdf8; }
     .stat-card .label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+    .actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+    .btn { display: inline-block; padding: 0.5rem 1.1rem; border-radius: 7px; font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-sky { background: #38bdf8; color: #0f172a; }
+    .btn-sky:hover:not(:disabled) { opacity: 0.85; }
+    #newsletter-status { font-size: 0.8rem; color: #94a3b8; }
+
+    /* Users tab */
+    .users-header { color: #94a3b8; font-size: 0.8rem; margin-bottom: 1rem; }
     .search-bar { margin-bottom: 1rem; }
     .search-bar input { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 0.5rem 1rem; color: #e2e8f0; font-size: 0.875rem; width: 280px; outline: none; }
     .search-bar input:focus { border-color: #38bdf8; }
@@ -36,52 +60,78 @@
     .badge-gray  { background: #1e293b; color: #64748b; border: 1px solid #334155; }
     .badge-blue  { background: #0c2845; color: #7dd3fc; }
     .no-data { text-align: center; padding: 3rem; color: #64748b; }
-    .actions { margin-bottom: 1.5rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-    .btn { display: inline-block; padding: 0.5rem 1.1rem; border-radius: 7px; font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-sky { background: #38bdf8; color: #0f172a; }
-    .btn-sky:hover:not(:disabled) { opacity: 0.85; }
-    #newsletter-status { font-size: 0.8rem; color: #94a3b8; }
   </style>
 </head>
 <body>
-  <h1>Admin</h1>
-  <p class="subtitle">Signed-up users &nbsp;·&nbsp; <a href="https://cloud.umami.is/analytics/eu/websites/f347f270-ebbc-47e2-9eee-abda99ec906a" target="_blank" rel="noopener" style="color:#38bdf8; text-decoration:none;">Visitor stats ↗</a></p>
+  <div class="header">
+    <img src="/img/logo.png" alt="Dip Finder">
+    <h1>Admin</h1>
+  </div>
+  <div class="ext-links">
+    <a href="https://cloud.umami.is/analytics/eu/websites/f347f270-ebbc-47e2-9eee-abda99ec906a" target="_blank" rel="noopener">Visitor stats ↗</a>
+    <span class="sep">·</span>
+    <a href="https://vercel.com/dipfinder" target="_blank" rel="noopener">Vercel ↗</a>
+    <span class="sep">·</span>
+    <a href="https://resend.com/domains/afd2d882-fe2d-4a13-9a60-ec4e94d7569f" target="_blank" rel="noopener">Resend ↗</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/fad/dipfinder" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+
   <div id="error-msg"></div>
   <div id="loading">Loading…</div>
+
   <div id="content" style="display:none">
-    <div class="stats" id="stats"></div>
-    <div class="actions">
-      <button class="btn btn-sky" id="send-newsletter-btn" onclick="sendTestNewsletter()">Send Test Newsletter</button>
-      <span id="newsletter-status"></span>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+      <div class="tab" onclick="switchTab('users')">Signed-up Users</div>
     </div>
-    <div class="search-bar">
-      <input type="text" id="search" placeholder="Search by name or email…" oninput="renderTable()">
+
+    <!-- Dashboard tab -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="stats" id="stats"></div>
+      <div class="actions">
+        <button class="btn btn-sky" id="send-newsletter-btn" onclick="sendTestNewsletter()">Send Test Newsletter</button>
+        <span id="newsletter-status"></span>
+      </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th onclick="sortBy('name')">Name <span class="sort-arrow" id="arrow-name">↕</span></th>
-            <th onclick="sortBy('email')">Email <span class="sort-arrow" id="arrow-email">↕</span></th>
-            <th onclick="sortBy('createdDate')">Joined <span class="sort-arrow" id="arrow-createdDate">↕</span></th>
-            <th onclick="sortBy('isVerified')">Verified <span class="sort-arrow" id="arrow-isVerified">↕</span></th>
-            <th onclick="sortBy('newsletterSubscribed')">Newsletter <span class="sort-arrow" id="arrow-newsletterSubscribed">↕</span></th>
-            <th onclick="sortBy('totalLoginCount')">Logins <span class="sort-arrow" id="arrow-totalLoginCount">↕</span></th>
-            <th onclick="sortBy('lastLoginAt')">Last Login <span class="sort-arrow" id="arrow-lastLoginAt">↕</span></th>
-            <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
-          </tr>
-        </thead>
-        <tbody id="user-rows"></tbody>
-      </table>
+
+    <!-- Users tab -->
+    <div id="tab-users" class="tab-panel">
+      <div class="search-bar">
+        <input type="text" id="search" placeholder="Search by name or email…" oninput="renderTable()">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('name')">Name <span class="sort-arrow" id="arrow-name">↕</span></th>
+              <th onclick="sortBy('email')">Email <span class="sort-arrow" id="arrow-email">↕</span></th>
+              <th onclick="sortBy('createdDate')">Joined <span class="sort-arrow" id="arrow-createdDate">↕</span></th>
+              <th onclick="sortBy('isVerified')">Verified <span class="sort-arrow" id="arrow-isVerified">↕</span></th>
+              <th onclick="sortBy('newsletterSubscribed')">Newsletter <span class="sort-arrow" id="arrow-newsletterSubscribed">↕</span></th>
+              <th onclick="sortBy('totalLoginCount')">Logins <span class="sort-arrow" id="arrow-totalLoginCount">↕</span></th>
+              <th onclick="sortBy('lastLoginAt')">Last Login <span class="sort-arrow" id="arrow-lastLoginAt">↕</span></th>
+              <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="user-rows"></tbody>
+        </table>
+      </div>
+      <p style="margin-top:0.75rem; color:#64748b; font-size:0.75rem;" id="row-count"></p>
     </div>
-    <p style="margin-top:0.75rem; color:#64748b; font-size:0.75rem;" id="row-count"></p>
   </div>
 
   <script>
     let allUsers = [];
     let sortKey = 'createdDate';
-    let sortDir = -1; // -1 = desc, 1 = asc
+    let sortDir = -1;
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelector(`.tab[onclick="switchTab('${name}')"]`).classList.add('active');
+      document.getElementById('tab-' + name).classList.add('active');
+    }
 
     function fmt(dateStr) {
       if (!dateStr) return '—';
@@ -117,7 +167,6 @@
         return av < bv ? -sortDir : av > bv ? sortDir : 0;
       });
 
-      // Update sort arrows
       document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
       ['name','email','createdDate','isVerified','newsletterSubscribed','totalLoginCount','lastLoginAt','watchlist'].forEach(k => {
         const el = document.getElementById('arrow-' + k);
@@ -186,7 +235,6 @@
       document.getElementById('loading').style.display = 'none';
       document.getElementById('content').style.display = 'block';
 
-      // Stats
       const verified = allUsers.filter(u => u.isVerified).length;
       const newsletter = allUsers.filter(u => u.newsletterSubscribed).length;
       const withWatchlist = allUsers.filter(u => u.watchlist?.length).length;
