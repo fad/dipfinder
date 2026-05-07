@@ -4,7 +4,7 @@ import axios from 'axios';
 import { connectToDatabase } from './lib/mongodb';
 import { calculateSma, CACHE_EXPIRY_STOCKS } from './lib/stocks';
 import { verifyJWT } from './lib/auth';
-import { sendNewsletterEmail } from './lib/email';
+import { sendNewsletterEmail, buildNewsletterHtml } from './lib/email';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -119,6 +119,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  const isPreview = req.query.preview === 'true';
+
   try {
     const db = await connectToDatabase();
 
@@ -181,6 +183,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       const unsubscribeUrl = `${FRONTEND_URL}/api/newsletter-unsubscribe?token=${unsubToken}`;
 
+      if (isPreview) {
+        const html = buildNewsletterHtml({
+          name: user.name || 'there',
+          stocks: stockResults,
+          smaPeriod: NEWSLETTER_SMA_PERIOD,
+          unsubscribeUrl,
+        });
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(html);
+      }
+
       const ok = await sendNewsletterEmail({
         to: user.email,
         name: user.name || 'there',
@@ -193,6 +206,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       else failed++;
     }
 
+    if (isPreview) {
+      return res.status(404).send('<p>No eligible user or watchlist found for preview.</p>');
+    }
     return res.status(200).json({ sent, failed, skipped });
   } catch (error) {
     console.error('Newsletter send error:', error);

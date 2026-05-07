@@ -70,7 +70,9 @@
 </head>
 <body>
   <div class="header">
-    <img src="/img/logo.png" alt="Dip Finder">
+    <a href="/app" style="display:inline-flex; align-items:center; text-decoration:none;">
+      <img src="/img/logo.png" alt="Dip Finder">
+    </a>
     <h1>Admin</h1>
   </div>
   <div class="ext-links">
@@ -97,6 +99,7 @@
       <div class="stats" id="stats"></div>
       <div class="actions">
         <button class="btn btn-sky" id="send-newsletter-btn" onclick="sendTestNewsletter()">Send Test Newsletter</button>
+        <button class="btn" style="background:#334155; color:#e2e8f0;" onclick="previewNewsletter()">Preview Newsletter</button>
         <span id="newsletter-status"></span>
       </div>
     </div>
@@ -310,6 +313,33 @@
         status.style.color = '#f87171';
       } finally {
         btn.disabled = false;
+      }
+    }
+
+    async function previewNewsletter() {
+      const token = localStorage.getItem('token');
+      const status = document.getElementById('newsletter-status');
+      status.textContent = 'Loading preview…';
+      status.style.color = '#94a3b8';
+      try {
+        const res = await fetch('/api/newsletter-send?preview=true', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          status.textContent = 'Preview error: ' + (data.error || res.status);
+          status.style.color = '#f87171';
+          return;
+        }
+        const html = await res.text();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        status.textContent = '';
+      } catch (e) {
+        status.textContent = 'Network error: ' + e.message;
+        status.style.color = '#f87171';
       }
     }
 
