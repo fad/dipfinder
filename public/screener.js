@@ -1010,15 +1010,15 @@ window.initializeScreener = function(params) {
 /*console.log('Restored screener content from cache');*/ 
     }
 
-    // Initialize autocomplete
-    if (window.initStockAutocomplete) {
+    // Initialize autocomplete — lazy-load the ticker list only when the screener is active
+    function setupScreenerAutocomplete() {
         autocompleteInstance = window.initStockAutocomplete('screener-stock-input', {
             suggestionBoxId: 'screener-autocomplete-results',
             onSelection: (ticker) => {
                 $('#screener-stock-input').val(ticker);
                 $('#screener-autocomplete-results').empty().hide();
                 loadStockData(ticker);
-                
+
                 // Only modify URL for non-default stocks
                 if (ticker !== 'AAPL') {
                     const newUrl = `/screener?stock=${ticker}`;
@@ -1029,6 +1029,14 @@ window.initializeScreener = function(params) {
                 }
             }
         });
+    }
+    if (window.initStockAutocomplete) {
+        setupScreenerAutocomplete();
+    } else {
+        const s = document.createElement('script');
+        s.src = '/stock-autocomplete.js?v=3';
+        s.onload = setupScreenerAutocomplete;
+        document.head.appendChild(s);
     }
 
     window.destroyScreener = function() {

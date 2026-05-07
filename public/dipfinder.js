@@ -937,13 +937,21 @@ window.initializeDipfinder = function() {
         updateTableAndChart(selectedPeriod);
     });
 
-    // Autocomplete
-    if (window.initStockAutocomplete) {
+    // Autocomplete — lazy-load the ticker list only when the dashboard is active
+    function setupDipfinderAutocomplete() {
         dipfinderAutocompleteInstance = initStockAutocomplete('new-stock', {
             onSelection: async function() {
                 $('#add-stock').click();
             }
         });
+    }
+    if (window.initStockAutocomplete) {
+        setupDipfinderAutocomplete();
+    } else {
+        const s = document.createElement('script');
+        s.src = '/stock-autocomplete.js?v=3';
+        s.onload = setupDipfinderAutocomplete;
+        document.head.appendChild(s);
     }
 
     // Add stock handler
