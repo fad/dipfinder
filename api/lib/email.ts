@@ -213,7 +213,41 @@ export interface NewsletterStockRow {
   currentPrice: number;
   sma: number;
   relativePrice: number;
-  chartUrl?: string;
+}
+
+function generateBarChartUrl(stocks: NewsletterStockRow[], smaPeriod: number): string {
+  const labels = stocks.map(s => s.symbol);
+  const data = stocks.map(s => Math.round(s.relativePrice * 1000) / 10);
+  const colors = stocks.map(s => s.relativePrice < 0 ? '#f87171' : '#4ade80');
+
+  const cfg = {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: colors,
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      scales: {
+        x: {
+          ticks: { color: '#94a3b8', font: { size: 11 } },
+          grid: { display: false },
+          border: { color: '#334155' },
+        },
+        y: {
+          ticks: { color: '#94a3b8', font: { size: 10 }, callback: "function(v){return v+'%'}" },
+          grid: { color: '#1e293b' },
+          border: { color: '#334155' },
+        },
+      },
+      plugins: { legend: { display: false } },
+    },
+  };
+
+  return `https://quickchart.io/chart?w=556&h=220&bkg=%230f172a&c=${encodeURIComponent(JSON.stringify(cfg))}`;
 }
 
 /**
@@ -238,17 +272,15 @@ export async function sendNewsletterEmail({
   const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const subject = `Your Weekly Dip Report — ${shortDate}`;
 
+  const barChartUrl = generateBarChartUrl(stocks, smaPeriod);
+
   const rows = stocks.map(s => {
     const pct = (s.relativePrice * 100).toFixed(1);
     const color = s.relativePrice < 0 ? '#f87171' : '#4ade80';
     const sign = s.relativePrice > 0 ? '+' : '';
-    const chart = s.chartUrl
-      ? `<img src="${s.chartUrl}" width="180" height="55" alt="${s.symbol} chart" style="display:block; border-radius:4px;">`
-      : '';
     return `<tr>
       <td style="padding:10px 14px; font-weight:700; color:#f1f5f9; border-bottom:1px solid #1e293b;">${s.symbol}</td>
       <td style="padding:10px 14px; color:#94a3b8; font-size:0.85em; border-bottom:1px solid #1e293b;">${s.companyName}</td>
-      <td style="padding:10px 14px; border-bottom:1px solid #1e293b;">${chart}</td>
       <td style="padding:10px 14px; color:#e2e8f0; text-align:right; border-bottom:1px solid #1e293b;">$${s.currentPrice.toFixed(2)}</td>
       <td style="padding:10px 14px; color:#e2e8f0; text-align:right; border-bottom:1px solid #1e293b;">$${s.sma.toFixed(2)}</td>
       <td style="padding:10px 14px; text-align:right; font-weight:700; color:${color}; border-bottom:1px solid #1e293b;">${sign}${pct}%</td>
@@ -265,12 +297,15 @@ export async function sendNewsletterEmail({
   <div style="padding:28px 32px;">
     <p style="color:#cbd5e1; margin:0 0 20px; line-height:1.5;">Hi ${name}, here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA — biggest dips first.</p>
 
+    <div style="margin-bottom:24px; border-radius:8px; overflow:hidden; border:1px solid #1e293b;">
+      <img src="${barChartUrl}" width="556" height="220" alt="Watchlist dip chart" style="display:block;">
+    </div>
+
     <table style="width:100%; border-collapse:collapse; font-size:0.875rem; background:#0f172a; border-radius:8px; overflow:hidden; border:1px solid #1e293b;">
       <thead>
         <tr style="background:#1e293b;">
           <th style="padding:8px 14px; text-align:left; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Ticker</th>
           <th style="padding:8px 14px; text-align:left; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Company</th>
-          <th style="padding:8px 14px; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">50d Chart</th>
           <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Price</th>
           <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">${smaPeriod}d SMA</th>
           <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">vs SMA</th>
