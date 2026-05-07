@@ -3,6 +3,8 @@
 // ── Shared globals (var so other scripts can access via window scope) ─────────
 var stocks = [];  // populated from localStorage in initializeDipfinder
 var chart;        // Chart.js instance; created/destroyed in renderDashboardData
+var chartOrientation = 'y'; // 'y' = horizontal bars, 'x' = vertical bars
+var lastRenderCache = { data: null, period: null, tableBody: null };
 var newsCache = {};  // ticker → articles[], kept in sync with add/remove
 
 window.MAX_STOCKS = 10; // default, updated by auth.js
@@ -207,6 +209,15 @@ function updatePeriodDisplay(period) {
 }
 
 // ── Chart loading UI ─────────────────────────────────────────────────────────
+
+function toggleChartOrientation() {
+    chartOrientation = chartOrientation === 'y' ? 'x' : 'y';
+    const btn = document.getElementById('chart-orient-btn');
+    if (btn) btn.title = chartOrientation === 'y' ? 'Switch to vertical bars' : 'Switch to horizontal bars';
+    if (lastRenderCache.data) {
+        renderDashboardData(lastRenderCache.data, lastRenderCache.period, lastRenderCache.tableBody);
+    }
+}
 
 function showChartLoading() {
     const el = document.getElementById('chart-loading');
@@ -620,6 +631,7 @@ function attachStockRowEvents() {
 // ── Chart build ───────────────────────────────────────────────────────────────
 
 function renderDashboardData(stockDataArray, period, tableBody) {
+    lastRenderCache = { data: stockDataArray, period, tableBody };
     tableBody.empty();
     renderSummaryMetrics(stockDataArray, period);
     renderStockTableRows(tableBody, stockDataArray);
@@ -648,6 +660,20 @@ function renderDashboardData(stockDataArray, period, tableBody) {
         return;
     }
 
+    const isHorizontal = chartOrientation === 'y';
+    const valueAxisCfg = {
+        beginAtZero: true,
+        grid: {
+            color:     ctx => ctx.tick.value === 0 ? 'rgba(17, 24, 39, 0.55)' : 'rgba(0, 0, 0, 0.08)',
+            lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1
+        },
+        ticks: { color: '#374151', font: { size: 12 }, callback: v => `${v}%` }
+    };
+    const labelAxisCfg = {
+        grid: { display: false },
+        ticks: { color: '#374151', font: { size: 12 } }
+    };
+
     chart = new Chart(chartElement.getContext('2d'), {
         type: 'bar',
         data: {
@@ -665,7 +691,7 @@ function renderDashboardData(stockDataArray, period, tableBody) {
             }]
         },
         options: {
-            indexAxis: 'y',
+            indexAxis: chartOrientation,
             responsive: true,
             maintainAspectRatio: false,
             onClick: function(event, elements) {
@@ -683,7 +709,7 @@ function renderDashboardData(stockDataArray, period, tableBody) {
                     callbacks: {
                         label: function(context) {
                             const data = context.dataset.stockData[context.dataIndex];
-                            if (!data) return `${context.parsed.x}%`;
+                            if (!data) return `${isHorizontal ? context.parsed.x : context.parsed.y}%`;
                             return [
                                 `Current: ${formatCurrency(data.currentPrice)}`,
                                 `SMA: ${formatCurrency(data.sma)}`,
@@ -694,22 +720,8 @@ function renderDashboardData(stockDataArray, period, tableBody) {
                 }
             },
             scales: {
-                x: {
-                    beginAtZero: true,
-                    grid: {
-                        color:     ctx => ctx.tick.value === 0 ? 'rgba(17, 24, 39, 0.55)' : 'rgba(0, 0, 0, 0.08)',
-                        lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1
-                    },
-                    ticks: {
-                        color: '#374151',
-                        font: { size: 12 },
-                        callback: value => `${value}%`
-                    }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { color: '#374151', font: { size: 12 } }
-                }
+                x: isHorizontal ? valueAxisCfg : labelAxisCfg,
+                y: isHorizontal ? labelAxisCfg : valueAxisCfg
             }
         }
     });

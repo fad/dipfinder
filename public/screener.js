@@ -20,6 +20,23 @@ window.initializeScreener = function(params) {
     let historyCharts = [];
     let lastHistoryData = null;
     let currentLoadId = 0;
+    let storedAllDates = [];
+    let storedAllPrices = [];
+    let storedSmaData = null;
+    let currentTimeframe = '1Y';
+
+    function destroyScreenerChart() {
+        if (screenerChart) {
+            screenerChart.destroy();
+            screenerChart = null;
+        }
+        // Belt-and-suspenders: clear any chart Chart.js still tracks on the canvas
+        const canvas = document.getElementById('screener-chart');
+        if (canvas) {
+            const orphan = Chart.getChart(canvas);
+            if (orphan) orphan.destroy();
+        }
+    }
     let eventListeners = []; // Keep track of added event listeners
     let autocompleteInstance = null; // To hold the autocomplete instance
 
@@ -492,84 +509,79 @@ window.initializeScreener = function(params) {
         });
     }
 
+    function cutoffForTimeframe(tf) {
+        const now = new Date();
+        if (tf === 'MAX') return new Date(0);
+        const map = { '1M': 1, '3M': 3, '6M': 6, '1Y': 12, '2Y': 24, '5Y': 60 };
+        const months = map[tf] || 12;
+        return new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+    }
+
+    function applyTimeframe(tf) {
+        currentTimeframe = tf;
+        if (!storedAllDates.length || !screenerChart) return;
+
+        const cutoff = cutoffForTimeframe(tf);
+        const dates = [], prices = [];
+        storedAllDates.forEach((d, i) => {
+            if (new Date(d) >= cutoff) { dates.push(d); prices.push(storedAllPrices[i]); }
+        });
+
+        let smaValues = new Array(dates.length).fill(null);
+        if (storedSmaData && storedSmaData.values) {
+            const smaMap = new Map();
+            storedSmaData.values.forEach(item => {
+                if (item.date && item.value !== null && !isNaN(item.value)) smaMap.set(item.date, item.value);
+            });
+            smaValues = dates.map(d => smaMap.get(d) ?? null);
+        }
+
+        screenerChart.data.labels = dates;
+        screenerChart.data.datasets[0].data = prices;
+        screenerChart.data.datasets[1].data = smaValues;
+        screenerChart.update('none');
+
+        // Update button active states
+        document.querySelectorAll('.tf-btn').forEach(b => {
+            b.classList.toggle('bg-blue-500', b.dataset.tf === tf);
+            b.classList.toggle('text-white', b.dataset.tf === tf);
+            b.classList.toggle('bg-white', b.dataset.tf !== tf);
+            b.classList.toggle('text-gray-600', b.dataset.tf !== tf);
+        });
+    }
+
     function renderChart(timeseries, smaData) {
         if (!timeseries || !timeseries.chart || !timeseries.chart.result) {
             $("#screener-sma-loading").text('No price data found.');
             return;
         }
 
-/*console.log("Rendering chart with timeseries data:", timeseries);*/ 
-/*console.log("SMA data:", smaData);*/ 
-
         const result = timeseries.chart.result[0];
-        
-        // Convert Unix timestamps to formatted date strings for x-axis
-        const allDates = result.timestamp.map(ts => {
-            const date = new Date(ts * 1000);
-            return date.toISOString().split('T')[0]; // YYYY-MM-DD format
-        });
-        
-        const allPrices = result.indicators.quote[0].close;
+        storedAllDates = result.timestamp.map(ts => new Date(ts * 1000).toISOString().split('T')[0]);
+        storedAllPrices = result.indicators.quote[0].close;
+        storedSmaData = smaData;
 
-        // Filter to show only the last 1 year for display
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        
-        const dates = [];
-        const prices = [];
-        
-        // Filter data to last year
-        allDates.forEach((dateStr, index) => {
-            const date = new Date(dateStr);
-            if (date >= oneYearAgo) {
-                dates.push(dateStr);
-                prices.push(allPrices[index]);
-            }
+        const cutoff = cutoffForTimeframe(currentTimeframe);
+        const dates = [], prices = [];
+        storedAllDates.forEach((d, i) => {
+            if (new Date(d) >= cutoff) { dates.push(d); prices.push(storedAllPrices[i]); }
         });
 
-        // Process SMA data
-        let smaValues = [];
+        let smaValues = new Array(dates.length).fill(null);
         if (smaData && smaData.values) {
-            // Create a map for faster lookup
             const smaMap = new Map();
             smaData.values.forEach(item => {
-                if (item.date && item.value !== null && !isNaN(item.value)) {
-                    smaMap.set(item.date, item.value);
-                }
+                if (item.date && item.value !== null && !isNaN(item.value)) smaMap.set(item.date, item.value);
             });
-
-            // Map dates to SMA values
-            smaValues = dates.map(dateStr => smaMap.get(dateStr) || null);
-        } else {
-            smaValues = new Array(dates.length).fill(null);
+            smaValues = dates.map(d => smaMap.get(d) ?? null);
         }
 
-        // Debug logs
-/*console.log('Chart data:');*/ 
-/*console.log('Date count:', dates.length);*/ 
-/*console.log('Price count:', prices.length);*/ 
-/*console.log('SMA count:', smaValues.length);*/ 
-/*console.log('Sample dates:', dates.slice(0, 5));*/ 
-/*console.log('Sample prices:', prices.slice(0, 5));*/ 
-/*console.log('Sample SMA values:', smaValues.slice(0, 5));*/ 
+        destroyScreenerChart();
 
-        // Destroy previous chart
-        if (screenerChart) {
-            screenerChart.destroy();
-            screenerChart = null;
-        }
-
-        // Get the canvas context
         const canvasElement = document.getElementById('screener-chart');
-        if (!canvasElement) {
-            console.error('Canvas element screener-chart not found');
-            return;
-        }
-        
-        const ctx = canvasElement.getContext('2d');
-        
-        // Create new chart with simpler configuration
-        screenerChart = new Chart(ctx, {
+        if (!canvasElement) { console.error('Canvas element screener-chart not found'); return; }
+
+        screenerChart = new Chart(canvasElement.getContext('2d'), {
             type: 'line',
             data: {
                 labels: dates,
@@ -584,10 +596,10 @@ window.initializeScreener = function(params) {
                         tension: 0.1
                     },
                     {
-                        label: 'SMA-200',
+                        label: 'SMA',
                         data: smaValues,
                         borderColor: '#f59e42',
-                        backgroundColor: 'rgba(245,158,66,0.1)',
+                        backgroundColor: 'transparent',
                         pointRadius: 0,
                         fill: false,
                         tension: 0.1,
@@ -600,21 +612,15 @@ window.initializeScreener = function(params) {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    },
+                    legend: { display: true, position: 'top' },
                     tooltip: {
                         mode: 'index',
                         intersect: false,
                         callbacks: {
                             label: function(context) {
-                                const label = context.dataset.label || '';
                                 const value = context.parsed.y;
-                                if (value === null || value === undefined) {
-                                    return null;
-                                }
-                                return `${label}: $${value.toFixed(2)}`;
+                                if (value === null || value === undefined) return null;
+                                return `${context.dataset.label}: $${value.toFixed(2)}`;
                             }
                         }
                     }
@@ -622,30 +628,28 @@ window.initializeScreener = function(params) {
                 scales: {
                     x: {
                         type: 'category',
-                        display: true,
                         ticks: {
                             maxTicksLimit: 12,
                             maxRotation: 0,
                             callback: function(val) {
-                                const label = this.getLabelForValue(val);
-                                const d = new Date(label);
+                                const d = new Date(this.getLabelForValue(val));
                                 return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
                             }
                         }
                     },
-                     y: {
-                         display: true,
-                         title: {
-                             display: true,
-                             text: 'Price ($)'
-                         },
-                         beginAtZero: false
-                     }
+                    y: { display: true, beginAtZero: false }
                 }
             }
         });
 
-        // Hide loading indicator
+        // Sync timeframe button active states
+        document.querySelectorAll('.tf-btn').forEach(b => {
+            b.classList.toggle('bg-blue-500', b.dataset.tf === currentTimeframe);
+            b.classList.toggle('text-white', b.dataset.tf === currentTimeframe);
+            b.classList.toggle('bg-white', b.dataset.tf !== currentTimeframe);
+            b.classList.toggle('text-gray-600', b.dataset.tf !== currentTimeframe);
+        });
+
         $("#screener-sma-loading").hide();
     }
 
@@ -704,7 +708,7 @@ window.initializeScreener = function(params) {
         $("#news-container").html('');
         historyCharts.forEach(c => c.destroy()); historyCharts = [];
         lastHistoryData = null;
-        if (screenerChart) { screenerChart.destroy(); screenerChart = null; }
+        destroyScreenerChart();
         $("#screener-sma-loading").text(`Loading chart data for ${stock}...`).show();
 
         const loadId = ++currentLoadId;
@@ -830,11 +834,8 @@ window.initializeScreener = function(params) {
     function restoreScreenerChart(canvas, chartData) {
         if (!canvas || !chartData) return false;
         
-        // If chart instance already exists, destroy it
-        if (screenerChart) {
-            screenerChart.destroy();
-        }
-        
+        destroyScreenerChart();
+
         try {
             // Create a new chart with cached data
             const ctx = canvas.getContext('2d');
@@ -1039,16 +1040,15 @@ window.initializeScreener = function(params) {
         document.head.appendChild(s);
     }
 
+    window.applyTimeframe = applyTimeframe;
+
     window.destroyScreener = function() {
 /*console.log("Destroying Screener page...");*/ 
         
         // Save the current state before destroying
         saveScreenerContentState();
         
-        if (screenerChart) {
-            screenerChart.destroy();
-            screenerChart = null;
-        }
+        destroyScreenerChart();
         // Remove all event listeners
         eventListeners.forEach(listener => {
             listener.element.removeEventListener(listener.type, listener.handler);
