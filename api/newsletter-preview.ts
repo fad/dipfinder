@@ -39,6 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const smaPeriod: number = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
+    const chartOrientation: 'x' | 'y' = user.chartOrientation === 'x' ? 'x' : 'y';
     const stockResults = await buildStockResults(watchlist, db, smaPeriod);
     if (stockResults.length === 0) {
       return res.status(200).send('<p>No stock data available</p>');
@@ -57,6 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       stocks: stockResults,
       smaPeriod,
       unsubscribeUrl,
+      chartOrientation,
     });
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

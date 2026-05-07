@@ -234,27 +234,31 @@ function getBadgeColors(diffPercent: number): { bg: string; color: string } {
   return { bg: '#FFEDD5', color: '#C2410C' };
 }
 
-function generateBarChartUrl(stocks: NewsletterStockRow[]): string {
+function generateBarChartUrl(stocks: NewsletterStockRow[], orientation: 'x' | 'y' = 'y'): string {
   const labels = stocks.map(s => s.symbol);
   const data = stocks.map(s => Math.round(s.relativePrice * 1000) / 10);
   const colors = stocks.map(s => getBarColor(s.relativePrice * 100));
 
+  // QuickChart uses Chart.js 2.x: 'bar' = vertical, 'horizontalBar' = horizontal (indexAxis:'y')
+  const isHorizontal = orientation === 'y';
+  const chartType = isHorizontal ? 'horizontalBar' : 'bar';
+  const categoryAxis = { ticks: { fontColor: '#64748b', fontSize: 11 }, gridLines: { display: false } };
+  const valueAxis   = { ticks: { fontColor: '#94a3b8', fontSize: 10 }, gridLines: { color: '#e2e8f0' } };
+
   const cfg = {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ data, backgroundColor: colors }],
-    },
+    type: chartType,
+    data: { labels, datasets: [{ data, backgroundColor: colors }] },
     options: {
       legend: { display: false },
       scales: {
-        xAxes: [{ ticks: { fontColor: '#64748b', fontSize: 11 }, gridLines: { display: false } }],
-        yAxes: [{ ticks: { fontColor: '#94a3b8', fontSize: 10 }, gridLines: { color: '#e2e8f0' } }],
+        xAxes: [isHorizontal ? valueAxis   : categoryAxis],
+        yAxes: [isHorizontal ? categoryAxis : valueAxis],
       },
     },
   };
 
-  return `https://quickchart.io/chart?w=556&h=200&bkg=%23ffffff&c=${encodeURIComponent(JSON.stringify(cfg))}`;
+  const h = isHorizontal ? Math.max(160, stocks.length * 26) : 200;
+  return `https://quickchart.io/chart?w=556&h=${h}&bkg=%23ffffff&c=${encodeURIComponent(JSON.stringify(cfg))}`;
 }
 
 export function buildNewsletterHtml({
@@ -263,18 +267,20 @@ export function buildNewsletterHtml({
   smaPeriod,
   unsubscribeUrl,
   viewOnlineUrl,
+  chartOrientation = 'y',
 }: {
   name: string;
   stocks: NewsletterStockRow[];
   smaPeriod: number;
   unsubscribeUrl: string;
   viewOnlineUrl?: string;
+  chartOrientation?: 'x' | 'y';
 }): string {
   const dateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
-  const barChartUrl = generateBarChartUrl(stocks);
+  const barChartUrl = generateBarChartUrl(stocks, chartOrientation as 'x' | 'y');
 
   const rows = stocks.map(s => {
     const pct = (s.relativePrice * 100).toFixed(1);
@@ -388,6 +394,7 @@ export async function sendNewsletterEmail({
   smaPeriod,
   unsubscribeUrl,
   viewOnlineUrl,
+  chartOrientation = 'y',
 }: {
   to: string;
   name: string;
@@ -395,10 +402,11 @@ export async function sendNewsletterEmail({
   smaPeriod: number;
   unsubscribeUrl: string;
   viewOnlineUrl?: string;
+  chartOrientation?: 'x' | 'y';
 }): Promise<boolean> {
   const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const subject = `Your Weekly Dip Report — ${shortDate}`;
-  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl });
+  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation });
   return sendEmail({ to, subject, html });
 }
 

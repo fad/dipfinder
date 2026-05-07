@@ -231,6 +231,14 @@ function updateChartOrientBtn() {
 function toggleChartOrientation() {
     chartOrientation = chartOrientation === 'y' ? 'x' : 'y';
     updateChartOrientBtn();
+    const token = localStorage.getItem('token');
+    if (token) {
+        fetch('/api/watchlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ stocks, smaPeriod: Number(localStorage.getItem('selectedPeriod') || '200'), chartOrientation })
+        }).catch(() => {});
+    }
     if (lastRenderCache.data) {
         renderDashboardData(lastRenderCache.data, lastRenderCache.period, lastRenderCache.tableBody);
     }

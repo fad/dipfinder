@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'POST') {
-    const { stocks, smaPeriod } = req.body || {};
+    const { stocks, smaPeriod, chartOrientation } = req.body || {};
     if (!Array.isArray(stocks)) return res.status(400).json({ error: 'stocks must be an array' });
 
     const sanitized = (stocks as any[])
@@ -33,6 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const update: Record<string, any> = { watchlist: sanitized, watchlistUpdatedAt: new Date() };
     const period = Number(smaPeriod);
     if (Number.isFinite(period) && period > 0) update.smaPeriod = period;
+    if (chartOrientation === 'x' || chartOrientation === 'y') update.chartOrientation = chartOrientation;
 
     const db = await connectToDatabase();
     await db.collection('users').updateOne(
