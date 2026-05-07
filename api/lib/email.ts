@@ -225,13 +225,13 @@ function generateBarChartUrl(stocks: NewsletterStockRow[]): string {
     type: 'bar',
     data: {
       labels,
-      datasets: [{ label: '', data, backgroundColor: colors }],
+      datasets: [{ data, backgroundColor: colors }],
     },
     options: {
       legend: { display: false },
       scales: {
         xAxes: [{ ticks: { fontColor: '#475569', fontSize: 11 }, gridLines: { display: false } }],
-        yAxes: [{ ticks: { fontColor: '#64748b', fontSize: 10, callback: "function(v){return v+'%'}" }, gridLines: { color: '#e2e8f0' } }],
+        yAxes: [{ ticks: { fontColor: '#64748b', fontSize: 10 }, gridLines: { color: '#e2e8f0' } }],
       },
     },
   };
