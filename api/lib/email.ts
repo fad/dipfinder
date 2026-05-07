@@ -42,8 +42,7 @@ export async function sendEmail({ to, subject, html, text }: EmailOptions): Prom
       return false;
     }
 
-    const result = await response.json();
-/*console.log('Email sent successfully:', result.id);*/ 
+    await response.json();
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
@@ -206,6 +205,90 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<boo
     subject,
     html
   });
+}
+
+export interface NewsletterStockRow {
+  symbol: string;
+  companyName: string;
+  currentPrice: number;
+  sma: number;
+  relativePrice: number;
+}
+
+/**
+ * Send weekly newsletter email with watchlist dip rankings
+ */
+export async function sendNewsletterEmail({
+  to,
+  name,
+  stocks,
+  smaPeriod,
+  unsubscribeUrl,
+}: {
+  to: string;
+  name: string;
+  stocks: NewsletterStockRow[];
+  smaPeriod: number;
+  unsubscribeUrl: string;
+}): Promise<boolean> {
+  const dateLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const subject = `Your Weekly Dip Report — ${shortDate}`;
+
+  const rows = stocks.map(s => {
+    const pct = (s.relativePrice * 100).toFixed(1);
+    const color = s.relativePrice < 0 ? '#f87171' : '#4ade80';
+    const sign = s.relativePrice > 0 ? '+' : '';
+    return `<tr>
+      <td style="padding:10px 14px; font-weight:700; color:#f1f5f9; border-bottom:1px solid #1e293b;">${s.symbol}</td>
+      <td style="padding:10px 14px; color:#94a3b8; font-size:0.85em; border-bottom:1px solid #1e293b;">${s.companyName}</td>
+      <td style="padding:10px 14px; color:#e2e8f0; text-align:right; border-bottom:1px solid #1e293b;">$${s.currentPrice.toFixed(2)}</td>
+      <td style="padding:10px 14px; color:#e2e8f0; text-align:right; border-bottom:1px solid #1e293b;">$${s.sma.toFixed(2)}</td>
+      <td style="padding:10px 14px; text-align:right; font-weight:700; color:${color}; border-bottom:1px solid #1e293b;">${sign}${pct}%</td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+<div style="font-family:system-ui,Arial,sans-serif; max-width:620px; margin:0 auto; background:#0f172a; color:#e2e8f0; border-radius:12px; overflow:hidden; border:1px solid #1e293b;">
+  <div style="padding:24px 32px; background:#1e293b; border-bottom:1px solid #334155;">
+    <h1 style="margin:0; font-size:1.4rem; color:#f8fafc; font-weight:800;">Dip Finder</h1>
+    <p style="margin:4px 0 0; color:#94a3b8; font-size:0.82em;">Weekly Dip Report &nbsp;·&nbsp; ${dateLabel}</p>
+  </div>
+
+  <div style="padding:28px 32px;">
+    <p style="color:#cbd5e1; margin:0 0 20px; line-height:1.5;">Hi ${name}, here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA — biggest dips first.</p>
+
+    <table style="width:100%; border-collapse:collapse; font-size:0.875rem; background:#0f172a; border-radius:8px; overflow:hidden; border:1px solid #1e293b;">
+      <thead>
+        <tr style="background:#1e293b;">
+          <th style="padding:8px 14px; text-align:left; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Ticker</th>
+          <th style="padding:8px 14px; text-align:left; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Company</th>
+          <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">Price</th>
+          <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">${smaPeriod}d SMA</th>
+          <th style="padding:8px 14px; text-align:right; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.7em; letter-spacing:0.05em;">vs SMA</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+
+    <div style="margin-top:28px; text-align:center;">
+      <a href="https://dipfinder.com/app" style="display:inline-block; background:#38bdf8; color:#0f172a; padding:11px 28px; border-radius:7px; text-decoration:none; font-weight:700; font-size:0.9em;">Open Dip Finder ↗</a>
+    </div>
+  </div>
+
+  <div style="padding:16px 32px; background:#1e293b; border-top:1px solid #334155; text-align:center;">
+    <p style="color:#475569; font-size:0.75em; margin:0; line-height:1.6;">
+      You're receiving this because you subscribed to the Dip Finder newsletter.<br>
+      <a href="${unsubscribeUrl}" style="color:#64748b; text-decoration:underline;">Unsubscribe</a>
+    </p>
+  </div>
+</div>`;
+
+  return sendEmail({ to, subject, html });
 }
 
 /**
