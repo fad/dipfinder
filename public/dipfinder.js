@@ -265,10 +265,10 @@ function renderStockTableRows(tableBody, stockDataArray) {
         const diffClasses = getSmaDiffClasses(diffPercent);
 
         tableBody.append(`
-            <tr class="stock-row grid cursor-pointer gap-3 px-4 py-2 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${data.stock}">
+            <tr class="stock-row grid cursor-pointer gap-3 px-4 py-2 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${escapeHtml(data.stock)}">
                 <td class="min-w-0">
-                    <div class="text-sm font-medium text-gray-900">${data.stock}</div>
-                    <div class="truncate text-sm text-gray-500">${truncateString(data.companyName, 30)}</div>
+                    <div class="text-sm font-medium text-gray-900">${escapeHtml(data.stock)}</div>
+                    <div class="truncate text-sm text-gray-500">${escapeHtml(truncateString(data.companyName, 30))}</div>
                 </td>
                 <td class="whitespace-nowrap text-right">
                     <div class="text-sm font-medium text-gray-900">${formatCurrency(data.currentPrice)}</div>
@@ -278,7 +278,7 @@ function renderStockTableRows(tableBody, stockDataArray) {
                     </div>
                 </td>
                 <td class="flex justify-end">
-                    <button class="remove-stock relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200" data-stock="${data.stock}" title="Remove ${data.stock}" aria-label="Remove ${data.stock}" onclick="event.stopPropagation();">
+                    <button class="remove-stock relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200" data-stock="${escapeHtml(data.stock)}" title="Remove ${escapeHtml(data.stock)}" aria-label="Remove ${escapeHtml(data.stock)}" onclick="event.stopPropagation();">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </td>

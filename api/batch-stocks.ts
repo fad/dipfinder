@@ -69,6 +69,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (stocks.length > stockLimit) {
     return res.status(400).json({ error: `Stock limit exceeded (max ${stockLimit})` });
   }
+
+  const TICKER_RE = /^[A-Z0-9.\-]{1,10}$/;
+  const validatedStocks = (stocks as any[]).filter(
+    s => typeof s === 'string' && TICKER_RE.test(s.toUpperCase())
+  );
+  if (validatedStocks.length !== stocks.length) {
+    return res.status(400).json({ error: 'Invalid ticker symbol in request' });
+  }
+
   try {
     let stockCollectionPromise: Promise<any> | null = null;
     const getStockCollection = async () => {
