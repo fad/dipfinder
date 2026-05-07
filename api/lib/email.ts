@@ -220,30 +220,29 @@ function generateBarChartUrl(stocks: NewsletterStockRow[], smaPeriod: number): s
   const data = stocks.map(s => Math.round(s.relativePrice * 1000) / 10);
   const colors = stocks.map(s => s.relativePrice < 0 ? '#f87171' : '#4ade80');
 
+  // Chart.js 2.x syntax (QuickChart default)
   const cfg = {
     type: 'bar',
     data: {
       labels,
       datasets: [{
+        label: '',
         data,
         backgroundColor: colors,
-        borderRadius: 4,
       }],
     },
     options: {
+      legend: { display: false },
       scales: {
-        x: {
-          ticks: { color: '#94a3b8', font: { size: 11 } },
-          grid: { display: false },
-          border: { color: '#334155' },
-        },
-        y: {
-          ticks: { color: '#94a3b8', font: { size: 10 }, callback: "function(v){return v+'%'}" },
-          grid: { color: '#1e293b' },
-          border: { color: '#334155' },
-        },
+        xAxes: [{
+          ticks: { fontColor: '#94a3b8', fontSize: 11 },
+          gridLines: { display: false },
+        }],
+        yAxes: [{
+          ticks: { fontColor: '#94a3b8', fontSize: 10, callback: "function(v){return v+'%'}" },
+          gridLines: { color: '#1e293b' },
+        }],
       },
-      plugins: { legend: { display: false } },
     },
   };
 
