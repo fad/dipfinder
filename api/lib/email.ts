@@ -225,6 +225,15 @@ function getBarColor(diffPercent: number): string {
   return '#F97316';
 }
 
+function getBadgeColors(diffPercent: number): { bg: string; color: string } {
+  if (!Number.isFinite(diffPercent)) return { bg: '#F1F5F9', color: '#475569' };
+  if (diffPercent < -15) return { bg: '#CCFBF1', color: '#0F766E' };
+  if (diffPercent <  -5) return { bg: '#CCFBF1', color: '#0F766E' };
+  if (diffPercent <   5) return { bg: '#F1F5F9', color: '#475569' };
+  if (diffPercent <  15) return { bg: '#FEF3C7', color: '#B45309' };
+  return { bg: '#FFEDD5', color: '#C2410C' };
+}
+
 function generateBarChartUrl(stocks: NewsletterStockRow[]): string {
   const labels = stocks.map(s => s.symbol);
   const data = stocks.map(s => Math.round(s.relativePrice * 1000) / 10);
@@ -269,8 +278,7 @@ export function buildNewsletterHtml({
 
   const rows = stocks.map(s => {
     const pct = (s.relativePrice * 100).toFixed(1);
-    const dipColor = s.relativePrice < 0 ? '#dc2626' : '#16a34a';
-    const dipBg = s.relativePrice < 0 ? '#fef2f2' : '#f0fdf4';
+    const { bg: dipBg, color: dipColor } = getBadgeColors(s.relativePrice * 100);
     const sign = s.relativePrice > 0 ? '+' : '';
     const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
     const linkStyle = 'display:block; padding:10px 14px; text-decoration:none; color:inherit;';
@@ -291,7 +299,7 @@ export function buildNewsletterHtml({
       </a>`).join('');
 
     const pct = (s.relativePrice * 100).toFixed(1);
-    const dipColor = s.relativePrice < 0 ? '#dc2626' : '#16a34a';
+    const { color: dipColor } = getBadgeColors(s.relativePrice * 100);
     const sign = s.relativePrice > 0 ? '+' : '';
     const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
 
