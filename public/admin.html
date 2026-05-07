@@ -60,6 +60,12 @@
     .badge-gray  { background: #1e293b; color: #64748b; border: 1px solid #334155; }
     .badge-blue  { background: #0c2845; color: #7dd3fc; }
     .no-data { text-align: center; padding: 3rem; color: #64748b; }
+    .pagination { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; }
+    .page-btn { background: #1e293b; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; padding: 0.3rem 0.65rem; font-size: 0.75rem; cursor: pointer; }
+    .page-btn:hover { border-color: #38bdf8; color: #e2e8f0; }
+    .page-btn.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; font-weight: 700; }
+    .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    #row-count { color: #64748b; font-size: 0.75rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -98,7 +104,7 @@
     <!-- Users tab -->
     <div id="tab-users" class="tab-panel">
       <div class="search-bar">
-        <input type="text" id="search" placeholder="Search by name or email…" oninput="renderTable()">
+        <input type="text" id="search" placeholder="Search by name or email…" oninput="currentPage=1; renderTable()">
       </div>
       <div class="table-wrap">
         <table>
@@ -117,7 +123,8 @@
           <tbody id="user-rows"></tbody>
         </table>
       </div>
-      <p style="margin-top:0.75rem; color:#64748b; font-size:0.75rem;" id="row-count"></p>
+      <div class="pagination" id="pagination"></div>
+      <p id="row-count"></p>
     </div>
   </div>
 
@@ -125,6 +132,8 @@
     let allUsers = [];
     let sortKey = 'createdDate';
     let sortDir = -1;
+    let currentPage = 1;
+    const PAGE_SIZE = 50;
 
     function switchTab(name) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -142,6 +151,12 @@
     function sortBy(key) {
       if (sortKey === key) { sortDir *= -1; }
       else { sortKey = key; sortDir = -1; }
+      currentPage = 1;
+      renderTable();
+    }
+
+    function goToPage(p) {
+      currentPage = p;
       renderTable();
     }
 
@@ -179,11 +194,16 @@
         }
       });
 
+      const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageUsers = users.slice(start, start + PAGE_SIZE);
+
       const tbody = document.getElementById('user-rows');
       if (users.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="no-data">No users found</td></tr>';
       } else {
-        tbody.innerHTML = users.map(u => {
+        tbody.innerHTML = pageUsers.map(u => {
           const watchlist = (u.watchlist || []);
           const watchlistTip = watchlist.length ? watchlist.join(', ') : '';
           return `<tr>
@@ -202,10 +222,26 @@
           </tr>`;
         }).join('');
       }
+
+      // Pagination controls
+      const pag = document.getElementById('pagination');
+      if (totalPages <= 1) {
+        pag.innerHTML = '';
+      } else {
+        let btns = `<button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+        for (let p = 1; p <= totalPages; p++) {
+          btns += `<button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+        }
+        btns += `<button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+        pag.innerHTML = btns;
+      }
+
+      const end = Math.min(start + PAGE_SIZE, users.length);
       document.getElementById('row-count').textContent =
-        users.length === allUsers.length
-          ? `${allUsers.length} user${allUsers.length !== 1 ? 's' : ''} total`
-          : `Showing ${users.length} of ${allUsers.length}`;
+        users.length === 0 ? '' :
+        users.length <= PAGE_SIZE
+          ? `${users.length} user${users.length !== 1 ? 's' : ''} total`
+          : `Showing ${start + 1}–${end} of ${users.length}`;
     }
 
     function showError(msg) {
