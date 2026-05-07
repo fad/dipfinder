@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
 import { sendNewsletterEmail, buildNewsletterHtml } from './lib/email';
-import { NEWSLETTER_SMA_PERIOD, buildStockResults } from './lib/newsletter-data';
+import { NEWSLETTER_SMA_DEFAULT, buildStockResults } from './lib/newsletter-data';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -60,7 +60,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         continue;
       }
 
-      const stockResults = await buildStockResults(watchlist, db);
+      const smaPeriod: number = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
+      const stockResults = await buildStockResults(watchlist, db, smaPeriod);
 
       if (stockResults.length === 0) {
         skipped++;
@@ -79,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const html = buildNewsletterHtml({
           name: user.name || 'there',
           stocks: stockResults,
-          smaPeriod: NEWSLETTER_SMA_PERIOD,
+          smaPeriod,
           unsubscribeUrl,
         });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -91,13 +92,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         JWT_SECRET,
         { expiresIn: '7d' }
       );
-      const viewOnlineUrl = `${FRONTEND_URL}/api/newsletter-preview?token=${viewToken}`;
+      const viewOnlineUrl = `${FRONTEND_URL}/newsletter/${viewToken}`;
 
       const ok = await sendNewsletterEmail({
         to: user.email,
         name: user.name || 'there',
         stocks: stockResults,
-        smaPeriod: NEWSLETTER_SMA_PERIOD,
+        smaPeriod,
         unsubscribeUrl,
         viewOnlineUrl,
       });

@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 import { connectToDatabase } from './lib/mongodb';
 import { buildNewsletterHtml } from './lib/email';
-import { NEWSLETTER_SMA_PERIOD, buildStockResults } from './lib/newsletter-data';
+import { NEWSLETTER_SMA_DEFAULT, buildStockResults } from './lib/newsletter-data';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -38,7 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).send('<p>No watchlist stocks to display</p>');
     }
 
-    const stockResults = await buildStockResults(watchlist, db);
+    const smaPeriod: number = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
+    const stockResults = await buildStockResults(watchlist, db, smaPeriod);
     if (stockResults.length === 0) {
       return res.status(200).send('<p>No stock data available</p>');
     }
@@ -54,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const html = buildNewsletterHtml({
       name: user.name || 'there',
       stocks: stockResults,
-      smaPeriod: NEWSLETTER_SMA_PERIOD,
+      smaPeriod,
       unsubscribeUrl,
     });
 

@@ -436,6 +436,14 @@ function saveStocks() {
 
 function saveSelectedPeriod(period) {
     localStorage.setItem('selectedPeriod', period);
+    const token = localStorage.getItem('token');
+    if (token) {
+        fetch('/api/watchlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ stocks, smaPeriod: Number(period) })
+        }).catch(() => {});
+    }
 }
 
 // ── DB watchlist sync ─────────────────────────────────────────────────────────

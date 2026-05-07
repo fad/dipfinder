@@ -216,10 +216,19 @@ export interface NewsletterStockRow {
   topNews?: { headline: string; url: string; source: string; datetime: number }[];
 }
 
+function getBarColor(diffPercent: number): string {
+  if (!Number.isFinite(diffPercent)) return '#94A3B8';
+  if (diffPercent < -15) return '#0F766E';
+  if (diffPercent <  -5) return '#14B8A6';
+  if (diffPercent <   5) return '#94A3B8';
+  if (diffPercent <  15) return '#FBBF24';
+  return '#F97316';
+}
+
 function generateBarChartUrl(stocks: NewsletterStockRow[]): string {
   const labels = stocks.map(s => s.symbol);
   const data = stocks.map(s => Math.round(s.relativePrice * 1000) / 10);
-  const colors = stocks.map(s => s.relativePrice < 0 ? '#ef4444' : '#22c55e');
+  const colors = stocks.map(s => getBarColor(s.relativePrice * 100));
 
   const cfg = {
     type: 'bar',

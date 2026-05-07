@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { calculateSma, CACHE_EXPIRY_STOCKS } from './stocks';
 
-export const NEWSLETTER_SMA_PERIOD = 50;
+export const NEWSLETTER_SMA_DEFAULT = 200;
 const CACHE_EXPIRY_NEWS = 3 * 60 * 60 * 1000; // 3 hours
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 
@@ -88,13 +88,13 @@ export async function fetchStockData(symbol: string, db: any): Promise<Dashboard
   return data;
 }
 
-export async function buildStockResults(watchlist: string[], db: any): Promise<StockResult[]> {
+export async function buildStockResults(watchlist: string[], db: any, smaPeriod: number = NEWSLETTER_SMA_DEFAULT): Promise<StockResult[]> {
   const results: StockResult[] = [];
   for (const symbol of watchlist) {
     try {
       const data = await fetchStockData(symbol, db);
-      if (data.closes.length >= NEWSLETTER_SMA_PERIOD) {
-        const sma = calculateSma(data.closes, NEWSLETTER_SMA_PERIOD);
+      if (data.closes.length >= smaPeriod) {
+        const sma = calculateSma(data.closes, smaPeriod);
         const topNews = await fetchNewsForSymbol(symbol, db);
         results.push({
           symbol: symbol.toUpperCase(),

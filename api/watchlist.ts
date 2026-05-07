@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'POST') {
-    const { stocks } = req.body || {};
+    const { stocks, smaPeriod } = req.body || {};
     if (!Array.isArray(stocks)) return res.status(400).json({ error: 'stocks must be an array' });
 
     const sanitized = (stocks as any[])
@@ -30,10 +30,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map(s => (s as string).toUpperCase())
       .slice(0, WATCHLIST_LIMIT);
 
+    const update: Record<string, any> = { watchlist: sanitized, watchlistUpdatedAt: new Date() };
+    const period = Number(smaPeriod);
+    if (Number.isFinite(period) && period > 0) update.smaPeriod = period;
+
     const db = await connectToDatabase();
     await db.collection('users').updateOne(
       { _id: new ObjectId(decoded.userId) },
-      { $set: { watchlist: sanitized, watchlistUpdatedAt: new Date() } }
+      { $set: update }
     );
 
     return res.status(200).json({ success: true });
