@@ -19,6 +19,7 @@ window.initializeScreener = function(params) {
     let screenerChart;
     let historyCharts = [];
     let lastHistoryData = null;
+    let currentLoadId = 0;
     let eventListeners = []; // Keep track of added event listeners
     let autocompleteInstance = null; // To hold the autocomplete instance
 
@@ -555,6 +556,7 @@ window.initializeScreener = function(params) {
         // Destroy previous chart
         if (screenerChart) {
             screenerChart.destroy();
+            screenerChart = null;
         }
 
         // Get the canvas context
@@ -702,24 +704,21 @@ window.initializeScreener = function(params) {
         $("#news-container").html('');
         historyCharts.forEach(c => c.destroy()); historyCharts = [];
         lastHistoryData = null;
-        if (screenerChart) screenerChart.destroy();
+        if (screenerChart) { screenerChart.destroy(); screenerChart = null; }
         $("#screener-sma-loading").text(`Loading chart data for ${stock}...`).show();
 
+        const loadId = ++currentLoadId;
+
         try {
-/*console.log("Starting parallel data fetching");*/ 
-            
-            // Fetch all data in parallel
             const [fundamentals, timeseries, smaData, news] = await Promise.all([
                 fetchFundamentals(stock),
                 fetchStockTimeseries(stock),
                 fetchSMATimeSeries(stock, 200),
                 fetchNews(stock)
             ]);
-            
-/*console.log("All data fetched successfully");*/ 
-/*console.log("Fundamentals:", fundamentals);*/ 
-/*console.log("Timeseries data available:", !!timeseries);*/ 
-/*console.log("SMA data available:", !!smaData);*/ 
+
+            // Discard if a newer loadStockData call was made while we were awaiting
+            if (loadId !== currentLoadId) return;
 
             // Render all sections
             renderFundamentals(fundamentals);
