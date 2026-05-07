@@ -554,6 +554,7 @@ function removeStockFromUI(stockToRemove) {
     $(`tr.stock-row[data-stock="${CSS.escape(stockToRemove)}"]`).remove();
 
     stocks = stocks.filter(s => s !== stockToRemove);
+    window.umami?.track('ticker_removed', { symbol: stockToRemove });
     saveStocks();
     saveWatchlistToDb();
 
@@ -987,6 +988,7 @@ window.initializeDipfinder = function() {
         }
 
         stocks.push(newStock);
+        window.umami?.track('ticker_added', { symbol: newStock });
         saveStocks();
         saveWatchlistToDb();
 
@@ -1045,6 +1047,7 @@ window.initializeDipfinder = function() {
     $(document).on('click.dipfinder', '.sample-watchlist', function() {
         const period = $('#sma-period').val() || '200';
         stocks = $(this).data('stocks').split(',');
+        window.umami?.track('dashboard_cta_sample_watchlist', { name: $(this).text().trim() });
         saveStocks();
         saveWatchlistToDb();
         try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
@@ -1123,6 +1126,7 @@ window.initializeDipfinder = function() {
         const input = document.getElementById('newsletter-email');
         const msg   = document.getElementById('newsletter-msg');
         if (!input || !msg) return;
+        window.umami?.track('newsletter_subscribe', { hasEmail: !!input.value.trim() });
         msg.classList.remove('hidden');
     });
 })();
