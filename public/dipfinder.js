@@ -366,7 +366,7 @@ function buildTickerNewsSection(ticker, articles) {
     return `
         <section>
             <div class="mb-3">
-                <h3 class="text-base font-bold text-gray-900">${escapeHtml(ticker)}</h3>
+                <h3 class="text-base font-bold text-gray-900"><a href="/screener?stock=${encodeURIComponent(ticker)}" class="hover:text-blue-600 transition-colors">${escapeHtml(ticker)}</a></h3>
             </div>
             <div class="space-y-3" data-news-group="${escapeHtml(ticker)}">
                 ${visibleHtml}${hiddenHtml}

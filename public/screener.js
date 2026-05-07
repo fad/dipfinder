@@ -165,32 +165,32 @@ window.initializeScreener = function(params) {
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Company:</span>
-                        <span class="font-medium text-right">${fundamentals.name || fundamentals.symbol}</span>
+                        <span class="font-medium text-right ml-4">${fundamentals.name || fundamentals.symbol}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Symbol:</span>
-                        <span class="font-medium">${fundamentals.symbol || ''}</span>
+                        <span class="font-medium text-right ml-4">${fundamentals.symbol || ''}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Exchange:</span>
-                        <span class="font-medium">${fundamentals.exchange || 'N/A'}</span>
+                        <span class="font-medium text-right ml-4">${fundamentals.exchange || 'N/A'}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Sector:</span>
-                        <span class="font-medium">${fundamentals.sector || 'N/A'}</span>
+                        <span class="font-medium text-right ml-4">${fundamentals.sector || 'N/A'}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Industry:</span>
-                        <span class="font-medium">${fundamentals.industry || 'N/A'}</span>
+                        <span class="font-medium text-right ml-4">${fundamentals.industry || 'N/A'}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Country:</span>
-                        <span class="font-medium">${fundamentals.country || 'N/A'}</span>
+                        <span class="font-medium text-right ml-4">${fundamentals.country || 'N/A'}</span>
                     </div>
                     ${fundamentals.employees ? `
                     <div class="flex justify-between">
                         <span class="text-gray-600">Employees:</span>
-                        <span class="font-medium">${fundamentals.employees.toLocaleString()}</span>
+                        <span class="font-medium text-right ml-4">${fundamentals.employees.toLocaleString()}</span>
                     </div>
                     ` : ''}
                 </div>
@@ -620,16 +620,17 @@ window.initializeScreener = function(params) {
                 scales: {
                     x: {
                         type: 'category',
-                         display: true,
-                         title: {
-                             display: true,
-                             text: 'Date'
-                         },
-                         ticks: {
-                             maxTicksLimit: 12, // Show fewer ticks for readability
-                             maxRotation: 45
-                         }
-                     },
+                        display: true,
+                        ticks: {
+                            maxTicksLimit: 12,
+                            maxRotation: 0,
+                            callback: function(val) {
+                                const label = this.getLabelForValue(val);
+                                const d = new Date(label);
+                                return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                            }
+                        }
+                    },
                      y: {
                          display: true,
                          title: {
