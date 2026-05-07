@@ -1,5 +1,11 @@
 {
     "version": 2,
+    "crons": [
+        {
+            "path": "/api/newsletter-send",
+            "schedule": "0 14 * * 0"
+        }
+    ],
     "headers": [
         {
             "source": "/(.*)",
