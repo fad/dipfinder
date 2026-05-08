@@ -1209,13 +1209,13 @@ function initNewsletterPromo() {
                 return;
             }
 
-            // Prefill email, lock input
+            // Prefill email, disable input
             const input = document.getElementById('newsletter-email-v2');
             if (input && data.email) {
                 input.value = data.email;
-                input.readOnly = true;
-                input.classList.add('bg-gray-100', 'cursor-default');
-                input.classList.remove('bg-white');
+                input.disabled = true;
+                input.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed', 'opacity-60', 'select-none');
+                input.classList.remove('bg-white', 'border-gray-300');
             }
         })
         .catch(() => {});
