@@ -323,9 +323,32 @@ export async function sendMagicLinkEmail(email: string, magicUrl: string): Promi
 }
 
 /**
- * Send onboarding welcome email (uses DB template, auto-seeds default)
+ * Send onboarding welcome email.
+ * - With setPasswordUrl: sends a newsletter-signup welcome email (hardcoded, not DB template)
+ *   telling the user they've been gifted 10 stock slots and giving them a set-password CTA.
+ * - Without setPasswordUrl: uses the DB-backed 'onboarding' template.
  */
-export async function sendOnboardingEmail(toEmail: string, name: string): Promise<boolean> {
+export async function sendOnboardingEmail(
+  toEmail: string,
+  name: string,
+  options?: { setPasswordUrl?: string }
+): Promise<boolean> {
+  if (options?.setPasswordUrl) {
+    const html = buildEmailHtml(`
+<p style="font-family:Arial,sans-serif;font-size:16px;color:#0F172A;line-height:1.6;margin:0 0 20px;"><strong>Welcome to Dip Finder, ${name}.</strong></p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">You're now subscribed to the Sunday Brief - every week you'll get a ranked view of your watchlist stocks, showing which ones are trading furthest below their moving average.</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 24px;">As a welcome gift, we've upgraded your watchlist to <strong>10 stock slots</strong> - double the usual free limit. Set a password to keep your account.</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${options.setPasswordUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Set My Password &rarr;</a>
+</div>
+<div style="background:#DCFCE7;border-left:4px solid #16A34A;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 20px;">
+  <p style="font-family:Arial,sans-serif;font-size:13px;color:#14532D;margin:0;line-height:1.6;">This link expires in 7 days. You can also sign in at any time using a magic link from the login page.</p>
+</div>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0;">Talk to you on Sunday,<br><strong>The Dip Finder Team</strong></p>
+`);
+    return sendEmail({ to: toEmail, subject: 'Welcome to Dip Finder - claim your free upgrade', html });
+  }
+
   try {
     const db = await connectToDatabase();
     const template = await getEmailTemplate(db, 'onboarding');

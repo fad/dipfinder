@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'crypto';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase } from './lib/mongodb';
-import { sendPasswordChangeNotification, sendPasswordResetEmail, sendMagicLinkEmail } from './lib/email';
+import { sendPasswordChangeNotification, sendPasswordResetEmail, sendMagicLinkEmail, sendOnboardingEmail } from './lib/email';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -56,6 +57,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       case 'verify-magic-link':
         return await handleVerifyMagicLink(req, res);
+
+      case 'newsletter-subscribe':
+        return await handleNewsletterSubscribe(req, res);
+
+      case 'set-initial-password':
+        return await handleSetInitialPassword(req, res);
 
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
@@ -790,6 +797,114 @@ async function handleVerifyMagicLink(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({
     token: authToken,
     user: { id: user._id, email: user.email, name: user.name }
+  });
+}
+
+// Handle newsletter guest subscribe: create account if new, return userExists if already registered
+async function handleNewsletterSubscribe(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { email: rawEmail, watchlist } = req.body;
+  const email = sanitizeInput(rawEmail || '').toLowerCase();
+
+  if (!email || !validateEmail(email)) {
+    return res.status(400).json({ error: 'Valid email is required' });
+  }
+
+  const db = await connectToDatabase();
+  const existing = await db.collection('users').findOne({ email });
+
+  if (existing) {
+    return res.status(200).json({ userExists: true });
+  }
+
+  const randomPass = randomBytes(24).toString('hex');
+  const hashedPassword = await bcrypt.hash(randomPass, 10);
+  const name = email.split('@')[0];
+  const safeWatchlist = Array.isArray(watchlist)
+    ? watchlist.slice(0, 10).map((s: any) => String(s).toUpperCase().trim()).filter(Boolean)
+    : [];
+
+  const newUser = {
+    email,
+    password: hashedPassword,
+    name,
+    createdDate: new Date(),
+    isVerified: false,
+    termsAccepted: true,
+    termsAcceptedDate: new Date(),
+    newsletterSubscribed: true,
+    sundayBriefSubscribed: true,
+    sundayBriefSubscribedAt: new Date(),
+    watchlist: safeWatchlist,
+    smaPeriod: 50,
+    onboardingEmailSentAt: new Date(), // prevent cron duplication
+  };
+
+  const result = await db.collection('users').insertOne(newUser);
+
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const setupToken = jwt.sign({ email, purpose: 'set-password' }, JWT_SECRET, { expiresIn: '7d' });
+  const setPasswordUrl = `${FRONTEND_URL}/reset-password.html?setup=${setupToken}`;
+
+  sendOnboardingEmail(email, name, { setPasswordUrl }).catch((err: any) =>
+    console.error('sendOnboardingEmail failed:', err?.message)
+  );
+
+  const authToken = jwt.sign({ userId: result.insertedId, email }, JWT_SECRET, { expiresIn: '24h' });
+
+  return res.status(201).json({
+    token: authToken,
+    user: { id: result.insertedId, email, name },
+  });
+}
+
+// Handle set-initial-password: called from the setup link in the welcome email
+async function handleSetInitialPassword(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { token: setupToken, newPassword } = req.body;
+  if (!setupToken || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+  }
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(setupToken, JWT_SECRET) as any;
+  } catch {
+    return res.status(401).json({ error: 'Setup link is invalid or has expired. Please request a new one.' });
+  }
+
+  if (decoded.purpose !== 'set-password') {
+    return res.status(401).json({ error: 'Invalid token purpose' });
+  }
+
+  const db = await connectToDatabase();
+  const user = await db.collection('users').findOne({ email: decoded.email });
+  if (!user) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await db.collection('users').updateOne(
+    { email: decoded.email },
+    { $set: { password: hashedPassword, isVerified: true, passwordSetAt: new Date() } }
+  );
+
+  const authToken = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+
+  return res.status(200).json({
+    message: 'Password set successfully',
+    token: authToken,
+    user: { id: user._id, email: user.email, name: user.name },
   });
 }
 

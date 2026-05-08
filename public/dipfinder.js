@@ -1290,9 +1290,10 @@ function updateNewsletterEmptyState() {
 
         window.umami?.track('newsletter_subscribe', { hasEmail: true });
 
-        // Save subscription flag (and updated email if changed) if logged in
         const authToken = localStorage.getItem('token');
+
         if (authToken) {
+            // Logged-in path: update email preferences, then show confirmation
             const payload = { sundayBriefSubscribed: true };
             const originalEmail = input.dataset.originalEmail;
             const currentEmail = input.value.trim();
@@ -1304,21 +1305,48 @@ function updateNewsletterEmptyState() {
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
                 body: JSON.stringify(payload)
             }).catch(() => {});
+            showConfirmation();
+        } else {
+            // Guest path: create account via newsletter-subscribe
+            const email = input.value.trim();
+            const watchlistSymbols = Array.isArray(stocks) ? stocks.filter(s => typeof s === 'string') : [];
+            fetch('/api/user?action=newsletter-subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, watchlist: watchlistSymbols })
+            }).then(async (r) => {
+                const data = await r.json();
+                if (data.userExists) {
+                    // Already has an account - open login modal with a message
+                    const modal = document.getElementById('auth-modal');
+                    if (modal) modal.classList.remove('hidden');
+                    window.showLoginForm?.();
+                    const loginEmailEl = document.getElementById('login-email');
+                    if (loginEmailEl) loginEmailEl.value = email;
+                    window.showAuthSuccess?.('You already have an account. Sign in to manage your subscription.');
+                    return;
+                }
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                    window.MAX_STOCKS = 10;
+                    window.AuthManager?.checkAuthStatus?.();
+                }
+                showConfirmation();
+            }).catch(() => showConfirmation());
         }
 
-        // Fade out form, fade in confirmation
-        form.style.opacity = '0';
-        form.style.pointerEvents = 'none';
-        setTimeout(() => {
-            confirm.style.opacity = '1';
-        }, 400);
-
-        // Fade out and remove the whole card after a moment
-        setTimeout(() => {
-            promo.style.transition = 'opacity 0.6s ease';
-            promo.style.opacity = '0';
-            setTimeout(() => promo.remove(), 600);
-        }, 4000);
+        function showConfirmation() {
+            // Fade out form, fade in confirmation
+            form.style.opacity = '0';
+            form.style.pointerEvents = 'none';
+            setTimeout(() => { confirm.style.opacity = '1'; }, 400);
+            // Fade out and remove the whole card after a moment
+            setTimeout(() => {
+                promo.style.transition = 'opacity 0.6s ease';
+                promo.style.opacity = '0';
+                setTimeout(() => promo.remove(), 600);
+            }, 4000);
+        }
     });
 
     // Clear error state as soon as the user starts correcting the email
