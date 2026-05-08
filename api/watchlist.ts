@@ -136,6 +136,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true });
     }
 
+    // Reorder named watchlists (pro only)
+    if (action === 'reorder-watchlists') {
+      if (!isPro) return res.status(403).json({ error: 'Pro account required' });
+      const { order } = req.body;
+      if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array' });
+      const existing: any[] = user.namedWatchlists || [];
+      const reordered = (order as string[])
+        .map((id: string) => existing.find((w: any) => w.id === id))
+        .filter(Boolean);
+      await db.collection('users').updateOne({ _id: new ObjectId(decoded.userId) }, { $set: { namedWatchlists: reordered } });
+      return res.status(200).json({ success: true });
+    }
+
     // Set the active watchlist for the dashboard
     if (action === 'set-active') {
       if (!watchlistId) return res.status(400).json({ error: 'watchlistId required' });

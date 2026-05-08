@@ -911,8 +911,9 @@ function renderWatchlistTabs() {
         const deleteHtml = !tab.isPrimary
             ? `<button class="wl-tab-del" data-id="${escapeHtml(tab.id)}" title="Delete watchlist" style="margin-left:4px;line-height:1;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;padding:0;">&#215;</button>`
             : '';
-        return `<div class="wl-tab" data-id="${escapeHtml(tab.id)}" title="Double-click to rename"
-            style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;user-select:none;border:1px solid ${isActive ? '#bfdbfe' : 'transparent'};background:${isActive ? '#eff6ff' : 'transparent'};color:${isActive ? '#1d4ed8' : '#6b7280'};transition:background 0.1s,color 0.1s;">
+        const draggable = !tab.isPrimary ? 'draggable="true"' : '';
+        return `<div class="wl-tab" data-id="${escapeHtml(tab.id)}" data-primary="${tab.isPrimary}" title="Double-click to rename" ${draggable}
+            style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:${tab.isPrimary ? 'pointer' : 'grab'};user-select:none;border:1px solid ${isActive ? '#bfdbfe' : 'transparent'};background:${isActive ? '#eff6ff' : 'transparent'};color:${isActive ? '#1d4ed8' : '#6b7280'};transition:background 0.1s,color 0.1s;">
             ${starHtml}<span class="wl-tab-name">${escapeHtml(tab.name)}</span>${deleteHtml}
         </div>`;
     }).join('');
@@ -923,8 +924,11 @@ function renderWatchlistTabs() {
 
     container.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;">${tabsHtml}${newBtnHtml}</div>`;
 
+    let tabDragSrc = null;
+
     container.querySelectorAll('.wl-tab').forEach(tabEl => {
         const tabId = tabEl.dataset.id;
+        const isPrimary = tabEl.dataset.primary === 'true';
 
         tabEl.addEventListener('click', e => {
             if (e.target.classList.contains('wl-tab-del')) return;
@@ -936,30 +940,107 @@ function renderWatchlistTabs() {
             startRenameTab(tabEl, tabId);
         });
 
-        // Drop target: receive a stock dragged from the table
+        // ── Tab is a drag source (named tabs only) ────────────────────────
+        if (!isPrimary) {
+            tabEl.addEventListener('dragstart', e => {
+                tabDragSrc = tabEl;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('application/wl-tab', tabId);
+                // Also set text/plain so stock-drop on THIS tab still works after dragend
+                e.dataTransfer.setData('text/plain', '');
+                setTimeout(() => { tabEl.style.opacity = '0.4'; }, 0);
+            });
+            tabEl.addEventListener('dragend', () => {
+                tabEl.style.opacity = '';
+                container.querySelectorAll('.wl-tab').forEach(t => {
+                    t.style.boxShadow = '';
+                    t.style.outline = '';
+                });
+                tabDragSrc = null;
+            });
+        }
+
+        // ── Tab is a drop target (stock-move OR tab-reorder) ──────────────
+        const restoreTabStyle = () => {
+            const isActive = tabId === activeWatchlistId;
+            tabEl.style.background = isActive ? '#eff6ff' : '';
+            tabEl.style.color = isActive ? '#1d4ed8' : '#6b7280';
+            tabEl.style.borderColor = isActive ? '#bfdbfe' : 'transparent';
+            tabEl.style.boxShadow = '';
+        };
+
         tabEl.addEventListener('dragover', e => {
+            const isTabDrag = e.dataTransfer.types.includes('application/wl-tab');
+
+            if (isTabDrag) {
+                // Tab reorder: accept on any tab except the source itself
+                if (tabEl === tabDragSrc) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                // Indicate insert-before or insert-after
+                const mid = tabEl.getBoundingClientRect().left + tabEl.getBoundingClientRect().width / 2;
+                container.querySelectorAll('.wl-tab').forEach(t => { t.style.boxShadow = ''; });
+                if (e.clientX < mid) tabEl.style.boxShadow = '-3px 0 0 #3b82f6';
+                else tabEl.style.boxShadow = '3px 0 0 #3b82f6';
+                return;
+            }
+
+            // Stock move: highlight target tab
             if (tabId === activeWatchlistId) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             tabEl.style.background = '#dbeafe';
             tabEl.style.color = '#1d4ed8';
             tabEl.style.borderColor = '#93c5fd';
-            tabEl.style.borderStyle = 'solid';
         });
+
         tabEl.addEventListener('dragleave', () => {
-            const isActive = tabId === activeWatchlistId;
-            tabEl.style.background = isActive ? '#eff6ff' : '';
-            tabEl.style.color = isActive ? '#1d4ed8' : '#6b7280';
-            tabEl.style.borderColor = isActive ? '#bfdbfe' : 'transparent';
-            tabEl.style.borderStyle = 'solid';
+            restoreTabStyle();
+            tabEl.style.boxShadow = '';
         });
+
         tabEl.addEventListener('drop', e => {
             e.preventDefault();
+
+            // Tab reorder
+            const draggedTabId = e.dataTransfer.getData('application/wl-tab');
+            if (draggedTabId) {
+                container.querySelectorAll('.wl-tab').forEach(t => { t.style.boxShadow = ''; });
+                if (!tabDragSrc || tabEl === tabDragSrc) return;
+                const tabs = [...container.querySelectorAll('.wl-tab')];
+                const srcIdx = tabs.indexOf(tabDragSrc);
+                const tgtIdx = tabs.indexOf(tabEl);
+                const mid = tabEl.getBoundingClientRect().left + tabEl.getBoundingClientRect().width / 2;
+                const insertBefore = e.clientX < mid;
+
+                // Reorder namedWatchlists in memory (primary is not in namedWatchlists)
+                const srcWlIdx = namedWatchlists.findIndex(w => w.id === draggedTabId);
+                if (srcWlIdx === -1) return;
+                const [moved] = namedWatchlists.splice(srcWlIdx, 1);
+
+                // tgtIdx accounts for the primary tab at index 0, so named list index = tgtIdx - 1
+                let insertAtNamed = tgtIdx - 1; // position in namedWatchlists
+                if (!insertBefore) insertAtNamed++;
+                insertAtNamed = Math.max(0, Math.min(namedWatchlists.length, insertAtNamed));
+                namedWatchlists.splice(insertAtNamed, 0, moved);
+
+                renderWatchlistTabs();
+
+                // Persist
+                const token = localStorage.getItem('token');
+                if (token) {
+                    fetch(`${BASE_URL}/api/watchlist`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ action: 'reorder-watchlists', order: namedWatchlists.map(w => w.id) })
+                    }).catch(() => {});
+                }
+                return;
+            }
+
+            // Stock move
+            restoreTabStyle();
             const symbol = e.dataTransfer.getData('text/plain');
-            const isActive = tabId === activeWatchlistId;
-            tabEl.style.background = isActive ? '#eff6ff' : '';
-            tabEl.style.color = isActive ? '#1d4ed8' : '#6b7280';
-            tabEl.style.borderColor = isActive ? '#bfdbfe' : 'transparent';
             if (!symbol || tabId === activeWatchlistId) return;
             moveStockToWatchlist(symbol, tabId);
         });
