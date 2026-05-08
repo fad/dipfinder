@@ -45,10 +45,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const db = await connectToDatabase();
 
-    // Only send to admin for now; must have subscribed to the Sunday Brief
+    // Only send to admin for now. Admin bypasses subscription check so
+    // preview/test always works regardless of profile settings.
     const users = await db.collection('users').find({
       email: ADMIN_EMAIL,
-      sundayBriefSubscribed: true,
     }).toArray();
 
     let sent = 0, failed = 0, skipped = 0;
