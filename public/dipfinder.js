@@ -1311,7 +1311,6 @@ function updateNewsletterEmptyState() {
         form.style.pointerEvents = 'none';
         setTimeout(() => {
             confirm.style.opacity = '1';
-            confirm.style.pointerEvents = 'none';
         }, 400);
 
         // Fade out and remove the whole card after a moment
