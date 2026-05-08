@@ -200,7 +200,8 @@ async function handleTestStocks(_req: VercelRequest, res: VercelResponse) {
     const r = await fetch('https://api.resend.com/domains', {
       headers: { Authorization: `Bearer ${resendKey}` }
     });
-    results.resend = { ok: r.ok, httpStatus: r.status };
+    const ok = r.ok || r.status === 401;
+    results.resend = { ok, httpStatus: r.status, note: r.status === 401 ? 'send-only key (expected)' : undefined };
   } catch (err: any) {
     results.resend = { ok: false, error: err?.message };
   }

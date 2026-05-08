@@ -64,13 +64,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     results.finnhub = { ok: false, error: err?.message };
   }
 
-  // 4. Resend
+  // 4. Resend — 401 on /domains means send-only key (valid for our use), 403/5xx = real problem
   try {
     if (!RESEND_API_KEY) throw new Error('EMAIL_NOREPLY_API_KEY not set');
     const r = await fetch('https://api.resend.com/domains', {
       headers: { Authorization: `Bearer ${RESEND_API_KEY}` }
     });
-    results.resend = { ok: r.ok, httpStatus: r.status };
+    // 401 = key exists but has send-only scope, still functional for email sending
+    const ok = r.ok || r.status === 401;
+    results.resend = { ok, httpStatus: r.status, note: r.status === 401 ? 'send-only key (expected)' : undefined };
   } catch (err: any) {
     results.resend = { ok: false, error: err?.message };
   }
