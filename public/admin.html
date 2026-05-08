@@ -98,14 +98,18 @@
     </a>
     <h1>Admin</h1>
   </div>
-  <div class="ext-links">
-    <a href="https://cloud.umami.is/analytics/eu/websites/f347f270-ebbc-47e2-9eee-abda99ec906a" target="_blank" rel="noopener">Visitor stats ↗</a>
-    <span class="sep">·</span>
-    <a href="https://vercel.com/dipfinder" target="_blank" rel="noopener">Vercel ↗</a>
-    <span class="sep">·</span>
-    <a href="https://resend.com/domains/afd2d882-fe2d-4a13-9a60-ec4e94d7569f" target="_blank" rel="noopener">Resend ↗</a>
-    <span class="sep">·</span>
-    <a href="https://github.com/fad/dipfinder" target="_blank" rel="noopener">GitHub ↗</a>
+  <div id="admin-chrome" style="display:none;">
+    <div class="ext-links">
+      <a href="https://cloud.umami.is/analytics/eu/websites/f347f270-ebbc-47e2-9eee-abda99ec906a" target="_blank" rel="noopener">Visitor stats ↗</a>
+      <span class="sep">·</span>
+      <a href="https://vercel.com/dipfinder" target="_blank" rel="noopener">Vercel ↗</a>
+      <span class="sep">·</span>
+      <a href="https://resend.com/domains/afd2d882-fe2d-4a13-9a60-ec4e94d7569f" target="_blank" rel="noopener">Resend ↗</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/fad/dipfinder" target="_blank" rel="noopener">GitHub ↗</a>
+      <span class="sep">·</span>
+      <button onclick="doLogout()" style="background:none; border:none; color:#f87171; font-size:0.8rem; cursor:pointer; padding:0;">Sign out</button>
+    </div>
   </div>
 
   <div id="error-msg"></div>
@@ -394,8 +398,15 @@
       document.getElementById('loading').style.display = 'none';
       document.getElementById('content').style.display = 'none';
       document.getElementById('error-msg').style.display = 'none';
+      document.getElementById('admin-chrome').style.display = 'none';
       document.getElementById('signin-screen').style.display = 'block';
       setTimeout(() => document.getElementById('signin-email').focus(), 50);
+    }
+
+    function doLogout() {
+      localStorage.removeItem('token');
+      document.getElementById('content').style.display = 'none';
+      showSignin();
     }
 
     async function doSignin() {
@@ -416,11 +427,10 @@
       btn.style.opacity = '0.6';
 
       try {
-        // Use the Turnstile test key — backend accepts it; admin endpoint enforces ADMIN_EMAIL anyway
-        const res = await fetch('/api/user?action=login', {
+        const res = await fetch('/api/admin?action=login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, captchaToken: '1x0000000000000000000000000000000AA' })
+          body: JSON.stringify({ email, password })
         });
         const data = await res.json();
         if (res.ok && data.token) {
@@ -466,6 +476,7 @@
 
       allUsers = data.users || [];
       document.getElementById('loading').style.display = 'none';
+      document.getElementById('admin-chrome').style.display = 'block';
       document.getElementById('content').style.display = 'block';
 
       const verified = allUsers.filter(u => u.isVerified).length;

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import axios from 'axios';
 import { connectToDatabase } from './lib/mongodb';
 import { yahooFinance } from './lib/stocks';
@@ -11,7 +12,12 @@ const JWT_SECRET = process.env.JWT_SECRET as string;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Verify JWT and confirm admin email
+  // Login action is unauthenticated (has its own credential check)
+  if (req.query.action === 'login') {
+    return await handleAdminLogin(req, res);
+  }
+
+  // All other actions require a valid admin JWT
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
@@ -62,6 +68,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err: any) {
     return res.status(500).json({ error: 'Internal server error', detail: err?.message });
   }
+}
+
+async function handleAdminLogin(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  if (!ADMIN_EMAIL || email.toLowerCase() !== ADMIN_EMAIL) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  const db = await connectToDatabase();
+  const user = await db.collection('users').findOne({ email: ADMIN_EMAIL });
+  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+  const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+  return res.status(200).json({ token, user: { id: user._id, email: user.email, name: user.name } });
 }
 
 async function handleListUsers(_req: VercelRequest, res: VercelResponse) {
