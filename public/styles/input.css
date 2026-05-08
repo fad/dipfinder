@@ -130,6 +130,43 @@ html.dark-mode nav button:hover {
     color: #f1f5f9 !important;
 }
 
+/* ── Newsletter promo (dashboard) dark mode ──────────────────────────────── */
+
+html.dark-mode #newsletter-promo {
+    background: #0d2420 !important;
+    border-color: #134e4a !important;
+}
+
+html.dark-mode #newsletter-promo .bg-slate-100 {
+    background: #1e293b !important;
+}
+
+html.dark-mode #newsletter-promo .text-slate-500 {
+    color: #94a3b8 !important;
+}
+
+html.dark-mode #newsletter-promo .text-teal-700 {
+    color: #5eead4 !important;
+}
+
+html.dark-mode #newsletter-promo .bg-teal-100 {
+    background: #0a1a18 !important;
+}
+
+html.dark-mode #newsletter-promo .border-teal-200 {
+    border-color: #134e4a !important;
+}
+
+html.dark-mode #newsletter-promo input[type="email"] {
+    background: #0f2a27 !important;
+    border-color: #134e4a !important;
+    color: #f0fdfa !important;
+}
+
+html.dark-mode #newsletter-promo input[type="email"]::placeholder {
+    color: #4d7c72 !important;
+}
+
 /* ── Autocomplete suggestion box ─────────────────────────────────────────── */
 
 .ticker-suggestion-box {
