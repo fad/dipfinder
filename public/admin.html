@@ -158,15 +158,6 @@
     <!-- Dashboard tab -->
     <div id="tab-dashboard" class="tab-panel active">
       <div class="stats" id="stats"></div>
-      <div class="actions">
-        <button class="btn btn-sky" id="send-newsletter-btn" onclick="sendTestNewsletter()">Send Test Newsletter</button>
-        <button class="btn" style="background:#334155; color:#e2e8f0;" onclick="previewNewsletter()">Preview Newsletter</button>
-        <button class="btn" style="background:#1e3a2f; color:#4ade80; border:1px solid #166534;" onclick="testStocks()">Test Stock Fetch</button>
-        <button class="btn" style="background:#1a2a3b; color:#7dd3fc; border:1px solid #1e40af;" onclick="triggerHealthCheck()">Test Health Check</button>
-        <button class="btn" style="background:#3b1a1a; color:#fca5a5; border:1px solid #7f1d1d;" onclick="clearStockCache()">Clear Stock Cache</button>
-        <span id="newsletter-status"></span>
-      </div>
-      <pre id="test-stocks-output" style="display:none; margin-top:1rem; background:#0f1a12; border:1px solid #166534; border-radius:8px; padding:1rem; font-size:0.75rem; color:#86efac; white-space:pre-wrap; word-break:break-all;"></pre>
 
       <!-- Signup charts -->
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1.75rem;">
@@ -194,6 +185,41 @@
           </div>
           <canvas id="cumulative-chart" style="display:block;"></canvas>
         </div>
+      </div>
+
+      <!-- Actions panel -->
+      <div style="margin-top:1.5rem; background:#1e293b; border:1px solid #334155; border-radius:10px; padding:1.25rem 1.5rem;">
+        <p style="color:#94a3b8; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 1rem;">Actions</p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:0.75rem;">
+
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.85rem 1rem;">
+            <button class="btn btn-sky" id="send-newsletter-btn" onclick="sendTestNewsletter()" style="width:100%; margin-bottom:0.5rem;">Send Test Newsletter</button>
+            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Triggers the newsletter send for the admin account. Same as the Sunday cron.</p>
+            <span id="newsletter-status" style="font-size:0.75rem; color:#94a3b8; display:block; margin-top:0.4rem;"></span>
+          </div>
+
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.85rem 1rem;">
+            <button class="btn" style="background:#334155; color:#e2e8f0; width:100%; margin-bottom:0.5rem;" onclick="previewNewsletter()">Preview Newsletter</button>
+            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Renders the newsletter HTML for the admin watchlist and opens it in a new tab.</p>
+          </div>
+
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.85rem 1rem;">
+            <button class="btn" style="background:#1e3a2f; color:#4ade80; border:1px solid #166534; width:100%; margin-bottom:0.5rem;" onclick="testStocks()">Test Stock Fetch</button>
+            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Checks MongoDB, Yahoo Finance, and Finnhub connectivity. Prints a JSON report below.</p>
+          </div>
+
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.85rem 1rem;">
+            <button class="btn" style="background:#1a2a3b; color:#7dd3fc; border:1px solid #1e40af; width:100%; margin-bottom:0.5rem;" onclick="triggerHealthCheck()">Test Health Check</button>
+            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Runs the health check endpoint and sends a summary email to the admin.</p>
+          </div>
+
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.85rem 1rem;">
+            <button class="btn btn-red" style="width:100%; margin-bottom:0.5rem;" onclick="clearStockCache()">Clear Stock Cache</button>
+            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Deletes all cached price/SMA data from MongoDB and memory. Next dashboard load re-fetches live.</p>
+          </div>
+
+        </div>
+        <pre id="test-stocks-output" style="display:none; margin-top:1rem; background:#0f1a12; border:1px solid #166534; border-radius:8px; padding:1rem; font-size:0.75rem; color:#86efac; white-space:pre-wrap; word-break:break-all;"></pre>
       </div>
     </div>
 
