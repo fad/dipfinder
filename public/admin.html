@@ -74,10 +74,11 @@
     .btn-red:hover:not(:disabled) { opacity: 0.85; }
     select option { background: #1e293b; }
 
-    /* ── Signup chart ──────────────────────────────────────────────────── */
-    .stf-btn { background: #1e293b; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; padding: 0.25rem 0.65rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.1s; }
-    .stf-btn:hover { border-color: #38bdf8; color: #e2e8f0; }
+    /* ── Signup charts ─────────────────────────────────────────────────── */
+    .stf-btn, .ctf-btn { background: #1e293b; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; padding: 0.2rem 0.55rem; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.1s; }
+    .stf-btn:hover, .ctf-btn:hover { border-color: #38bdf8; color: #e2e8f0; }
     .stf-btn.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; }
+    .ctf-btn.active { background: #a78bfa; color: #0f172a; border-color: #a78bfa; }
 
     /* ── Email template editor ─────────────────────────────────────────── */
     .tpl-split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; height: calc(100vh - 310px); min-height: 420px; }
@@ -167,22 +168,31 @@
       </div>
       <pre id="test-stocks-output" style="display:none; margin-top:1rem; background:#0f1a12; border:1px solid #166534; border-radius:8px; padding:1rem; font-size:0.75rem; color:#86efac; white-space:pre-wrap; word-break:break-all;"></pre>
 
-      <!-- Signup chart -->
-      <div style="margin-top:1.75rem;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
-          <h3 style="color:#f1f5f9; font-size:0.875rem; font-weight:700; margin:0;">Signups over time</h3>
-          <div style="display:flex; gap:0.3rem;">
+      <!-- Signup charts -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1.75rem;">
+        <!-- Per-period signups -->
+        <div style="position:relative; aspect-ratio:2/1; background:#1e293b; border:1px solid #334155; border-radius:10px; padding:2.25rem 1rem 0.75rem;">
+          <span style="position:absolute; top:0.65rem; left:1rem; color:#f1f5f9; font-size:0.8rem; font-weight:700;">Signups over time</span>
+          <div style="position:absolute; top:0.5rem; right:0.75rem; display:flex; gap:0.25rem;">
             <button class="stf-btn" data-tf="1M" onclick="setSignupTf('1M')">1M</button>
-            <button class="stf-btn active" data-tf="3M" onclick="setSignupTf('3M')">3M</button>
+            <button class="stf-btn" data-tf="3M" onclick="setSignupTf('3M')">3M</button>
             <button class="stf-btn" data-tf="6M" onclick="setSignupTf('6M')">6M</button>
-            <button class="stf-btn" data-tf="1Y" onclick="setSignupTf('1Y')">1Y</button>
+            <button class="stf-btn active" data-tf="1Y" onclick="setSignupTf('1Y')">1Y</button>
             <button class="stf-btn" data-tf="MAX" onclick="setSignupTf('MAX')">Max</button>
           </div>
+          <canvas id="signup-chart" style="display:block;"></canvas>
         </div>
-        <div style="max-width:380px; aspect-ratio:1/1;">
-          <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:1rem 1rem 0.5rem; height:100%;">
-            <canvas id="signup-chart"></canvas>
+        <!-- Cumulative signups -->
+        <div style="position:relative; aspect-ratio:2/1; background:#1e293b; border:1px solid #334155; border-radius:10px; padding:2.25rem 1rem 0.75rem;">
+          <span style="position:absolute; top:0.65rem; left:1rem; color:#f1f5f9; font-size:0.8rem; font-weight:700;">Cumulative signups</span>
+          <div style="position:absolute; top:0.5rem; right:0.75rem; display:flex; gap:0.25rem;">
+            <button class="ctf-btn" data-tf="1M" onclick="setCumulativeTf('1M')">1M</button>
+            <button class="ctf-btn" data-tf="3M" onclick="setCumulativeTf('3M')">3M</button>
+            <button class="ctf-btn" data-tf="6M" onclick="setCumulativeTf('6M')">6M</button>
+            <button class="ctf-btn active" data-tf="1Y" onclick="setCumulativeTf('1Y')">1Y</button>
+            <button class="ctf-btn" data-tf="MAX" onclick="setCumulativeTf('MAX')">Max</button>
           </div>
+          <canvas id="cumulative-chart" style="display:block;"></canvas>
         </div>
       </div>
     </div>
@@ -519,6 +529,7 @@
 
       renderTable();
       renderSignupChart();
+      renderCumulativeChart();
     }
 
     async function sendTestNewsletter() {
@@ -947,9 +958,47 @@
       }
     }
 
-    // ── Signup chart ──────────────────────────────────────────────────────────
-    let signupChart = null;
-    let signupTf = '3M';
+    // ── Signup charts ─────────────────────────────────────────────────────────
+    let signupChart     = null;
+    let cumulativeChart = null;
+    let signupTf     = '1Y';
+    let cumulativeTf = '1Y';
+
+    function buildBucketConfig(tf) {
+      const now = new Date();
+      const cutoffMs = { '1M': 30, '3M': 90, '6M': 180, '1Y': 365 }[tf];
+      const cutoff = cutoffMs ? new Date(now - cutoffMs * 864e5) : null;
+      let bucketFn, labelFn, stepFn, startDate;
+
+      if (tf === '1M' || tf === '3M') {
+        bucketFn  = d => d.toISOString().slice(0, 10);
+        labelFn   = k => { const d = new Date(k + 'T00:00:00'); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+        stepFn    = d => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; };
+        startDate = new Date(cutoff || now); startDate.setHours(0, 0, 0, 0);
+      } else if (tf === '6M') {
+        bucketFn  = d => { const s = new Date(d); s.setDate(s.getDate() - s.getDay()); return s.toISOString().slice(0, 10); };
+        labelFn   = k => { const d = new Date(k + 'T00:00:00'); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+        stepFn    = d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; };
+        startDate = new Date(cutoff || now); startDate.setDate(startDate.getDate() - startDate.getDay()); startDate.setHours(0, 0, 0, 0);
+      } else {
+        bucketFn  = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        labelFn   = k => { const [y, m] = k.split('-'); return new Date(+y, +m-1, 1).toLocaleDateString('en-US', { month: 'short' }) + " '" + String(y).slice(2); };
+        stepFn    = d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n; };
+        if (cutoff) {
+          startDate = new Date(cutoff.getFullYear(), cutoff.getMonth(), 1);
+        } else {
+          const allSorted = allUsers.filter(u => u.createdDate).map(u => new Date(u.createdDate)).sort((a, b) => a - b);
+          const first = allSorted[0] || now;
+          startDate = new Date(first.getFullYear(), first.getMonth(), 1);
+        }
+      }
+      return { bucketFn, labelFn, stepFn, startDate, cutoff, now };
+    }
+
+    const CHART_SCALES = {
+      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 11 }, maxTicksLimit: 8, maxRotation: 0 } },
+      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.07)' }, ticks: { color: '#94a3b8', font: { size: 11 }, precision: 0, stepSize: 1 } }
+    };
 
     function setSignupTf(tf) {
       signupTf = tf;
@@ -957,100 +1006,59 @@
       renderSignupChart();
     }
 
+    function setCumulativeTf(tf) {
+      cumulativeTf = tf;
+      document.querySelectorAll('.ctf-btn').forEach(b => b.classList.toggle('active', b.dataset.tf === tf));
+      renderCumulativeChart();
+    }
+
     function renderSignupChart() {
       const canvas = document.getElementById('signup-chart');
       if (!canvas || !allUsers.length) return;
+      const { bucketFn, labelFn, stepFn, startDate, cutoff, now } = buildBucketConfig(signupTf);
 
-      const now = new Date();
-      const cutoffMs = { '1M': 30, '3M': 90, '6M': 180, '1Y': 365 }[signupTf];
-      const cutoff = cutoffMs ? new Date(now - cutoffMs * 864e5) : null;
-
-      const dates = allUsers
-        .filter(u => u.createdDate && (!cutoff || new Date(u.createdDate) >= cutoff))
-        .map(u => new Date(u.createdDate))
-        .sort((a, b) => a - b);
-
-      // Bucket key + label per timeframe
-      let bucketFn, labelFn, stepFn, startDate;
-
-      if (signupTf === '1M' || signupTf === '3M') {
-        // Daily
-        bucketFn = d => d.toISOString().slice(0, 10);
-        labelFn  = key => { const d = new Date(key + 'T00:00:00'); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
-        stepFn   = d => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; };
-        startDate = cutoff ? new Date(cutoff) : (dates[0] ? new Date(dates[0]) : new Date());
-        startDate.setHours(0, 0, 0, 0);
-      } else if (signupTf === '6M') {
-        // Weekly (Sunday-aligned)
-        bucketFn = d => { const s = new Date(d); s.setDate(s.getDate() - s.getDay()); return s.toISOString().slice(0, 10); };
-        labelFn  = key => { const d = new Date(key + 'T00:00:00'); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
-        stepFn   = d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; };
-        startDate = cutoff ? new Date(cutoff) : (dates[0] ? new Date(dates[0]) : new Date());
-        startDate.setDate(startDate.getDate() - startDate.getDay());
-        startDate.setHours(0, 0, 0, 0);
-      } else {
-        // Monthly
-        bucketFn = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        labelFn  = key => { const [y, m] = key.split('-'); return new Date(+y, +m - 1, 1).toLocaleDateString('en-US', { month: 'short' }) + " '" + String(y).slice(2); };
-        stepFn   = d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n; };
-        const earliest = dates[0] || now;
-        startDate = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
-      }
-
-      // Count into buckets
       const bucketMap = new Map();
-      dates.forEach(d => { const k = bucketFn(d); bucketMap.set(k, (bucketMap.get(k) || 0) + 1); });
+      allUsers.filter(u => u.createdDate && (!cutoff || new Date(u.createdDate) >= cutoff))
+        .forEach(u => { const k = bucketFn(new Date(u.createdDate)); bucketMap.set(k, (bucketMap.get(k) || 0) + 1); });
 
-      // Generate full bucket range (no gaps)
-      const allBuckets = [];
-      for (let cur = new Date(startDate); cur <= now; cur = stepFn(cur)) {
-        allBuckets.push(bucketFn(cur));
-      }
-
-      const labels = allBuckets.map(labelFn);
-      const data   = allBuckets.map(k => bucketMap.get(k) || 0);
+      const buckets = [];
+      for (let c = new Date(startDate); c <= now; c = stepFn(c)) buckets.push(bucketFn(c));
 
       if (signupChart) { signupChart.destroy(); signupChart = null; }
-
       signupChart = new Chart(canvas.getContext('2d'), {
         type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Signups',
-            data,
-            backgroundColor: 'rgba(56,189,248,0.12)',
-            borderColor: '#38bdf8',
-            borderWidth: 2,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-            fill: true,
-            tension: 0.35,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: item => `${item.parsed.y} signup${item.parsed.y !== 1 ? 's' : ''}`
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#94a3b8', font: { size: 11 }, maxTicksLimit: 10, maxRotation: 0 }
-            },
-            y: {
-              beginAtZero: true,
-              grid: { color: 'rgba(255,255,255,0.07)' },
-              ticks: { color: '#94a3b8', font: { size: 11 }, precision: 0, stepSize: 1 }
-            }
-          }
-        }
+        data: { labels: buckets.map(labelFn), datasets: [{ label: 'Signups', data: buckets.map(k => bucketMap.get(k) || 0),
+          backgroundColor: 'rgba(56,189,248,0.12)', borderColor: '#38bdf8', borderWidth: 2,
+          pointRadius: 2, pointHoverRadius: 4, fill: true, tension: 0.35 }] },
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: i => `${i.parsed.y} signup${i.parsed.y !== 1 ? 's' : ''}` } } },
+          scales: CHART_SCALES }
+      });
+    }
+
+    function renderCumulativeChart() {
+      const canvas = document.getElementById('cumulative-chart');
+      if (!canvas || !allUsers.length) return;
+      const { bucketFn, labelFn, stepFn, startDate, now } = buildBucketConfig(cumulativeTf);
+
+      // All signup dates sorted ascending (no cutoff — cumulative is always from origin)
+      const allDates = allUsers.filter(u => u.createdDate).map(u => new Date(u.createdDate)).sort((a, b) => a - b);
+
+      const buckets = [];
+      for (let c = new Date(startDate); c <= now; c = stepFn(c)) buckets.push(bucketFn(c));
+
+      // For each bucket, count all users with bucketFn(date) <= that bucket key
+      const data = buckets.map(key => allDates.filter(d => bucketFn(d) <= key).length);
+
+      if (cumulativeChart) { cumulativeChart.destroy(); cumulativeChart = null; }
+      cumulativeChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels: buckets.map(labelFn), datasets: [{ label: 'Total users', data,
+          backgroundColor: 'rgba(167,139,250,0.12)', borderColor: '#a78bfa', borderWidth: 2,
+          pointRadius: 2, pointHoverRadius: 4, fill: true, tension: 0.35 }] },
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: i => `${i.parsed.y} user${i.parsed.y !== 1 ? 's' : ''} total` } } },
+          scales: CHART_SCALES }
       });
     }
 
