@@ -145,18 +145,23 @@ const AuthManager = (function() {
     function updateGlobalAuthState(authenticated, user) {
         isAuthenticated = authenticated;
         currentUser = user;
-        
-        // Update MAX_STOCKS if it exists
+
+        const isPro = authenticated && !!(user && user.isPro);
+        window.IS_PRO = isPro;
+
+        // Update MAX_STOCKS
         if (typeof window.MAX_STOCKS !== 'undefined') {
-            window.MAX_STOCKS = authenticated ? 10 : 5;
+            window.MAX_STOCKS = isPro ? 50 : (authenticated ? 10 : 5);
         }
 
         // Update stock limit message if it exists
         const stockLimitMessage = document.getElementById("stock-limit-message");
         if (stockLimitMessage) {
-            stockLimitMessage.textContent = authenticated
-                ? "You can only have up to 10 stocks."
-                : "You can only have up to 5 stocks. Log in to track up to 10.";
+            stockLimitMessage.textContent = isPro
+                ? "You can have up to 50 stocks per watchlist."
+                : authenticated
+                    ? "You can only have up to 10 stocks."
+                    : "You can only have up to 5 stocks. Log in to track up to 10.";
         }
     }
     
@@ -386,10 +391,23 @@ const AuthManager = (function() {
             });
             if (!res.ok) return;
             const data = await res.json();
+            // Update isPro from watchlist response
+            if (data.isPro !== undefined) {
+                window.IS_PRO = !!data.isPro;
+                window.MAX_STOCKS = data.isPro ? 50 : 10;
+            }
             if (Array.isArray(data.stocks) && data.stocks.length > 0) {
                 localStorage.setItem("stocks", JSON.stringify(data.stocks));
-                window.dispatchEvent(new CustomEvent("dipfinder:watchlistRestored"));
             }
+            window.dispatchEvent(new CustomEvent("dipfinder:watchlistRestored", {
+                detail: {
+                    stocks: data.stocks || [],
+                    isPro: !!data.isPro,
+                    primaryWatchlistName: data.primaryWatchlistName || 'Main',
+                    namedWatchlists: data.namedWatchlists || [],
+                    activeWatchlistId: data.activeWatchlistId || 'primary',
+                }
+            }));
         } catch (e) { /* silent — local stocks remain */ }
     }
 

@@ -64,6 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleTriggerOnboarding(req, res);
       case 'delete-user':
         return await handleDeleteUser(req, res);
+      case 'toggle-pro':
+        return await handleTogglePro(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -84,6 +86,10 @@ async function handleAdminLogin(req: VercelRequest, res: VercelResponse) {
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+  // Ensure admin always has pro status
+  if (!user.isPro) {
+    await db.collection('users').updateOne({ email: ADMIN_EMAIL }, { $set: { isPro: true } });
+  }
   const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
   return res.status(200).json({ token, user: { id: user._id, email: user.email, name: user.name } });
 }
@@ -414,4 +420,17 @@ async function handleDeleteUser(req: VercelRequest, res: VercelResponse) {
   const result = await db.collection('users').deleteOne({ email: email.toLowerCase() });
   if (result.deletedCount === 0) return res.status(404).json({ error: 'User not found' });
   return res.status(200).json({ ok: true });
+}
+
+async function handleTogglePro(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { email, isPro } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email required' });
+  const db = await connectToDatabase();
+  const result = await db.collection('users').updateOne(
+    { email: email.toLowerCase() },
+    { $set: { isPro: !!isPro } }
+  );
+  if (result.matchedCount === 0) return res.status(404).json({ error: 'User not found' });
+  return res.status(200).json({ ok: true, isPro: !!isPro });
 }

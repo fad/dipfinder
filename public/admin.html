@@ -264,6 +264,7 @@
               <th onclick="sortBy('totalLoginCount')">Logins <span class="sort-arrow" id="arrow-totalLoginCount">↕</span></th>
               <th onclick="sortBy('lastLoginAt')">Last Login <span class="sort-arrow" id="arrow-lastLoginAt">↕</span></th>
               <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
+              <th onclick="sortBy('isPro')">Pro <span class="sort-arrow" id="arrow-isPro">↕</span></th>
               <th></th>
             </tr>
           </thead>
@@ -370,6 +371,7 @@
       if (key === 'totalLoginCount') return user.totalLoginCount || 0;
       if (key === 'isVerified') return user.isVerified ? 1 : 0;
       if (key === 'newsletterSubscribed') return user.newsletterSubscribed ? 1 : 0;
+      if (key === 'isPro') return user.isPro ? 1 : 0;
       if (key === 'createdDate' || key === 'lastLoginAt') return user[key] ? new Date(user[key]).getTime() : 0;
       return (user[key] || '').toString().toLowerCase();
     }
@@ -388,7 +390,7 @@
       });
 
       document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
-      ['name','email','createdDate','isVerified','newsletterSubscribed','totalLoginCount','lastLoginAt','watchlist'].forEach(k => {
+      ['name','email','createdDate','isVerified','newsletterSubscribed','totalLoginCount','lastLoginAt','watchlist','isPro'].forEach(k => {
         const el = document.getElementById('arrow-' + k);
         if (!el) return;
         if (k === sortKey) {
@@ -406,7 +408,7 @@
 
       const tbody = document.getElementById('user-rows');
       if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No users found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data">No users found</td></tr>';
       } else {
         tbody.innerHTML = pageUsers.map(u => {
           const watchlist = (u.watchlist || []);
@@ -425,6 +427,12 @@
             <td>${u.totalLoginCount || 0}</td>
             <td>${fmt(u.lastLoginAt)}</td>
             <td title="${watchlistTip}">${watchlist.length ? watchlist.length : '<span style="color:#64748b">0</span>'}</td>
+            <td>
+              ${u.isPro
+                ? `<span class="badge" style="background:#312e81;color:#a5b4fc;margin-right:4px;">Pro</span>`
+                : ''}
+              <button class="btn" style="padding:0.2rem 0.55rem;font-size:0.7rem;background:${u.isPro ? '#450a0a' : '#0c2845'};color:${u.isPro ? '#fca5a5' : '#7dd3fc'};" onclick="togglePro('${u.email}', ${!!u.isPro})">${u.isPro ? 'Revoke Pro' : 'Grant Pro'}</button>
+            </td>
             <td><button class="btn btn-red" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="deleteUser('${u.email}')">Delete</button></td>
           </tr>`;
         }).join('');
@@ -1100,6 +1108,25 @@
         const data = await res.json();
         if (!res.ok) { alert('Error: ' + (data.error || res.status)); return; }
         allUsers = allUsers.filter(u => u.email !== email);
+        renderTable();
+      } catch (e) {
+        alert('Network error: ' + e.message);
+      }
+    }
+
+    async function togglePro(email, currentIsPro) {
+      const newVal = !currentIsPro;
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=toggle-pro', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, isPro: newVal })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('Error: ' + (data.error || res.status)); return; }
+        const u = allUsers.find(u => u.email === email);
+        if (u) u.isPro = newVal;
         renderTable();
       } catch (e) {
         alert('Network error: ' + e.message);

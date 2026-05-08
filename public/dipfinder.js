@@ -7,6 +7,13 @@ var chartOrientation = 'y'; // 'y' = horizontal bars, 'x' = vertical bars
 var lastRenderCache = { data: null, period: null, tableBody: null };
 var newsCache = {};  // ticker → articles[], kept in sync with add/remove
 
+// Pro multi-watchlist state
+var activeWatchlistId = 'primary';
+var namedWatchlists = [];
+var primaryWatchlistName = 'Main';
+// Cache of primary stocks separately so tab-switches can restore them
+var primaryStocksCache = [];
+
 window.MAX_STOCKS = 10; // default, updated by auth.js
 
 // ── SPA lifecycle state ───────────────────────────────────────────────────────
@@ -236,7 +243,7 @@ function toggleChartOrientation() {
         fetch('/api/watchlist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ stocks, smaPeriod: Number(localStorage.getItem('selectedPeriod') || '200'), chartOrientation })
+            body: JSON.stringify({ action: 'save-watchlist', stocks, watchlistId: activeWatchlistId, smaPeriod: Number(localStorage.getItem('selectedPeriod') || '200'), chartOrientation })
         }).catch(() => {});
     }
     if (lastRenderCache.data) {
@@ -477,7 +484,7 @@ function saveSelectedPeriod(period) {
         fetch('/api/watchlist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ stocks, smaPeriod: Number(period) })
+            body: JSON.stringify({ action: 'save-watchlist', stocks, watchlistId: activeWatchlistId, smaPeriod: Number(period) })
         }).catch(() => {});
     }
 }
@@ -492,7 +499,7 @@ async function saveWatchlistToDb() {
         await fetch(`${BASE_URL}/api/watchlist`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ stocks })
+            body: JSON.stringify({ action: 'save-watchlist', stocks, watchlistId: activeWatchlistId })
         });
     } catch (e) { /* silent — localStorage remains source of truth */ }
 }
@@ -870,6 +877,192 @@ async function updateTableAndChart(period) {
     saveDipfinderContentState();
 }
 
+// ── Pro: named watchlist tabs ─────────────────────────────────────────────────
+
+function renderWatchlistTabs() {
+    const container = document.getElementById('watchlist-tabs');
+    if (!container) return;
+    if (!window.IS_PRO) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = '';
+
+    const allTabs = [
+        { id: 'primary', name: primaryWatchlistName || 'Main', isPrimary: true },
+        ...namedWatchlists.map(w => ({ id: w.id, name: w.name || 'Watchlist', isPrimary: false }))
+    ];
+
+    const tabsHtml = allTabs.map(tab => {
+        const isActive = tab.id === activeWatchlistId;
+        const starHtml = tab.isPrimary ? '<span style="color:#f59e0b;margin-right:3px;">&#9733;</span>' : '';
+        const deleteHtml = !tab.isPrimary
+            ? `<button class="wl-tab-del" data-id="${escapeHtml(tab.id)}" title="Delete watchlist" style="margin-left:4px;line-height:1;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;padding:0;">&#215;</button>`
+            : '';
+        return `<div class="wl-tab" data-id="${escapeHtml(tab.id)}" title="Double-click to rename"
+            style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;user-select:none;border:1px solid ${isActive ? '#bfdbfe' : 'transparent'};background:${isActive ? '#eff6ff' : 'transparent'};color:${isActive ? '#1d4ed8' : '#6b7280'};transition:background 0.1s,color 0.1s;">
+            ${starHtml}<span class="wl-tab-name">${escapeHtml(tab.name)}</span>${deleteHtml}
+        </div>`;
+    }).join('');
+
+    const newBtnHtml = namedWatchlists.length < 9
+        ? `<button id="wl-new-btn" title="Create new watchlist" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px dashed #d1d5db;color:#9ca3af;background:none;transition:all 0.1s;">+ New</button>`
+        : '';
+
+    container.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;">${tabsHtml}${newBtnHtml}</div>`;
+
+    container.querySelectorAll('.wl-tab').forEach(tabEl => {
+        tabEl.addEventListener('click', e => {
+            if (e.target.classList.contains('wl-tab-del')) return;
+            if (e.target.tagName === 'INPUT') return;
+            switchWatchlist(tabEl.dataset.id);
+        });
+        tabEl.addEventListener('dblclick', e => {
+            if (e.target.tagName === 'INPUT') return;
+            startRenameTab(tabEl, tabEl.dataset.id);
+        });
+    });
+
+    container.querySelectorAll('.wl-tab-del').forEach(btn => {
+        btn.addEventListener('click', e => { e.stopPropagation(); deleteWatchlist(btn.dataset.id); });
+    });
+
+    const newBtn = container.querySelector('#wl-new-btn');
+    if (newBtn) newBtn.addEventListener('click', createWatchlist);
+}
+
+function startRenameTab(tabEl, id) {
+    const nameSpan = tabEl.querySelector('.wl-tab-name');
+    if (!nameSpan) return;
+    const current = nameSpan.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = current;
+    input.maxLength = 40;
+    input.style.cssText = 'font-size:11px;font-weight:600;border:none;outline:none;background:transparent;width:' + Math.max(60, current.length * 8) + 'px;color:inherit;padding:0;';
+    nameSpan.replaceWith(input);
+    input.focus();
+    input.select();
+
+    const commit = async () => {
+        const newName = input.value.trim() || current;
+        await renameWatchlist(id, newName);
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { input.value = current; input.blur(); }
+    });
+}
+
+async function switchWatchlist(id) {
+    if (id === activeWatchlistId) return;
+
+    await saveWatchlistToDb();
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Persist active watchlist server-side (fire and forget)
+    fetch(`${BASE_URL}/api/watchlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'set-active', watchlistId: id })
+    }).catch(() => {});
+
+    activeWatchlistId = id;
+
+    // Determine stocks for the new active watchlist
+    let newStocks;
+    if (id === 'primary') {
+        newStocks = primaryStocksCache.slice();
+    } else {
+        const wl = namedWatchlists.find(w => w.id === id);
+        newStocks = wl ? (wl.stocks || []) : [];
+    }
+
+    stocks = newStocks;
+    localStorage.setItem('stocks', JSON.stringify(stocks));
+
+    renderWatchlistTabs();
+
+    const period = $('#sma-period').val() || '200';
+    try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
+
+    if (stocks.length > 0) {
+        updateTableAndChart(period);
+    } else {
+        $('#stocks-table tbody').empty();
+        if (chart) { chart.destroy(); chart = null; }
+        renderSummaryMetrics([], period);
+        hideChartLoading();
+    }
+}
+
+async function createWatchlist() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const name = prompt('Name for new watchlist:', 'New Watchlist');
+    if (!name) return;
+    try {
+        const res = await fetch(`${BASE_URL}/api/watchlist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ action: 'create-watchlist', name: name.trim() })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Failed to create watchlist'); return; }
+        namedWatchlists.push(data.watchlist);
+        renderWatchlistTabs();
+        await switchWatchlist(data.watchlist.id);
+    } catch (e) { alert('Network error'); }
+}
+
+async function renameWatchlist(id, name) {
+    if (id === 'primary') primaryWatchlistName = name;
+    else {
+        const wl = namedWatchlists.find(w => w.id === id);
+        if (wl) wl.name = name;
+    }
+    renderWatchlistTabs();
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch(`${BASE_URL}/api/watchlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'rename-watchlist', watchlistId: id, name })
+    }).catch(() => {});
+}
+
+async function deleteWatchlist(id) {
+    const wl = namedWatchlists.find(w => w.id === id);
+    if (!confirm(`Delete watchlist "${wl ? wl.name : id}"? This cannot be undone.`)) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const res = await fetch(`${BASE_URL}/api/watchlist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ action: 'delete-watchlist', watchlistId: id })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Failed to delete watchlist'); return; }
+        namedWatchlists = namedWatchlists.filter(w => w.id !== id);
+        if (activeWatchlistId === id) {
+            activeWatchlistId = 'primary';
+            stocks = primaryStocksCache.slice();
+            localStorage.setItem('stocks', JSON.stringify(stocks));
+            const period = $('#sma-period').val() || '200';
+            try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
+            if (stocks.length > 0) updateTableAndChart(period);
+            else { $('#stocks-table tbody').empty(); if (chart) { chart.destroy(); chart = null; } hideChartLoading(); }
+        }
+        renderWatchlistTabs();
+    } catch (e) { alert('Network error'); }
+}
+
 // ── Re-render chart on theme change ──────────────────────────────────────────
 document.addEventListener('themechange', function() {
     if (lastRenderCache.data) {
@@ -1136,6 +1329,7 @@ window.initializeDipfinder = function() {
 
     let lastAuthStatus = false;
     updateGuestUI(window.AuthManager && window.AuthManager.isAuthenticated);
+    renderWatchlistTabs();
     initNewsletterPromo();
     dipfinderAuthCheckInterval = setInterval(() => {
         try {
@@ -1156,15 +1350,36 @@ window.initializeDipfinder = function() {
     }, 1000);
 
     // Watchlist restore: fired by auth.js after fetching DB stocks on login
-    window.addEventListener('dipfinder:watchlistRestored', function() {
+    window.addEventListener('dipfinder:watchlistRestored', function(e) {
         try {
-            const restored = JSON.parse(localStorage.getItem('stocks') || '[]');
-            if (JSON.stringify(restored) !== JSON.stringify(stocks)) {
-                stocks = restored;
+            const detail = (e && e.detail) || {};
+
+            // Update pro globals
+            if (detail.isPro !== undefined) window.IS_PRO = !!detail.isPro;
+            if (detail.namedWatchlists) namedWatchlists = detail.namedWatchlists;
+            if (detail.primaryWatchlistName) primaryWatchlistName = detail.primaryWatchlistName;
+            if (detail.activeWatchlistId) activeWatchlistId = detail.activeWatchlistId;
+
+            // Cache primary stocks so tab-switches can restore them
+            const primaryStocks = detail.stocks || [];
+            primaryStocksCache = primaryStocks.slice();
+
+            // Load the right stocks for the active watchlist
+            let activeStocks = primaryStocks;
+            if (activeWatchlistId !== 'primary') {
+                const activeWl = namedWatchlists.find(w => w.id === activeWatchlistId);
+                if (activeWl) activeStocks = activeWl.stocks || [];
+            }
+
+            if (JSON.stringify(activeStocks) !== JSON.stringify(stocks)) {
+                stocks = activeStocks;
+                localStorage.setItem('stocks', JSON.stringify(stocks));
                 const period = $('#sma-period').val() || '200';
                 try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
                 if (document.getElementById('stocks-table')) updateTableAndChart(period);
             }
+
+            renderWatchlistTabs();
         } catch (e) { console.warn('Error handling watchlistRestored:', e); }
     });
 

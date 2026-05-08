@@ -468,7 +468,7 @@ async function handleVerifyToken(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       valid: true,
-      user: { id: user._id, email: user.email, name: user.name }
+      user: { id: user._id, email: user.email, name: user.name, isPro: !!user.isPro }
     });
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token', valid: false });
