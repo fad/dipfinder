@@ -174,18 +174,38 @@
                     <p class="text-sm leading-relaxed text-gray-500">Something catch your eye? Dig into the chart, moving averages, and recent news before you pull the trigger.</p>
                 </div>
 
-<div class="lp-feature-card rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-sm reveal reveal-delay-4">
-                    <div class="mb-4 flex items-center justify-between">
-                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                            <i class="fas fa-envelope text-lg"></i>
-                        </div>
-                        <span class="rounded-full bg-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Coming soon</span>
+<div class="lp-feature-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm reveal reveal-delay-4">
+                    <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                        <i class="fas fa-envelope text-lg"></i>
                     </div>
-                    <h3 class="mb-2 font-bold text-gray-900">Weekly Newsletter</h3>
-                    <p class="text-sm leading-relaxed text-amber-800">A weekly digest based on your watchlist. The dips come to you — no market-watching required.</p>
+                    <h3 class="mb-2 font-bold text-gray-900">Sunday Brief</h3>
+                    <p class="text-sm leading-relaxed text-gray-500">Your watchlist chart and dips explained. In your inbox. Every Sunday.</p>
                 </div>
 
             </div>
+        </div>
+    </section>
+
+    <!-- ── Newsletter CTA ───────────────────────────────────────────────────── -->
+    <section class="px-6 py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
+        <div class="mx-auto max-w-2xl text-center reveal">
+            <div class="mb-4 flex justify-center">
+                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md">
+                    <i class="fas fa-envelope text-xl"></i>
+                </div>
+            </div>
+            <h2 class="mb-3 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Get the Sunday Brief</h2>
+            <p class="mb-8 text-lg text-gray-600">Your watchlist chart and dips explained. In your inbox every Sunday - no log-in required.</p>
+            <form id="lp-newsletter-form" class="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <input type="email" id="lp-newsletter-email" required placeholder="you@example.com"
+                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-72">
+                <button type="submit"
+                    class="w-full rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto">
+                    Subscribe free
+                </button>
+            </form>
+            <div id="lp-newsletter-msg" class="mt-4 hidden text-sm font-semibold text-green-600"></div>
+            <p class="mt-4 text-xs text-gray-400">No spam. Unsubscribe any time.</p>
         </div>
     </section>
 
