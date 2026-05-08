@@ -51,7 +51,7 @@ export function renderTemplate(html: string, vars: Record<string, string>): stri
 }
 
 // ── Default template bodies (inner HTML only, no outer wrapper) ───────────────
-const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: string }> = {
+const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: string; fullHtml?: boolean }> = {
   onboarding: {
     name: 'Welcome / Onboarding',
     subject: 'Welcome to Dip Finder - your Sunday brief starts now',
@@ -93,6 +93,51 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
 </div>
 `,
   },
+  'sunday-brief': {
+    name: 'Sunday Brief',
+    subject: 'Your Weekly Dip Report - {{shortDate}}',
+    fullHtml: true,
+    body: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:system-ui,-apple-system,Arial,sans-serif;">
+<div style="max-width:620px;margin:0 auto;background:#f8fafc;">
+
+  <div style="padding:8px 16px;display:table;width:100%;box-sizing:border-box;">
+    <span style="display:table-cell;color:#94a3b8;font-size:0.75em;">{{dateLabel}}</span>
+    {{viewOnlineBlock}}
+  </div>
+
+  <a href="https://dipfinder.com" style="display:block;text-decoration:none;background:linear-gradient(135deg,#2563eb,#7c3aed);padding:32px 32px 28px;text-align:center;">
+    <img src="https://dipfinder.com/img/logo.png" width="32" height="32" alt="" style="display:inline-block;vertical-align:middle;border-radius:6px;margin-right:10px;">
+    <span style="font-size:1.6rem;color:#ffffff;font-weight:800;letter-spacing:-0.02em;vertical-align:middle;">Dip Finder</span>
+  </a>
+
+  <div style="padding:28px 32px;">
+    <p style="color:#1e293b;margin:0 0 24px;line-height:1.6;font-size:0.9em;"><strong>Good morning, {{name}}</strong><br><span style="color:#475569;">Here are your watchlist stocks ranked by distance from their {{smaPeriod}}-day SMA.</span></p>
+
+    {{chartBlock}}
+
+    {{watchlistTable}}
+
+    {{newsBlock}}
+
+    <div style="margin-top:28px;text-align:center;">
+      <a href="https://dipfinder.com/app" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9em;letter-spacing:0.01em;">Open Dip Finder &#x2197;</a>
+    </div>
+  </div>
+
+  <div style="padding:16px 32px;background:#1e293b;text-align:center;">
+    <p style="color:#64748b;font-size:0.73em;margin:0;line-height:1.7;">
+      You're receiving this because you subscribed to the Dip Finder Sunday Brief.<br>
+      <a href="{{unsubscribeUrl}}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
+    </p>
+  </div>
+
+</div>
+</body>
+</html>`,
+  },
 };
 
 // Get a template from DB; auto-seeds the default if not found
@@ -103,7 +148,7 @@ export async function getEmailTemplate(db: any, key: string): Promise<{ subject:
   const def = DEFAULT_TEMPLATES[key];
   if (!def) return null;
 
-  const html = buildEmailHtml(def.body);
+  const html = def.fullHtml ? def.body : buildEmailHtml(def.body);
   await db.collection('emailTemplates').insertOne({
     key, name: def.name, subject: def.subject, html, createdAt: new Date(), updatedAt: new Date(),
   });
@@ -437,6 +482,79 @@ function generateBarChartUrl(stocks: NewsletterStockRow[], orientation: 'x' | 'y
   return `https://quickchart.io/chart?w=556&h=${h}&bkg=%23ffffff&c=${encodeURIComponent(JSON.stringify(cfg))}`;
 }
 
+// ── Newsletter block builders ─────────────────────────────────────────────────
+
+function buildChartBlock(stocks: NewsletterStockRow[], orientation: 'x' | 'y', smaPeriod: number): string {
+  if (!stocks.length) return '';
+  const chartUrl = generateBarChartUrl(stocks, orientation);
+  const h = orientation === 'y' ? Math.max(160, stocks.length * 26) : 200;
+  return `
+<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:24px;">
+  <img src="${chartUrl}" width="556" height="${h}" alt="Watchlist dip chart" style="display:block;">
+</div>`;
+}
+
+function buildWatchlistTableHtml(stocks: NewsletterStockRow[], smaPeriod: number): string {
+  if (!stocks.length) return '';
+  const rows = stocks.map(s => {
+    const pct = (s.relativePrice * 100).toFixed(1);
+    const { bg: dipBg, color: dipColor } = getBadgeColors(s.relativePrice * 100);
+    const sign = s.relativePrice > 0 ? '+' : '';
+    const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
+    const ls = 'display:block;padding:10px 14px;text-decoration:none;color:inherit;';
+    return `<tr>
+      <td style="padding:0;border-bottom:1px solid #f1f5f9;white-space:nowrap;"><a href="${href}" style="${ls}font-weight:700;color:#1e293b;">${s.symbol}</a></td>
+      <td style="padding:0;border-bottom:1px solid #f1f5f9;"><a href="${href}" style="${ls}color:#64748b;font-size:0.85em;">${s.companyName}</a></td>
+      <td style="padding:0;border-bottom:1px solid #f1f5f9;white-space:nowrap;"><a href="${href}" style="${ls}color:#1e293b;text-align:right;">$${s.currentPrice.toFixed(2)}</a></td>
+      <td style="padding:0;border-bottom:1px solid #f1f5f9;white-space:nowrap;"><a href="${href}" style="${ls}color:#64748b;text-align:right;">$${s.sma.toFixed(2)}</a></td>
+      <td style="padding:0;border-bottom:1px solid #f1f5f9;white-space:nowrap;text-align:right;"><a href="${href}" style="${ls}text-align:right;"><span style="background:${dipBg};color:${dipColor};font-weight:700;font-size:0.82em;padding:3px 8px;border-radius:999px;">${sign}${pct}%</span></a></td>
+    </tr>`;
+  }).join('');
+  return `
+<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:28px;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+    <thead>
+      <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+        <th style="padding:10px 14px;text-align:left;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;letter-spacing:0.06em;">Ticker</th>
+        <th style="padding:10px 14px;text-align:left;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;letter-spacing:0.06em;">Company</th>
+        <th style="padding:10px 14px;text-align:right;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;letter-spacing:0.06em;">Price</th>
+        <th style="padding:10px 14px;text-align:right;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;letter-spacing:0.06em;">${smaPeriod}d SMA</th>
+        <th style="padding:10px 14px;text-align:right;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;letter-spacing:0.06em;">vs SMA</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+</div>`;
+}
+
+function buildNewsBlockHtml(stocks: NewsletterStockRow[]): string {
+  const newsCards = stocks.filter(s => s.topNews?.length).map(s => {
+    const items = (s.topNews || []).map(n => `
+      <a href="${n.url}" style="display:block;text-decoration:none;padding:10px 0;border-bottom:1px solid #f1f5f9;">
+        <span style="font-size:0.78em;font-weight:600;color:#2563eb;text-transform:uppercase;letter-spacing:0.05em;">${n.source}</span>
+        <p style="margin:3px 0 0;color:#1e293b;font-size:0.875em;line-height:1.4;">${n.headline}</p>
+      </a>`).join('');
+    const pct = (s.relativePrice * 100).toFixed(1);
+    const { color: dipColor } = getBadgeColors(s.relativePrice * 100);
+    const sign = s.relativePrice > 0 ? '+' : '';
+    const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
+    return `
+<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;overflow:hidden;">
+  <div style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+    <a href="${href}" style="font-weight:800;color:#1e293b;font-size:0.95em;margin-right:8px;text-decoration:none;">${s.symbol}</a>
+    <a href="${href}" style="color:#64748b;font-size:0.8em;text-decoration:none;">${s.companyName}</a>
+    <span style="float:right;font-weight:700;color:${dipColor};font-size:0.85em;">${sign}${pct}%</span>
+  </div>
+  <div style="padding:0 16px;">${items}</div>
+</div>`;
+  }).join('');
+  if (!newsCards) return '';
+  return `<h2 style="margin:0 0 14px;font-size:0.75em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">This Week's News</h2>
+${newsCards}`;
+}
+
+// ── Newsletter HTML builder (fallback / legacy) ───────────────────────────────
+
 export function buildNewsletterHtml({
   name,
   stocks,
@@ -455,57 +573,18 @@ export function buildNewsletterHtml({
   const dateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
-
-  const barChartUrl = generateBarChartUrl(stocks, chartOrientation as 'x' | 'y');
-
-  const rows = stocks.map(s => {
-    const pct = (s.relativePrice * 100).toFixed(1);
-    const { bg: dipBg, color: dipColor } = getBadgeColors(s.relativePrice * 100);
-    const sign = s.relativePrice > 0 ? '+' : '';
-    const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
-    const linkStyle = 'display:block; padding:10px 14px; text-decoration:none; color:inherit;';
-    return `<tr>
-      <td style="padding:0; border-bottom:1px solid #f1f5f9; white-space:nowrap;"><a href="${href}" style="${linkStyle} font-weight:700; color:#1e293b;">${s.symbol}</a></td>
-      <td style="padding:0; border-bottom:1px solid #f1f5f9;"><a href="${href}" style="${linkStyle} color:#64748b; font-size:0.85em;">${s.companyName}</a></td>
-      <td style="padding:0; border-bottom:1px solid #f1f5f9; white-space:nowrap;"><a href="${href}" style="${linkStyle} color:#1e293b; text-align:right;">$${s.currentPrice.toFixed(2)}</a></td>
-      <td style="padding:0; border-bottom:1px solid #f1f5f9; white-space:nowrap;"><a href="${href}" style="${linkStyle} color:#64748b; text-align:right;">$${s.sma.toFixed(2)}</a></td>
-      <td style="padding:0; border-bottom:1px solid #f1f5f9; white-space:nowrap; text-align:right;"><a href="${href}" style="${linkStyle} text-align:right;"><span style="background:${dipBg}; color:${dipColor}; font-weight:700; font-size:0.82em; padding:3px 8px; border-radius:999px;">${sign}${pct}%</span></a></td>
-    </tr>`;
-  }).join('');
-
-  const newsCards = stocks.filter(s => s.topNews?.length).map(s => {
-    const items = (s.topNews || []).map(n => `
-      <a href="${n.url}" style="display:block; text-decoration:none; padding:10px 0; border-bottom:1px solid #f1f5f9;">
-        <span style="font-size:0.78em; font-weight:600; color:#2563eb; text-transform:uppercase; letter-spacing:0.05em;">${n.source}</span>
-        <p style="margin:3px 0 0; color:#1e293b; font-size:0.875em; line-height:1.4;">${n.headline}</p>
-      </a>`).join('');
-
-    const pct = (s.relativePrice * 100).toFixed(1);
-    const { color: dipColor } = getBadgeColors(s.relativePrice * 100);
-    const sign = s.relativePrice > 0 ? '+' : '';
-    const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
-
-    return `
-    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:12px; overflow:hidden;">
-      <div style="padding:12px 16px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
-        <a href="${href}" style="font-weight:800; color:#1e293b; font-size:0.95em; margin-right:8px; text-decoration:none;">${s.symbol}</a>
-        <a href="${href}" style="color:#64748b; font-size:0.8em; text-decoration:none;">${s.companyName}</a>
-        <span style="float:right; font-weight:700; color:${dipColor}; font-size:0.85em;">${sign}${pct}%</span>
-      </div>
-      <div style="padding:0 16px;">${items}</div>
-    </div>`;
-  }).join('');
+  const chartBlock = buildChartBlock(stocks, chartOrientation as 'x' | 'y', smaPeriod);
+  const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
+  const newsSection = buildNewsBlockHtml(stocks);
 
   return `
 <div style="font-family:system-ui,-apple-system,Arial,sans-serif; max-width:620px; margin:0 auto; background:#f8fafc;">
 
-  <!-- Pre-header bar -->
   <div style="padding:8px 16px; display:table; width:100%; box-sizing:border-box;">
     <span style="display:table-cell; color:#94a3b8; font-size:0.75em;">${dateLabel}</span>
     ${viewOnlineUrl ? `<span style="display:table-cell; text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b; font-size:0.75em; text-decoration:none;">View Online</a></span>` : ''}
   </div>
 
-  <!-- Header -->
   <a href="https://dipfinder.com" style="display:block; text-decoration:none; background:linear-gradient(135deg,#2563eb,#7c3aed); padding:32px 32px 28px; text-align:center;">
     <div>
       <img src="https://dipfinder.com/img/logo.png" width="32" height="32" alt="" style="display:inline-block; vertical-align:middle; border-radius:6px; margin-right:10px;">
@@ -513,43 +592,16 @@ export function buildNewsletterHtml({
     </div>
   </a>
 
-  <!-- Body -->
   <div style="padding:28px 32px;">
     <p style="color:#1e293b; margin:0 0 24px; line-height:1.6; font-size:0.9em;"><strong>Good morning</strong><br><span style="color:#475569;">Here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.</span></p>
-
-    <!-- Chart -->
-    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:24px;">
-      <img src="${barChartUrl}" width="556" height="200" alt="Watchlist dip chart" style="display:block;">
-    </div>
-
-    <!-- Table -->
-    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:28px;">
-      <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
-        <thead>
-          <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
-            <th style="padding:10px 14px; text-align:left; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">Ticker</th>
-            <th style="padding:10px 14px; text-align:left; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">Company</th>
-            <th style="padding:10px 14px; text-align:right; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">Price</th>
-            <th style="padding:10px 14px; text-align:right; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">${smaPeriod}d SMA</th>
-            <th style="padding:10px 14px; text-align:right; color:#94a3b8; font-weight:600; text-transform:uppercase; font-size:0.68em; letter-spacing:0.06em;">vs SMA</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-
-    ${newsCards ? `
-    <!-- News -->
-    <h2 style="margin:0 0 14px; font-size:0.75em; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em;">This Week's News</h2>
-    ${newsCards}` : ''}
-
-    <!-- CTA -->
+    ${chartBlock}
+    ${watchlistTable}
+    ${newsSection ? `<h2 style="margin:0 0 14px; font-size:0.75em; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em;">This Week's News</h2>${newsSection}` : ''}
     <div style="margin-top:28px; text-align:center;">
       <a href="https://dipfinder.com/app" style="display:inline-block; background:linear-gradient(135deg,#2563eb,#7c3aed); color:#ffffff; padding:12px 32px; border-radius:8px; text-decoration:none; font-weight:700; font-size:0.9em; letter-spacing:0.01em;">Open Dip Finder &#x2197;</a>
     </div>
   </div>
 
-  <!-- Footer -->
   <div style="padding:16px 32px; background:#1e293b; text-align:center;">
     <p style="color:#64748b; font-size:0.73em; margin:0; line-height:1.7;">
       You're receiving this because you subscribed to the Dip Finder newsletter.<br>
@@ -560,8 +612,56 @@ export function buildNewsletterHtml({
 </div>`;
 }
 
+// ── Template-driven newsletter builder ───────────────────────────────────────
+// Uses the 'sunday-brief' DB template if available; falls back to buildNewsletterHtml.
+
+export async function buildNewsletterEmailHtml({
+  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', db,
+}: {
+  name: string;
+  stocks: NewsletterStockRow[];
+  smaPeriod: number;
+  unsubscribeUrl: string;
+  viewOnlineUrl?: string;
+  chartOrientation?: 'x' | 'y';
+  db: any;
+}): Promise<{ html: string; subject: string }> {
+  const dateLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const template = await getEmailTemplate(db, 'sunday-brief');
+
+  const chartBlock = buildChartBlock(stocks, chartOrientation, smaPeriod);
+  const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
+  const newsBlock = buildNewsBlockHtml(stocks);
+  const viewOnlineBlock = viewOnlineUrl
+    ? `<span style="display:table-cell;text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`
+    : '';
+
+  if (template) {
+    const html = renderTemplate(template.html, {
+      name: name || 'there',
+      dateLabel,
+      shortDate,
+      smaPeriod: String(smaPeriod),
+      chartBlock,
+      watchlistTable,
+      newsBlock,
+      viewOnlineBlock,
+      unsubscribeUrl,
+    });
+    const subject = renderTemplate(template.subject, { shortDate, dateLabel });
+    return { html, subject };
+  }
+
+  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation });
+  return { html, subject: `Your Weekly Dip Report - ${shortDate}` };
+}
+
 /**
- * Send weekly newsletter email with watchlist dip rankings
+ * Send weekly newsletter email using the sunday-brief template (or fallback).
  */
 export async function sendNewsletterEmail({
   to,
@@ -571,6 +671,7 @@ export async function sendNewsletterEmail({
   unsubscribeUrl,
   viewOnlineUrl,
   chartOrientation = 'y',
+  db,
 }: {
   to: string;
   name: string;
@@ -579,10 +680,9 @@ export async function sendNewsletterEmail({
   unsubscribeUrl: string;
   viewOnlineUrl?: string;
   chartOrientation?: 'x' | 'y';
+  db: any;
 }): Promise<boolean> {
-  const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const subject = `Your Weekly Dip Report — ${shortDate}`;
-  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation });
+  const { html, subject } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, db });
   return sendEmail({ to, subject, html });
 }
 

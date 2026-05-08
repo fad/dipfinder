@@ -360,6 +360,28 @@ async function handleSaveTemplate(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({ ok: true });
 }
 
+function buildDummyVars(token: string): Record<string, string> {
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  return {
+    name: 'Frank',
+    email: ADMIN_EMAIL || 'admin@dipfinder.com',
+    resetUrl: `${FRONTEND_URL}/reset-password.html?token=${token}`,
+    magicUrl: `${FRONTEND_URL}/app?magic=${token}`,
+    unsubscribeUrl: `${FRONTEND_URL}/api/newsletter-unsubscribe?token=${token}`,
+    setPasswordBlock: `<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">As a welcome gift, we've upgraded your watchlist to <strong>10 stock slots</strong> - double the usual free limit. Set a password to keep your account.</p><div style="text-align:center;margin:28px 0;"><a href="${FRONTEND_URL}/reset-password.html?setup=${token}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Set My Password &rarr;</a></div><div style="background:#DCFCE7;border-left:4px solid #16A34A;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 24px;"><p style="font-family:Arial,sans-serif;font-size:13px;color:#14532D;margin:0;line-height:1.6;">This link expires in 7 days. You can also sign in at any time using a magic link from the login page.</p></div>`,
+    watchlistChartBlock: `<div style="margin:24px 0;"><p style="font-family:Arial,sans-serif;font-size:12px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 10px;">Your Watchlist vs 50-day SMA</p><img src="https://quickchart.io/chart?w=556&h=130&bkg=%23ffffff&c=%7Btype%3A%27horizontalBar%27%2Cdata%3A%7Blabels%3A%5B%27INTU%27%2C%27MSFT%27%2C%27AAPL%27%2C%27CRM%27%5D%2Cdatasets%3A%5B%7Bdata%3A%5B-8.2%2C-3.1%2C1.4%2C5.7%5D%2CbackgroundColor%3A%5B%27%230F766E%27%2C%27%2314B8A6%27%2C%2394A3B8%27%2C%27%23FBBF24%27%5D%7D%5D%7D%2Coptions%3A%7Blegend%3A%7Bdisplay%3Afalse%7D%7D%7D" width="100%" alt="Watchlist dip chart (preview)" style="display:block;border-radius:8px;border:1px solid #e2e8f0;max-width:556px;"></div>`,
+    shortDate,
+    dateLabel,
+    smaPeriod: '50',
+    viewOnlineBlock: `<span style="display:table-cell;text-align:right;"><a href="${FRONTEND_URL}/newsletter/${token}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`,
+    chartBlock: `<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:24px;"><img src="https://quickchart.io/chart?w=556&h=104&bkg=%23ffffff&c=%7Btype%3A%27horizontalBar%27%2Cdata%3A%7Blabels%3A%5B%27INTU%27%2C%27MSFT%27%2C%27AAPL%27%2C%27CRM%27%5D%2Cdatasets%3A%5B%7Bdata%3A%5B-8.2%2C-3.1%2C1.4%2C5.7%5D%2CbackgroundColor%3A%5B%27%230F766E%27%2C%27%2314B8A6%27%2C%2794A3B8%27%2C%27%23FBBF24%27%5D%7D%5D%7D%2Coptions%3A%7Blegend%3A%7Bdisplay%3Afalse%7D%7D%7D" width="556" height="104" alt="Watchlist dip chart" style="display:block;"></div>`,
+    watchlistTable: `<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:28px;"><table style="width:100%;border-collapse:collapse;font-size:0.875rem;"><thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;"><th style="padding:10px 14px;text-align:left;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;">Ticker</th><th style="padding:10px 14px;text-align:left;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;">Company</th><th style="padding:10px 14px;text-align:right;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;">Price</th><th style="padding:10px 14px;text-align:right;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;">50d SMA</th><th style="padding:10px 14px;text-align:right;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:0.68em;">vs SMA</th></tr></thead><tbody><tr><td style="padding:0;border-bottom:1px solid #f1f5f9;white-space:nowrap;"><a href="#" style="display:block;padding:10px 14px;font-weight:700;color:#1e293b;text-decoration:none;">INTU</a></td><td style="padding:0;border-bottom:1px solid #f1f5f9;"><a href="#" style="display:block;padding:10px 14px;color:#64748b;font-size:0.85em;text-decoration:none;">Intuit Inc.</a></td><td style="padding:0;border-bottom:1px solid #f1f5f9;"><a href="#" style="display:block;padding:10px 14px;color:#1e293b;text-align:right;text-decoration:none;">$580.00</a></td><td style="padding:0;border-bottom:1px solid #f1f5f9;"><a href="#" style="display:block;padding:10px 14px;color:#64748b;text-align:right;text-decoration:none;">$631.74</a></td><td style="padding:0;border-bottom:1px solid #f1f5f9;text-align:right;"><a href="#" style="display:block;padding:10px 14px;text-align:right;text-decoration:none;"><span style="background:#CCFBF1;color:#0F766E;font-weight:700;font-size:0.82em;padding:3px 8px;border-radius:999px;">-8.2%</span></a></td></tr><tr><td style="padding:0;white-space:nowrap;"><a href="#" style="display:block;padding:10px 14px;font-weight:700;color:#1e293b;text-decoration:none;">MSFT</a></td><td style="padding:0;"><a href="#" style="display:block;padding:10px 14px;color:#64748b;font-size:0.85em;text-decoration:none;">Microsoft Corp.</a></td><td style="padding:0;"><a href="#" style="display:block;padding:10px 14px;color:#1e293b;text-align:right;text-decoration:none;">$388.00</a></td><td style="padding:0;"><a href="#" style="display:block;padding:10px 14px;color:#64748b;text-align:right;text-decoration:none;">$400.31</a></td><td style="padding:0;text-align:right;"><a href="#" style="display:block;padding:10px 14px;text-align:right;text-decoration:none;"><span style="background:#CCFBF1;color:#0F766E;font-weight:700;font-size:0.82em;padding:3px 8px;border-radius:999px;">-3.1%</span></a></td></tr></tbody></table></div>`,
+    newsBlock: `<h2 style="margin:0 0 14px;font-size:0.75em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">This Week's News</h2><div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;overflow:hidden;"><div style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"><a href="#" style="font-weight:800;color:#1e293b;font-size:0.95em;margin-right:8px;text-decoration:none;">INTU</a><a href="#" style="color:#64748b;font-size:0.8em;text-decoration:none;">Intuit Inc.</a><span style="float:right;font-weight:700;color:#0F766E;font-size:0.85em;">-8.2%</span></div><div style="padding:0 16px;"><a href="#" style="display:block;text-decoration:none;padding:10px 0;border-bottom:1px solid #f1f5f9;"><span style="font-size:0.78em;font-weight:600;color:#2563eb;text-transform:uppercase;letter-spacing:0.05em;">Reuters</span><p style="margin:3px 0 0;color:#1e293b;font-size:0.875em;line-height:1.4;">Intuit beats Q2 estimates as AI-powered tax features drive adoption</p></a></div></div>`,
+  };
+}
+
 async function handlePreviewTemplate(req: VercelRequest, res: VercelResponse) {
   const key = (req.query.key || req.body?.key) as string;
   if (!key) return res.status(400).json({ error: 'key required' });
@@ -367,16 +389,7 @@ async function handlePreviewTemplate(req: VercelRequest, res: VercelResponse) {
   const template = await getEmailTemplate(db, key);
   if (!template) return res.status(404).send('<p>Template not found</p>');
 
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
-  const dummyVars: Record<string, string> = {
-    name: 'Frank',
-    email: ADMIN_EMAIL || 'admin@dipfinder.com',
-    resetUrl: `${FRONTEND_URL}/reset-password.html?token=PREVIEW_TOKEN`,
-    magicUrl: `${FRONTEND_URL}/app?magic=PREVIEW_TOKEN`,
-    unsubscribeUrl: `${FRONTEND_URL}/api/newsletter-unsubscribe?token=PREVIEW_TOKEN`,
-    setPasswordBlock: `<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">As a welcome gift, we've upgraded your watchlist to <strong>10 stock slots</strong> - double the usual free limit. Set a password to keep your account.</p><div style="text-align:center;margin:28px 0;"><a href="${FRONTEND_URL}/reset-password.html?setup=PREVIEW_TOKEN" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Set My Password &rarr;</a></div><div style="background:#DCFCE7;border-left:4px solid #16A34A;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 24px;"><p style="font-family:Arial,sans-serif;font-size:13px;color:#14532D;margin:0;line-height:1.6;">This link expires in 7 days. You can also sign in at any time using a magic link from the login page.</p></div>`,
-    watchlistChartBlock: `<div style="margin:24px 0;"><p style="font-family:Arial,sans-serif;font-size:12px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 10px;">Your Watchlist vs 50-day SMA</p><img src="https://quickchart.io/chart?w=556&h=130&bkg=%23ffffff&c=%7Btype%3A%27horizontalBar%27%2Cdata%3A%7Blabels%3A%5B%27INTU%27%2C%27MSFT%27%2C%27AAPL%27%2C%27CRM%27%5D%2Cdatasets%3A%5B%7Bdata%3A%5B-8.2%2C-3.1%2C1.4%2C5.7%5D%2CbackgroundColor%3A%5B%27%230F766E%27%2C%27%2314B8A6%27%2C%2394A3B8%27%2C%27%23FBBF24%27%5D%7D%5D%7D%2Coptions%3A%7Blegend%3A%7Bdisplay%3Afalse%7D%7D%7D" width="100%" alt="Watchlist dip chart (preview)" style="display:block;border-radius:8px;border:1px solid #e2e8f0;max-width:556px;"></div>`,
-  };
+  const dummyVars = buildDummyVars('PREVIEW_TOKEN');
   const html = renderTemplate(template.html, dummyVars);
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   return res.status(200).send(html);
@@ -392,18 +405,11 @@ async function handleSendTestTemplate(req: VercelRequest, res: VercelResponse) {
   const template = await getEmailTemplate(db, key);
   if (!template) return res.status(404).json({ error: 'Template not found' });
 
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
-  const dummyVars: Record<string, string> = {
-    name: 'Frank',
-    email: ADMIN_EMAIL,
-    resetUrl: `${FRONTEND_URL}/reset-password.html?token=TEST_TOKEN`,
-    magicUrl: `${FRONTEND_URL}/app?magic=TEST_TOKEN`,
-    unsubscribeUrl: `${FRONTEND_URL}/api/newsletter-unsubscribe?token=TEST_TOKEN`,
-    setPasswordBlock: `<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">As a welcome gift, we've upgraded your watchlist to <strong>10 stock slots</strong> - double the usual free limit. Set a password to keep your account.</p><div style="text-align:center;margin:28px 0;"><a href="${FRONTEND_URL}/reset-password.html?setup=TEST_TOKEN" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Set My Password &rarr;</a></div><div style="background:#DCFCE7;border-left:4px solid #16A34A;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 24px;"><p style="font-family:Arial,sans-serif;font-size:13px;color:#14532D;margin:0;line-height:1.6;">This link expires in 7 days. You can also sign in at any time using a magic link from the login page.</p></div>`,
-    watchlistChartBlock: `<div style="margin:24px 0;"><p style="font-family:Arial,sans-serif;font-size:12px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 10px;">Your Watchlist vs 50-day SMA</p><img src="https://quickchart.io/chart?w=556&h=130&bkg=%23ffffff&c=%7Btype%3A%27horizontalBar%27%2Cdata%3A%7Blabels%3A%5B%27INTU%27%2C%27MSFT%27%2C%27AAPL%27%2C%27CRM%27%5D%2Cdatasets%3A%5B%7Bdata%3A%5B-8.2%2C-3.1%2C1.4%2C5.7%5D%2CbackgroundColor%3A%5B%27%230F766E%27%2C%27%2314B8A6%27%2C%2794A3B8%27%2C%27%23FBBF24%27%5D%7D%5D%7D%2Coptions%3A%7Blegend%3A%7Bdisplay%3Afalse%7D%7D%7D" width="100%" alt="Watchlist dip chart (preview)" style="display:block;border-radius:8px;border:1px solid #e2e8f0;max-width:556px;"></div>`,
-  };
+  const dummyVars = buildDummyVars('TEST_TOKEN');
+  dummyVars.email = ADMIN_EMAIL;
   const html = renderTemplate(template.html, dummyVars);
-  const ok = await sendEmail({ to: ADMIN_EMAIL, subject: `[TEST] ${template.subject}`, html });
+  const subject = renderTemplate(`[TEST] ${template.subject}`, dummyVars);
+  const ok = await sendEmail({ to: ADMIN_EMAIL, subject, html });
   return res.status(200).json({ ok, to: ADMIN_EMAIL });
 }
 

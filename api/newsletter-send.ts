@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
-import { sendNewsletterEmail, buildNewsletterHtml } from './lib/email';
+import { sendNewsletterEmail, buildNewsletterEmailHtml } from './lib/email';
 import { NEWSLETTER_SMA_DEFAULT, buildStockResults } from './lib/newsletter-data';
 import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
 
@@ -85,12 +85,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (isPreview) {
         // Admin preview — no view-online link
-        const html = buildNewsletterHtml({
+        const { html } = await buildNewsletterEmailHtml({
           name: user.name || 'there',
           stocks: stockResults,
           smaPeriod,
           unsubscribeUrl,
           chartOrientation,
+          db,
         });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.status(200).send(html);
@@ -111,6 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         unsubscribeUrl,
         viewOnlineUrl,
         chartOrientation,
+        db,
       });
 
       if (ok) sent++;
