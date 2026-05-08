@@ -14,6 +14,9 @@ var primaryWatchlistName = 'Main';
 // Cache of primary stocks separately so tab-switches can restore them
 var primaryStocksCache = [];
 
+// Drag-and-drop state (suppresses click-to-navigate on dragend)
+var isDragging = false;
+
 window.MAX_STOCKS = 10; // default, updated by auth.js
 
 // ── SPA lifecycle state ───────────────────────────────────────────────────────
@@ -308,7 +311,14 @@ function renderStockTableRows(tableBody, stockDataArray) {
         const diffClasses = getSmaDiffClasses(diffPercent);
 
         tableBody.append(`
-            <tr class="stock-row grid cursor-pointer gap-3 px-4 py-2 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: minmax(0, 1fr) auto 40px; align-items: center;" data-stock="${escapeHtml(data.stock)}">
+            <tr class="stock-row grid gap-3 px-4 py-2 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: 14px minmax(0, 1fr) auto 40px; align-items: center; cursor: grab;" data-stock="${escapeHtml(data.stock)}" draggable="true">
+                <td style="display:flex;align-items:center;padding:0;">
+                    <svg width="8" height="14" viewBox="0 0 8 14" fill="#d1d5db" style="flex-shrink:0;">
+                        <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
+                        <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
+                        <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
+                    </svg>
+                </td>
                 <td class="min-w-0">
                     <div class="text-sm font-medium text-gray-900">${escapeHtml(data.stock)}</div>
                     <div class="truncate text-sm text-gray-500">${escapeHtml(truncateString(data.companyName, 30))}</div>
@@ -646,8 +656,10 @@ function attachRemoveStockListeners() {
 
 function attachDashboardRowListeners() {
     attachRemoveStockListeners();
+    attachDragToReorder();
     $('#stocks-table').off('click.dipfinderRows', '.stock-row');
     $('#stocks-table').on('click.dipfinderRows', '.stock-row', function() {
+        if (isDragging) return;
         const stockSymbol = $(this).data('stock');
         if (stockSymbol) window.spaNavigate(`/screener?stock=${encodeURIComponent(stockSymbol)}`);
     });
@@ -912,14 +924,44 @@ function renderWatchlistTabs() {
     container.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;">${tabsHtml}${newBtnHtml}</div>`;
 
     container.querySelectorAll('.wl-tab').forEach(tabEl => {
+        const tabId = tabEl.dataset.id;
+
         tabEl.addEventListener('click', e => {
             if (e.target.classList.contains('wl-tab-del')) return;
             if (e.target.tagName === 'INPUT') return;
-            switchWatchlist(tabEl.dataset.id);
+            switchWatchlist(tabId);
         });
         tabEl.addEventListener('dblclick', e => {
             if (e.target.tagName === 'INPUT') return;
-            startRenameTab(tabEl, tabEl.dataset.id);
+            startRenameTab(tabEl, tabId);
+        });
+
+        // Drop target: receive a stock dragged from the table
+        tabEl.addEventListener('dragover', e => {
+            if (tabId === activeWatchlistId) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            tabEl.style.background = '#dbeafe';
+            tabEl.style.color = '#1d4ed8';
+            tabEl.style.borderColor = '#93c5fd';
+            tabEl.style.borderStyle = 'solid';
+        });
+        tabEl.addEventListener('dragleave', () => {
+            const isActive = tabId === activeWatchlistId;
+            tabEl.style.background = isActive ? '#eff6ff' : '';
+            tabEl.style.color = isActive ? '#1d4ed8' : '#6b7280';
+            tabEl.style.borderColor = isActive ? '#bfdbfe' : 'transparent';
+            tabEl.style.borderStyle = 'solid';
+        });
+        tabEl.addEventListener('drop', e => {
+            e.preventDefault();
+            const symbol = e.dataTransfer.getData('text/plain');
+            const isActive = tabId === activeWatchlistId;
+            tabEl.style.background = isActive ? '#eff6ff' : '';
+            tabEl.style.color = isActive ? '#1d4ed8' : '#6b7280';
+            tabEl.style.borderColor = isActive ? '#bfdbfe' : 'transparent';
+            if (!symbol || tabId === activeWatchlistId) return;
+            moveStockToWatchlist(symbol, tabId);
         });
     });
 
@@ -1061,6 +1103,154 @@ async function deleteWatchlist(id) {
         }
         renderWatchlistTabs();
     } catch (e) { alert('Network error'); }
+}
+
+// ── Drag-to-reorder (within watchlist) ───────────────────────────────────────
+
+function attachDragToReorder() {
+    const tbody = document.querySelector('#stocks-table tbody');
+    if (!tbody) return;
+
+    let dragSrc = null;
+
+    const clearIndicators = () => {
+        tbody.querySelectorAll('tr.stock-row').forEach(r => {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+    };
+
+    tbody.querySelectorAll('tr.stock-row').forEach(row => {
+        row.addEventListener('dragstart', e => {
+            // Don't drag when clicking the remove button
+            if (e.target.closest('.remove-stock')) { e.preventDefault(); return; }
+            isDragging = true;
+            dragSrc = row;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', row.dataset.stock);
+            setTimeout(() => { if (dragSrc) dragSrc.style.opacity = '0.4'; }, 0);
+        });
+
+        row.addEventListener('dragend', () => {
+            if (dragSrc) dragSrc.style.opacity = '';
+            clearIndicators();
+            dragSrc = null;
+            // Keep isDragging true briefly to swallow the immediate click event
+            setTimeout(() => { isDragging = false; }, 80);
+        });
+
+        row.addEventListener('dragover', e => {
+            if (!dragSrc || dragSrc === row) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            clearIndicators();
+            const midY = row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+            if (e.clientY < midY) row.style.borderTop = '2px solid #3b82f6';
+            else row.style.borderBottom = '2px solid #3b82f6';
+        });
+
+        row.addEventListener('dragleave', () => {
+            row.style.borderTop = '';
+            row.style.borderBottom = '';
+        });
+
+        row.addEventListener('drop', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!dragSrc || dragSrc === row) return;
+
+            const midY = row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+            if (e.clientY < midY) tbody.insertBefore(dragSrc, row);
+            else tbody.insertBefore(dragSrc, row.nextSibling);
+
+            clearIndicators();
+
+            // Sync stocks array to new DOM order and persist
+            const newOrder = [...tbody.querySelectorAll('tr.stock-row')].map(r => r.dataset.stock);
+            stocks = newOrder;
+            if (activeWatchlistId === 'primary') primaryStocksCache = stocks.slice();
+            localStorage.setItem('stocks', JSON.stringify(stocks));
+            saveWatchlistToDb();
+
+            // Keep lastRenderCache in sync so theme toggle re-renders correctly
+            if (lastRenderCache.data) {
+                const pos = Object.fromEntries(newOrder.map((s, i) => [s, i]));
+                lastRenderCache.data = [...lastRenderCache.data].sort((a, b) =>
+                    (pos[a.stock] ?? 999) - (pos[b.stock] ?? 999));
+            }
+        });
+    });
+}
+
+// ── Move stock to a different watchlist (pro, drag-to-tab) ────────────────────
+
+async function moveStockToWatchlist(symbol, targetId) {
+    const limit = window.IS_PRO ? 50 : 10;
+
+    // Check target capacity
+    const targetStocksNow = targetId === 'primary'
+        ? primaryStocksCache
+        : (namedWatchlists.find(w => w.id === targetId)?.stocks || []);
+    if (targetStocksNow.length >= limit) {
+        showWatchlistNotice(`Target watchlist is full (${limit} stocks).`, true);
+        return;
+    }
+
+    // Remove from current watchlist in memory
+    stocks = stocks.filter(s => s !== symbol);
+    if (activeWatchlistId === 'primary') primaryStocksCache = stocks.slice();
+    else {
+        const cur = namedWatchlists.find(w => w.id === activeWatchlistId);
+        if (cur) cur.stocks = stocks.slice();
+    }
+    localStorage.setItem('stocks', JSON.stringify(stocks));
+
+    // Add to target watchlist in memory
+    if (targetId === 'primary') {
+        if (!primaryStocksCache.includes(symbol)) primaryStocksCache.push(symbol);
+    } else {
+        const tgt = namedWatchlists.find(w => w.id === targetId);
+        if (tgt && !tgt.stocks.includes(symbol)) tgt.stocks.push(symbol);
+    }
+
+    // Remove row from DOM
+    $(`tr.stock-row[data-stock="${CSS.escape(symbol)}"]`).remove();
+
+    // Update chart
+    if (chart) {
+        const idx = chart.data.labels.indexOf(symbol);
+        if (idx !== -1) {
+            chart.data.labels.splice(idx, 1);
+            const ds = chart.data.datasets[0];
+            ds.data.splice(idx, 1);
+            ds.backgroundColor.splice(idx, 1);
+            ds.borderColor.splice(idx, 1);
+            if (ds.stockData) {
+                ds.stockData.splice(idx, 1);
+                renderSummaryMetrics(ds.stockData, lastRenderCache.period || '200');
+            }
+            chart.update();
+        }
+    }
+
+    // Update news
+    delete newsCache[symbol];
+    renderNewsByTicker($('#news-feed'), newsCache);
+
+    // Persist: save current watchlist
+    await saveWatchlistToDb();
+
+    // Persist: save target watchlist
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const targetStocks = targetId === 'primary'
+        ? primaryStocksCache
+        : (namedWatchlists.find(w => w.id === targetId)?.stocks || []);
+    fetch(`${BASE_URL}/api/watchlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'save-watchlist', stocks: targetStocks, watchlistId: targetId })
+    }).catch(() => {});
 }
 
 // ── Re-render chart on theme change ──────────────────────────────────────────
