@@ -62,6 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleSendTestTemplate(req, res);
       case 'trigger-onboarding':
         return await handleTriggerOnboarding(req, res);
+      case 'delete-user':
+        return await handleDeleteUser(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -399,4 +401,17 @@ async function handleTriggerOnboarding(_req: VercelRequest, res: VercelResponse)
   } catch (err: any) {
     return res.status(500).json({ error: err?.message });
   }
+}
+
+async function handleDeleteUser(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email required' });
+  if (email.toLowerCase() === ADMIN_EMAIL) {
+    return res.status(403).json({ error: 'Cannot delete the admin account' });
+  }
+  const db = await connectToDatabase();
+  const result = await db.collection('users').deleteOne({ email: email.toLowerCase() });
+  if (result.deletedCount === 0) return res.status(404).json({ error: 'User not found' });
+  return res.status(200).json({ ok: true });
 }

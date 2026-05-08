@@ -203,6 +203,7 @@
               <th onclick="sortBy('totalLoginCount')">Logins <span class="sort-arrow" id="arrow-totalLoginCount">↕</span></th>
               <th onclick="sortBy('lastLoginAt')">Last Login <span class="sort-arrow" id="arrow-lastLoginAt">↕</span></th>
               <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="user-rows"></tbody>
@@ -344,11 +345,12 @@
 
       const tbody = document.getElementById('user-rows');
       if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="no-data">No users found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No users found</td></tr>';
       } else {
         tbody.innerHTML = pageUsers.map(u => {
           const watchlist = (u.watchlist || []);
           const watchlistTip = watchlist.length ? watchlist.join(', ') : '';
+          const isAdmin = u.email === (allUsers.find(x => x._isAdmin)?.email);
           return `<tr>
             <td>${u.name || '<span style="color:#64748b">—</span>'}</td>
             <td class="email">${u.email || ''}</td>
@@ -362,6 +364,7 @@
             <td>${u.totalLoginCount || 0}</td>
             <td>${fmt(u.lastLoginAt)}</td>
             <td title="${watchlistTip}">${watchlist.length ? watchlist.length : '<span style="color:#64748b">0</span>'}</td>
+            <td><button class="btn btn-red" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="deleteUser('${u.email}')">Delete</button></td>
           </tr>`;
         }).join('');
       }
@@ -915,6 +918,24 @@
         switchTab('dashboard');
       } catch (e) {
         out.textContent = 'Network error: ' + e.message; out.style.borderColor = '#dc2626'; out.style.color = '#fca5a5';
+      }
+    }
+
+    async function deleteUser(email) {
+      if (!confirm(`Delete user ${email}? This cannot be undone.`)) return;
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=delete-user', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('Error: ' + (data.error || res.status)); return; }
+        allUsers = allUsers.filter(u => u.email !== email);
+        renderTable();
+      } catch (e) {
+        alert('Network error: ' + e.message);
       }
     }
 
