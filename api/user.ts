@@ -487,7 +487,8 @@ async function handleGetProfile(req: VercelRequest, res: VercelResponse) {
       name: user.name,
       createdDate: user.createdDate,
       isVerified: user.isVerified,
-      newsletterSubscribed: user.newsletterSubscribed || false
+      newsletterSubscribed: user.newsletterSubscribed || false,
+      sundayBriefSubscribed: user.sundayBriefSubscribed || false
     });
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' });
@@ -628,7 +629,7 @@ async function handleUpdateEmailPreferences(req: VercelRequest, res: VercelRespo
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const { newsletterSubscribed } = req.body;
+    const { newsletterSubscribed, sundayBriefSubscribed } = req.body;
 
     const db = await connectToDatabase();
     const user = await db.collection('users').findOne({ _id: new ObjectId(decoded.userId) });
@@ -636,16 +637,16 @@ async function handleUpdateEmailPreferences(req: VercelRequest, res: VercelRespo
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const updateData = {
-      newsletterSubscribed: Boolean(newsletterSubscribed),
-      emailPreferencesUpdatedAt: new Date()
-    };
+    const updateData: Record<string, any> = { emailPreferencesUpdatedAt: new Date() };
+    if (typeof newsletterSubscribed === 'boolean') updateData.newsletterSubscribed = newsletterSubscribed;
+    if (typeof sundayBriefSubscribed === 'boolean') updateData.sundayBriefSubscribed = sundayBriefSubscribed;
 
     await db.collection('users').updateOne({ _id: new ObjectId(decoded.userId) }, { $set: updateData });
 
     return res.status(200).json({
       message: 'Email preferences updated successfully',
-      newsletterSubscribed: updateData.newsletterSubscribed
+      newsletterSubscribed: updateData.newsletterSubscribed ?? user.newsletterSubscribed ?? false,
+      sundayBriefSubscribed: updateData.sundayBriefSubscribed ?? user.sundayBriefSubscribed ?? false
     });
   } catch (error) {
     console.error('Email preferences update error:', error);

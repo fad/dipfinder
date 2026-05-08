@@ -261,16 +261,11 @@ window.initializeProfile = function() {
             const data = await res.json();
             
             if (res.ok) {
-                console.log('Profile data received:', data);
-                // Set newsletter checkbox based on user preferences
                 const newsletterCheckbox = document.getElementById('newsletter-subscription');
-                if (newsletterCheckbox) {
-                    const isSubscribed = data.newsletterSubscribed || false;
-                    newsletterCheckbox.checked = isSubscribed;
-                    console.log('Newsletter subscription status:', isSubscribed);
-                } else {
-                    console.warn('Newsletter checkbox not found in DOM');
-                }
+                if (newsletterCheckbox) newsletterCheckbox.checked = data.newsletterSubscribed || false;
+
+                const sundayBriefCheckbox = document.getElementById('sunday-brief-subscription');
+                if (sundayBriefCheckbox) sundayBriefCheckbox.checked = data.sundayBriefSubscribed || false;
             } else {
                 console.error('Failed to load profile data:', data);
             }
@@ -297,14 +292,16 @@ window.initializeProfile = function() {
         messageDiv.innerHTML = '';
 
         try {
+            const sundayBriefCheckbox = document.getElementById('sunday-brief-subscription');
             const res = await fetch(`${BASE_URL}/api/user?action=update-email-preferences`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    newsletterSubscribed: newsletterCheckbox.checked
+                    newsletterSubscribed: newsletterCheckbox ? newsletterCheckbox.checked : undefined,
+                    sundayBriefSubscribed: sundayBriefCheckbox ? sundayBriefCheckbox.checked : undefined
                 })
             });
 

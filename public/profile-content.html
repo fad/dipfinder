@@ -97,22 +97,31 @@
                         </div>
                         
                         <div class="p-6">
-                            <div class="space-y-4">
+                            <div class="space-y-5">
                                 <div class="flex items-start">
-                                    <input type="checkbox" id="newsletter-subscription" 
+                                    <input type="checkbox" id="newsletter-subscription"
                                            class="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
                                     <label for="newsletter-subscription" class="ml-3 text-sm text-gray-700">
                                         <span class="font-medium">Email Notifications</span>
-                                        <p class="text-gray-500 text-xs mt-1">Receive newsletters, updates, and promotions about new features and market insights</p>
+                                        <p class="text-gray-500 text-xs mt-1">Product updates, new feature announcements, and general account communications.</p>
                                     </label>
                                 </div>
-                                
+
+                                <div class="flex items-start">
+                                    <input type="checkbox" id="sunday-brief-subscription"
+                                           class="mt-1 h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                                    <label for="sunday-brief-subscription" class="ml-3 text-sm text-gray-700">
+                                        <span class="font-medium">What The Dip? — Sunday Brief</span>
+                                        <p class="text-gray-500 text-xs mt-1">A weekly email tailored to your watchlist. Sent every Sunday. No generic market noise.</p>
+                                    </label>
+                                </div>
+
                                 <div class="pt-2">
                                     <button id="save-email-preferences-btn" class="gradient-btn px-4 py-3 rounded-lg shadow hover:shadow-lg transition-all font-medium">
                                         Save Preferences
                                     </button>
                                 </div>
-                                
+
                                 <div id="email-preferences-message"></div>
                             </div>
                         </div>

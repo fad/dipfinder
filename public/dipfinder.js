@@ -1125,12 +1125,14 @@ window.initializeDipfinder = function() {
 
     let lastAuthStatus = false;
     updateGuestUI(window.AuthManager && window.AuthManager.isAuthenticated);
+    initNewsletterPromo();
     dipfinderAuthCheckInterval = setInterval(() => {
         try {
             const currentAuthStatus = window.AuthManager && window.AuthManager.isAuthenticated;
             if (currentAuthStatus !== lastAuthStatus) {
                 lastAuthStatus = currentAuthStatus;
                 updateGuestUI(currentAuthStatus);
+                initNewsletterPromo();
                 window.MAX_STOCKS = getCurrentStockLimit();
                 const wasModified = validateStocksArray();
                 if (wasModified && document.getElementById('stocks-table')) {
@@ -1175,6 +1177,49 @@ window.initializeDipfinder = function() {
         }
     }, 5000);
 };
+
+// ── Newsletter promo: auth-aware init ────────────────────────────────────────
+
+let newsletterPromoInitialized = false;
+
+function initNewsletterPromo() {
+    if (newsletterPromoInitialized) return;
+    const promo = document.getElementById('newsletter-promo');
+    if (!promo) return;
+
+    const isAuth = window.AuthManager && window.AuthManager.isAuthenticated;
+    const token = localStorage.getItem('token');
+
+    // Guest — leave promo as-is (editable email input)
+    if (!isAuth || !token) {
+        newsletterPromoInitialized = true;
+        return;
+    }
+
+    newsletterPromoInitialized = true;
+
+    fetch('/api/user?action=profile', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(data => {
+            const promo = document.getElementById('newsletter-promo');
+            if (!promo) return;
+
+            if (data.sundayBriefSubscribed) {
+                promo.remove();
+                return;
+            }
+
+            // Prefill email, lock input
+            const input = document.getElementById('newsletter-email-v2');
+            if (input && data.email) {
+                input.value = data.email;
+                input.readOnly = true;
+                input.classList.add('bg-gray-100', 'cursor-default');
+                input.classList.remove('bg-white');
+            }
+        })
+        .catch(() => {});
+}
 
 // ── Newsletter empty-state toggle ─────────────────────────────────────────────
 
@@ -1229,6 +1274,16 @@ function updateNewsletterEmptyState() {
 
         window.umami?.track('newsletter_subscribe', { hasEmail: true });
 
+        // Save subscription flag if logged in
+        const authToken = localStorage.getItem('token');
+        if (authToken) {
+            fetch('/api/user?action=update-email-preferences', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                body: JSON.stringify({ sundayBriefSubscribed: true })
+            }).catch(() => {});
+        }
+
         // Fade out form, fade in confirmation
         form.style.opacity = '0';
         form.style.pointerEvents = 'none';
@@ -1261,6 +1316,7 @@ function updateNewsletterEmptyState() {
 // ── SPA teardown ──────────────────────────────────────────────────────────────
 
 window.destroyDipfinder = function() {
+    newsletterPromoInitialized = false;
     saveDipfinderContentState();
 
     if (chart) {

@@ -45,10 +45,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const db = await connectToDatabase();
 
-    // Only send to admin for now; skip users with empty watchlists
+    // Only send to admin for now; must have subscribed to the Sunday Brief
     const users = await db.collection('users').find({
       email: ADMIN_EMAIL,
-      newsletterSubscribed: true,
+      sundayBriefSubscribed: true,
     }).toArray();
 
     let sent = 0, failed = 0, skipped = 0;
