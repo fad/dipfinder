@@ -314,7 +314,7 @@ function renderStockTableRows(tableBody, stockDataArray) {
                     </div>
                 </td>
                 <td class="flex justify-end">
-                    <button class="remove-stock relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200" data-stock="${escapeHtml(data.stock)}" title="Remove ${escapeHtml(data.stock)}" aria-label="Remove ${escapeHtml(data.stock)}" onclick="event.stopPropagation();">
+                    <button class="remove-stock relative z-10 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200" data-stock="${escapeHtml(data.stock)}" title="Remove ${escapeHtml(data.stock)}" aria-label="Remove ${escapeHtml(data.stock)}" onclick="event.stopPropagation();">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </td>
@@ -374,7 +374,7 @@ function renderNewsByTicker(newsFeed, newsByTicker) {
         const padding = group.length < 3
             ? Array(3 - group.length).fill('<div></div>').join('')
             : '';
-        return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">${cells}${padding}</div>`;
+        return `<div class="news-row-grid">${cells}${padding}</div>`;
     }).join('');
 
     newsFeed.html(`<div style="display:flex;flex-direction:column;gap:32px;">${rowsHtml}</div>`);
@@ -429,7 +429,7 @@ function appendTickerNewsSection(newsFeed, ticker, articles) {
             }
         } else {
             // Start a new row
-            wrapper.append(`<div class="grid grid-cols-3 gap-5"><div>${html}</div><div></div><div></div></div>`);
+            wrapper.append(`<div class="news-row-grid"><div>${html}</div><div></div><div></div></div>`);
         }
     } else {
         newsFeed.append(html);

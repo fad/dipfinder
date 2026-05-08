@@ -6,8 +6,8 @@
                     <p class="text-sm font-medium text-gray-500">Research</p>
                     <h2 class="mt-1 text-xl font-bold text-gray-900">Stock Screener</h2>
                     <form id="screener-search-form" class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
-                        <input type="text" id="screener-stock-input" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Search stock symbol">
-                        <button type="submit" id="screener-search-btn" class="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">Search</button>
+                        <input type="text" id="screener-stock-input" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Search stock symbol">
+                        <button type="submit" id="screener-search-btn" class="mt-2 w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700">Search</button>
                         <span id="screener-loading" class="block text-center text-blue-500 font-semibold"></span>
                     </form>
                     <!-- Only Company Overview in the search section -->
@@ -24,13 +24,13 @@
                     </div>
                     <span id="screener-sma-loading" class="block text-center text-blue-500 font-semibold"></span>
                     <div class="flex gap-1 mb-3">
-                        <button class="tf-btn text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200 transition bg-white text-gray-600 hover:border-blue-400" data-tf="1M" onclick="applyTimeframe('1M')">1M</button>
-                        <button class="tf-btn text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200 transition bg-white text-gray-600 hover:border-blue-400" data-tf="3M" onclick="applyTimeframe('3M')">3M</button>
-                        <button class="tf-btn text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200 transition bg-white text-gray-600 hover:border-blue-400" data-tf="6M" onclick="applyTimeframe('6M')">6M</button>
-                        <button class="tf-btn text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200 transition bg-blue-500 text-white" data-tf="1Y" onclick="applyTimeframe('1Y')">1Y</button>
-                        <button class="tf-btn text-xs font-semibold px-2.5 py-1 rounded-md border border-gray-200 transition bg-white text-gray-600 hover:border-blue-400" data-tf="MAX" onclick="applyTimeframe('MAX')">Max</button>
+                        <button class="tf-btn text-xs font-semibold px-3 py-2.5 rounded-md border border-gray-200 transition bg-white text-gray-600 hover:border-blue-400" data-tf="1M" onclick="applyTimeframe('1M')">1M</button>
+                        <button class="tf-btn text-xs font-semibold px-3 py-2.5 rounded-md border border-gray-200 transition bg-white text-gray-600 hover:border-blue-400" data-tf="3M" onclick="applyTimeframe('3M')">3M</button>
+                        <button class="tf-btn text-xs font-semibold px-3 py-2.5 rounded-md border border-gray-200 transition bg-white text-gray-600 hover:border-blue-400" data-tf="6M" onclick="applyTimeframe('6M')">6M</button>
+                        <button class="tf-btn text-xs font-semibold px-3 py-2.5 rounded-md border border-gray-200 transition bg-blue-500 text-white" data-tf="1Y" onclick="applyTimeframe('1Y')">1Y</button>
+                        <button class="tf-btn text-xs font-semibold px-3 py-2.5 rounded-md border border-gray-200 transition bg-white text-gray-600 hover:border-blue-400" data-tf="MAX" onclick="applyTimeframe('MAX')">Max</button>
                     </div>
-                    <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4" style="height: 500px;">
+                    <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4" style="height: clamp(280px, 45vw, 500px);">
                         <canvas id="screener-chart"></canvas>
                     </div>
                 </div>

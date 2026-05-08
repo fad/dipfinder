@@ -437,7 +437,7 @@ window.initializeScreener = function(params) {
             <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="mb-1 text-xl font-bold text-gray-900">Financial History</h2>
                 <p class="mb-5 text-sm text-gray-500">Annual figures from SEC filings.</p>
-                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     ${charts.map(c => `
                         <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
                             <div class="mb-3 flex items-center gap-2">
@@ -451,7 +451,7 @@ window.initializeScreener = function(params) {
                                     </div>` : `<p class="text-xs text-gray-400">${c.subtitle}</p>`}
                                 </div>
                             </div>
-                            <div style="height:160px"><canvas id="${c.id}"></canvas></div>
+                            <div style="height:200px"><canvas id="${c.id}"></canvas></div>
                         </div>
                     `).join('')}
                 </div>
