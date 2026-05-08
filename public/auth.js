@@ -447,6 +447,8 @@ const AuthManager = (function() {
         document.getElementById("register-form").classList.add("hidden");
         document.getElementById("forgot-form").classList.add("hidden");
         document.getElementById("forgot-ok-btn").classList.add("hidden");
+        document.getElementById("magic-form").classList.add("hidden");
+        document.getElementById("magic-ok").classList.add("hidden");
         document.getElementById("captcha-container").classList.add("hidden");
         
         // Reset registration checkboxes
@@ -505,7 +507,7 @@ const AuthManager = (function() {
         resetAuthForms();
         document.getElementById("auth-options").classList.add("hidden");
         document.getElementById("forgot-form").classList.remove("hidden");
-        
+
         // Position CAPTCHA before the forgot button
         const captchaContainer = document.getElementById("captcha-container");
         const forgotBtn = document.getElementById("forgot-btn");
@@ -513,6 +515,55 @@ const AuthManager = (function() {
             forgotBtn.parentNode.insertBefore(captchaContainer, forgotBtn);
             captchaContainer.classList.remove("hidden");
             if (window.TurnstileConfig) window.TurnstileConfig.ensureLoaded();
+        }
+    }
+
+    function showMagicForm() {
+        resetAuthForms();
+        document.getElementById("auth-options").classList.add("hidden");
+        document.getElementById("magic-form").classList.remove("hidden");
+
+        // Position CAPTCHA before the magic button
+        const captchaContainer = document.getElementById("captcha-container");
+        const magicBtn = document.getElementById("magic-btn");
+        if (captchaContainer && magicBtn) {
+            magicBtn.parentNode.insertBefore(captchaContainer, magicBtn);
+            captchaContainer.classList.remove("hidden");
+            if (window.TurnstileConfig) window.TurnstileConfig.ensureLoaded();
+        }
+    }
+
+    async function requestMagicLink() {
+        let captchaResponse = null;
+        if (typeof turnstile !== 'undefined') {
+            captchaResponse = turnstile.getResponse();
+        }
+
+        if (!captchaResponse) {
+            showAuthError("Please complete the CAPTCHA verification");
+            return;
+        }
+
+        const email = document.getElementById("magic-email").value;
+        const btn = document.getElementById("magic-btn");
+        btn.disabled = true;
+        btn.textContent = "Sending...";
+
+        try {
+            const res = await fetch(`${BASE_URL}/api/user?action=request-magic-link`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, captchaToken: captchaResponse }),
+            });
+            // Always show success to avoid leaking whether email exists
+            document.getElementById("magic-form").classList.add("hidden");
+            document.getElementById("magic-ok").classList.remove("hidden");
+            showAuthSuccess("");
+        } catch (e) {
+            showAuthError("Network error. Please try again.");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Send sign-in link";
         }
     }
     
@@ -662,6 +713,8 @@ const AuthManager = (function() {
         showLoginForm: showLoginForm,
         showRegisterForm: showRegisterForm,
         showForgotForm: showForgotForm,
+        showMagicForm: showMagicForm,
+        requestMagicLink: requestMagicLink,
         closeAuthModal: closeAuthModal,
         resetAuthForms: resetAuthForms,
         showAuthError: showAuthError,
@@ -688,6 +741,8 @@ window.logout = AuthManager.logout;
 window.showLoginForm = AuthManager.showLoginForm;
 window.showRegisterForm = AuthManager.showRegisterForm;
 window.showForgotForm = AuthManager.showForgotForm;
+window.showMagicForm = AuthManager.showMagicForm;
+window.requestMagicLink = AuthManager.requestMagicLink;
 window.closeAuthModal = AuthManager.closeAuthModal;
 window.resetAuthForms = AuthManager.resetAuthForms;
 window.showAuthError = AuthManager.showAuthError;
@@ -751,6 +806,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (registerForm)      registerForm.addEventListener('submit', function(e) { e.preventDefault(); AuthManager.register(); });
     if (registerBtn)       registerBtn.addEventListener('click', AuthManager.register);
     if (registerCancelBtn) registerCancelBtn.addEventListener('click', AuthManager.closeAuthModal);
+
+    // ── Magic link form ───────────────────────────────────────────────────────
+    const magicLinkBtn   = document.getElementById('magic-link-btn');
+    const magicForm      = document.getElementById('magic-form');
+    const magicBackBtn   = document.getElementById('magic-back-btn');
+    const magicOkBackBtn = document.getElementById('magic-ok-back-btn');
+    if (magicLinkBtn)   magicLinkBtn.addEventListener('click', AuthManager.showMagicForm);
+    if (magicForm)      magicForm.addEventListener('submit', function(e) { e.preventDefault(); AuthManager.requestMagicLink(); });
+    if (magicBackBtn)   magicBackBtn.addEventListener('click', AuthManager.showLoginForm);
+    if (magicOkBackBtn) magicOkBackBtn.addEventListener('click', AuthManager.showLoginForm);
 
     // ── Logout ────────────────────────────────────────────────────────────────
     const logoutBtn = document.getElementById('logout-btn');

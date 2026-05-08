@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase } from './lib/mongodb';
-import { sendPasswordChangeNotification, sendPasswordResetEmail } from './lib/email';
+import { sendPasswordChangeNotification, sendPasswordResetEmail, sendMagicLinkEmail } from './lib/email';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -50,6 +50,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       case 'verify-captcha':
         return await handleVerifyCaptcha(req, res);
+
+      case 'request-magic-link':
+        return await handleRequestMagicLink(req, res);
+
+      case 'verify-magic-link':
+        return await handleVerifyMagicLink(req, res);
 
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
@@ -704,6 +710,81 @@ async function handleVerifyCaptcha(req: VercelRequest, res: VercelResponse) {
     console.error('Captcha verification error:', error);
     return res.status(500).json({ error: 'Captcha verification service error' });
   }
+}
+
+// Handle magic link request
+async function handleRequestMagicLink(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { email: rawEmail, captchaToken } = req.body;
+  const email = sanitizeInput(rawEmail || '').toLowerCase();
+
+  if (!email || !validateEmail(email)) {
+    return res.status(400).json({ error: 'Valid email is required' });
+  }
+
+  if (!captchaToken) {
+    return res.status(400).json({ error: 'CAPTCHA verification is required' });
+  }
+
+  const isCaptchaValid = await verifyCaptcha(captchaToken);
+  if (!isCaptchaValid) {
+    return res.status(400).json({ error: 'CAPTCHA verification failed' });
+  }
+
+  const db = await connectToDatabase();
+  const user = await db.collection('users').findOne({ email });
+
+  // Always respond with success — don't leak whether email exists
+  if (!user) {
+    return res.status(200).json({ msg: 'If that email exists, a sign-in link is on its way.' });
+  }
+
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const token = jwt.sign({ email, purpose: 'magic-link' }, JWT_SECRET, { expiresIn: '15m' });
+  const magicUrl = `${FRONTEND_URL}/app?magic=${token}`;
+
+  await sendMagicLinkEmail(email, magicUrl);
+
+  return res.status(200).json({ msg: 'If that email exists, a sign-in link is on its way.' });
+}
+
+// Handle magic link verification
+async function handleVerifyMagicLink(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { token: magicToken } = req.body;
+  if (!magicToken) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(magicToken, JWT_SECRET) as any;
+  } catch {
+    return res.status(401).json({ error: 'Sign-in link is invalid or has expired. Please request a new one.' });
+  }
+
+  if (decoded.purpose !== 'magic-link') {
+    return res.status(401).json({ error: 'Invalid token purpose' });
+  }
+
+  const db = await connectToDatabase();
+  const user = await db.collection('users').findOne({ email: decoded.email });
+  if (!user) {
+    return res.status(401).json({ error: 'Account not found' });
+  }
+
+  const authToken = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+
+  return res.status(200).json({
+    token: authToken,
+    user: { id: user._id, email: user.email, name: user.name }
+  });
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────

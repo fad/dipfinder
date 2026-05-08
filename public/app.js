@@ -260,4 +260,43 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modal) modal.classList.remove('hidden');
         }, 150);
     }
+
+    // Handle magic sign-in link (?magic=TOKEN)
+    const magicToken = new URLSearchParams(window.location.search).get('magic');
+    if (magicToken) {
+        // Strip token from URL immediately so it isn't shared or bookmarked
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        (async () => {
+            try {
+                const res = await fetch('/api/user?action=verify-magic-link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: magicToken }),
+                });
+                const data = await res.json();
+                if (res.ok && data.token) {
+                    localStorage.setItem('token', data.token);
+                    const userData = data.user || { email: data.user?.email };
+                    localStorage.setItem('lastAuthState', JSON.stringify({ isAuthenticated: true, user: userData }));
+                    if (window.AuthManager) {
+                        window.AuthManager.showLoggedInUI(userData);
+                        window.AuthManager.checkAuthStatus();
+                    }
+                } else {
+                    // Show auth modal with error so user can try again
+                    setTimeout(() => {
+                        const modal = document.getElementById('auth-modal');
+                        if (modal) modal.classList.remove('hidden');
+                        if (window.AuthManager) {
+                            window.AuthManager.showMagicForm();
+                            window.AuthManager.showAuthError(data.error || 'Sign-in link is invalid or has expired. Please request a new one.');
+                        }
+                    }, 150);
+                }
+            } catch (e) {
+                console.error('Magic link verification failed:', e);
+            }
+        })();
+    }
 });

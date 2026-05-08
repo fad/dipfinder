@@ -207,6 +207,53 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<boo
   });
 }
 
+/**
+ * Send magic sign-in link email
+ */
+export async function sendMagicLinkEmail(email: string, magicUrl: string): Promise<boolean> {
+  const subject = 'Your Dip Finder sign-in link';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #1a365d; margin: 0;">Dip Finder</h1>
+      </div>
+
+      <div style="background-color: #f7fafc; padding: 24px; border-radius: 8px; border-left: 4px solid #4299e1;">
+        <h2 style="color: #2d3748; margin-top: 0;">Sign in to Dip Finder</h2>
+        <p style="color: #4a5568; line-height: 1.6;">
+          Click the button below to sign in. This link expires in 15 minutes and can only be used once.
+        </p>
+      </div>
+
+      <div style="margin-top: 30px; text-align: center;">
+        <a href="${magicUrl}"
+           style="display: inline-block; background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+          Sign In to Dip Finder
+        </a>
+      </div>
+
+      <div style="margin-top: 24px; padding: 16px; background-color: #fffbeb; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <p style="color: #92400e; margin: 0; font-size: 14px; line-height: 1.6;">
+          If you didn't request this link, you can safely ignore this email. Someone may have entered your email by mistake.
+        </p>
+      </div>
+
+      <div style="margin-top: 30px; text-align: center; color: #718096; font-size: 14px;">
+        <p>
+          This is an automated email from Dip Finder.<br>
+          Please do not reply to this email.
+        </p>
+        <p style="margin-top: 10px;">
+          Link not working? Copy and paste:<br>
+          <span style="color: #4299e1; word-break: break-all;">${magicUrl}</span>
+        </p>
+      </div>
+    </div>
+  `;
+
+  return await sendEmail({ to: email, subject, html });
+}
+
 export interface NewsletterStockRow {
   symbol: string;
   companyName: string;
