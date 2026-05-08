@@ -199,10 +199,15 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
         .map((s: any) => (s as string).toUpperCase())
         .slice(0, 10)
     : [];
-  if (watchlist.length === 0) {
-    const settingsDoc = await db.collection('settings').findOne({ key: 'initialStocks' });
-    watchlist = settingsDoc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
-  }
+
+  const [stocksDoc, smaDoc, orientationDoc] = await Promise.all([
+    watchlist.length === 0 ? db.collection('settings').findOne({ key: 'initialStocks' }) : Promise.resolve(null),
+    db.collection('settings').findOne({ key: 'defaultSmaPeriod' }),
+    db.collection('settings').findOne({ key: 'defaultChartOrientation' }),
+  ]);
+  if (watchlist.length === 0) watchlist = stocksDoc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
+  const defaultSmaPeriod: number = smaDoc?.value ?? 200;
+  const defaultChartOrientation: string = orientationDoc?.value ?? 'x';
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -216,6 +221,8 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     termsAcceptedDate: new Date(),
     newsletterSubscribed: Boolean(newsletterSubscribed),
     watchlist,
+    smaPeriod: defaultSmaPeriod,
+    chartOrientation: defaultChartOrientation,
   };
 
   const result = await usersCollection.insertOne(newUser);
@@ -843,10 +850,14 @@ async function handleNewsletterSubscribe(req: VercelRequest, res: VercelResponse
   let safeWatchlist: string[] = Array.isArray(watchlist)
     ? watchlist.slice(0, 10).map((s: any) => String(s).toUpperCase().trim()).filter(Boolean)
     : [];
-  if (safeWatchlist.length === 0) {
-    const settingsDoc = await db.collection('settings').findOne({ key: 'initialStocks' });
-    safeWatchlist = settingsDoc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
-  }
+  const [stocksDoc, smaDoc, orientationDoc] = await Promise.all([
+    safeWatchlist.length === 0 ? db.collection('settings').findOne({ key: 'initialStocks' }) : Promise.resolve(null),
+    db.collection('settings').findOne({ key: 'defaultSmaPeriod' }),
+    db.collection('settings').findOne({ key: 'defaultChartOrientation' }),
+  ]);
+  if (safeWatchlist.length === 0) safeWatchlist = stocksDoc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
+  const defaultSmaPeriod: number = smaDoc?.value ?? 200;
+  const defaultChartOrientation: string = orientationDoc?.value ?? 'x';
 
   const newUser = {
     email,
@@ -860,7 +871,8 @@ async function handleNewsletterSubscribe(req: VercelRequest, res: VercelResponse
     sundayBriefSubscribed: true,
     sundayBriefSubscribedAt: new Date(),
     watchlist: safeWatchlist,
-    smaPeriod: 50,
+    smaPeriod: defaultSmaPeriod,
+    chartOrientation: defaultChartOrientation,
     onboardingEmailSentAt: new Date(), // prevent cron duplication
   };
 

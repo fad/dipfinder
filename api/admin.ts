@@ -432,28 +432,59 @@ async function handleDeleteUser(req: VercelRequest, res: VercelResponse) {
 
 async function handleGetSettings(_req: VercelRequest, res: VercelResponse) {
   const db = await connectToDatabase();
-  const doc = await db.collection('settings').findOne({ key: 'initialStocks' });
-  const initialStocks: string[] = doc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
-  return res.status(200).json({ initialStocks });
+  const [stocksDoc, smaDoc, orientationDoc] = await Promise.all([
+    db.collection('settings').findOne({ key: 'initialStocks' }),
+    db.collection('settings').findOne({ key: 'defaultSmaPeriod' }),
+    db.collection('settings').findOne({ key: 'defaultChartOrientation' }),
+  ]);
+  return res.status(200).json({
+    initialStocks: stocksDoc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'],
+    defaultSmaPeriod: smaDoc?.value ?? 200,
+    defaultChartOrientation: orientationDoc?.value ?? 'x',
+  });
 }
 
 const TICKER_RE_SETTINGS = /^[A-Z0-9.\-]{1,10}$/;
 
 async function handleSaveSettings(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { initialStocks } = req.body || {};
-  if (!Array.isArray(initialStocks)) return res.status(400).json({ error: 'initialStocks must be an array' });
-  const safe = (initialStocks as any[])
-    .filter((s: any) => typeof s === 'string' && TICKER_RE_SETTINGS.test(s.toUpperCase()))
-    .map((s: any) => (s as string).toUpperCase())
-    .slice(0, 20);
+  const { initialStocks, defaultSmaPeriod, defaultChartOrientation } = req.body || {};
   const db = await connectToDatabase();
-  await db.collection('settings').updateOne(
-    { key: 'initialStocks' },
-    { $set: { key: 'initialStocks', value: safe, updatedAt: new Date() } },
-    { upsert: true }
-  );
-  return res.status(200).json({ ok: true, initialStocks: safe });
+  const ops: Promise<any>[] = [];
+
+  if (Array.isArray(initialStocks)) {
+    const safe = (initialStocks as any[])
+      .filter((s: any) => typeof s === 'string' && TICKER_RE_SETTINGS.test(s.toUpperCase()))
+      .map((s: any) => (s as string).toUpperCase())
+      .slice(0, 20);
+    ops.push(db.collection('settings').updateOne(
+      { key: 'initialStocks' },
+      { $set: { key: 'initialStocks', value: safe, updatedAt: new Date() } },
+      { upsert: true }
+    ));
+  }
+
+  if (defaultSmaPeriod !== undefined) {
+    const period = Number(defaultSmaPeriod);
+    if (!Number.isFinite(period) || period <= 0) return res.status(400).json({ error: 'defaultSmaPeriod must be a positive number' });
+    ops.push(db.collection('settings').updateOne(
+      { key: 'defaultSmaPeriod' },
+      { $set: { key: 'defaultSmaPeriod', value: period, updatedAt: new Date() } },
+      { upsert: true }
+    ));
+  }
+
+  if (defaultChartOrientation !== undefined) {
+    if (defaultChartOrientation !== 'x' && defaultChartOrientation !== 'y') return res.status(400).json({ error: 'defaultChartOrientation must be x or y' });
+    ops.push(db.collection('settings').updateOne(
+      { key: 'defaultChartOrientation' },
+      { $set: { key: 'defaultChartOrientation', value: defaultChartOrientation, updatedAt: new Date() } },
+      { upsert: true }
+    ));
+  }
+
+  await Promise.all(ops);
+  return res.status(200).json({ ok: true });
 }
 
 async function handleTogglePro(req: VercelRequest, res: VercelResponse) {
