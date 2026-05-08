@@ -445,6 +445,7 @@ const CRON_DEFS = [
     description: 'Sends the weekly dip report to all subscribers.',
     endpoint: '/api/newsletter-send',
     method: 'POST',
+    vercelSchedule: 'Sundays at 14:00 UTC',
     defaultSchedule: { enabled: true, dayOfWeek: 0, hour: 14 },
   },
   {
@@ -453,6 +454,7 @@ const CRON_DEFS = [
     description: 'Verifies MongoDB, Yahoo Finance, Finnhub, and Resend connectivity. Emails admin on failure.',
     endpoint: '/api/health-check',
     method: 'GET',
+    vercelSchedule: 'Daily at 09:00 UTC',
     defaultSchedule: { enabled: true, hour: 9 },
   },
   {
@@ -461,6 +463,7 @@ const CRON_DEFS = [
     description: 'Sends welcome emails to new Sunday Brief subscribers who have not yet received one.',
     endpoint: '/api/newsletter-onboarding',
     method: 'POST',
+    vercelSchedule: 'Daily at 10:00 UTC',
     defaultSchedule: { enabled: true, hour: 10 },
   },
 ] as const;

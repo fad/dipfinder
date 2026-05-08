@@ -347,7 +347,7 @@
     <!-- Crons tab -->
     <div id="tab-crons" class="tab-panel">
       <div id="crons-list" style="display:flex; flex-direction:column; gap:1rem; max-width:680px;">
-        <p style="color:#64748b; font-size:0.8rem; margin:0;">Vercel fires each cron hourly. The handler only runs when the UTC day/hour matches the schedule below.</p>
+        <p style="color:#64748b; font-size:0.8rem; margin:0;">Scheduled jobs run automatically at the times shown. Use "Run now" to trigger manually at any time.</p>
       </div>
     </div>
 
@@ -1099,12 +1099,8 @@
 
       return `
       <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.25rem 1.5rem;" id="cron-card-${cron.id}">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-          <div>
-            <p style="color:#f1f5f9;font-size:0.9rem;font-weight:700;margin:0 0 0.2rem;">${cron.name}</p>
-            <p style="color:#64748b;font-size:0.78rem;margin:0 0 0.75rem;line-height:1.5;">${cron.description}</p>
-            <p style="color:#475569;font-size:0.72rem;margin:0;">Last run: <span style="color:#94a3b8;">${lastRunStr}${isManual}</span>${lastRunResult ? ` &mdash; <span style="font-family:monospace;color:#64748b;">${lastRunResult}</span>` : ''}</p>
-          </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+          <p style="color:#f1f5f9;font-size:0.9rem;font-weight:700;margin:0;">${cron.name}</p>
           <div style="display:flex;gap:0.5rem;flex-shrink:0;align-items:center;">
             <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.78rem;color:#94a3b8;">
               <input type="checkbox" id="cron-enabled-${cron.id}" ${s.enabled!==false?'checked':''} onchange="saveCronSchedule('${cron.id}')"
@@ -1112,9 +1108,12 @@
               Enabled
             </label>
             <button class="btn btn-sky" onclick="triggerCron('${cron.id}')" style="padding:0.35rem 0.9rem;font-size:0.78rem;">Run now</button>
-            <span id="cron-status-${cron.id}" style="font-size:0.75rem;color:#94a3b8;"></span>
+            <span id="cron-status-${cron.id}" style="font-size:0.75rem;color:#94a3b8;min-width:3rem;"></span>
           </div>
         </div>
+        <p style="color:#64748b;font-size:0.78rem;margin:0.4rem 0 0.3rem;line-height:1.5;">${cron.description}</p>
+        <p style="color:#475569;font-size:0.72rem;margin:0 0 0.2rem;">Runs: <span style="color:#64748b;">${cron.vercelSchedule}</span></p>
+        <p style="color:#475569;font-size:0.72rem;margin:0;">Last run: <span style="color:#94a3b8;">${lastRunStr}${isManual}</span>${lastRunResult ? ` &mdash; <span style="font-family:monospace;color:#64748b;">${lastRunResult}</span>` : ''}</p>
         <div id="cron-output-${cron.id}" style="display:none;margin-top:0.75rem;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:0.6rem 0.85rem;font-family:monospace;font-size:0.72rem;color:#94a3b8;white-space:pre-wrap;max-height:120px;overflow-y:auto;"></div>
       </div>`;
     }
