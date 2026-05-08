@@ -1190,8 +1190,9 @@ function initNewsletterPromo() {
     const isAuth = window.AuthManager && window.AuthManager.isAuthenticated;
     const token = localStorage.getItem('token');
 
-    // Guest — leave promo as-is (editable email input)
+    // Guest — show promo (editable email input)
     if (!isAuth || !token) {
+        promo.style.display = '';
         newsletterPromoInitialized = true;
         return;
     }
@@ -1208,6 +1209,9 @@ function initNewsletterPromo() {
                 promo.remove();
                 return;
             }
+
+            // Not yet subscribed — reveal promo and prefill email
+            promo.style.display = '';
 
             // Prefill email, disable input, show edit link
             const input = document.getElementById('newsletter-email-v2');
