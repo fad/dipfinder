@@ -687,17 +687,21 @@ function renderDashboardData(stockDataArray, period, tableBody) {
     }
 
     const isHorizontal = chartOrientation === 'y';
+    const isDark = document.documentElement.classList.contains('dark-mode');
+    const axisColor = isDark ? '#e5e7eb' : '#374151';
     const valueAxisCfg = {
         beginAtZero: true,
         grid: {
-            color:     ctx => ctx.tick.value === 0 ? 'rgba(17, 24, 39, 0.55)' : 'rgba(0, 0, 0, 0.08)',
+            color:     ctx => ctx.tick.value === 0
+                ? (isDark ? 'rgba(255,255,255,0.6)' : 'rgba(17,24,39,0.55)')
+                : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
             lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1
         },
-        ticks: { color: '#374151', font: { size: 12 }, callback: v => `${v}%` }
+        ticks: { color: axisColor, font: { size: 12 }, callback: v => `${v}%` }
     };
     const labelAxisCfg = {
         grid: { display: false },
-        ticks: { color: '#374151', font: { size: 12 } }
+        ticks: { color: axisColor, font: { size: 12 } }
     };
 
     chart = new Chart(chartElement.getContext('2d'), {
