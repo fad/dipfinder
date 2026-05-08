@@ -143,6 +143,10 @@ curl https://dipfinder.com/api/check
 
 ## SOPs
 
+### Writing copy
+
+Always use a regular hyphen (`-`) instead of an em dash (`—`) in all user-facing text. No exceptions — apply this when writing or editing any copy in HTML, JS, or email templates.
+
 ### Adding a new API endpoint
 
 1. Create `api/<name>.ts` with a default export `handler(req, res)`.

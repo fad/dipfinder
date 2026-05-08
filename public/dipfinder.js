@@ -1221,7 +1221,7 @@ function initNewsletterPromo() {
                 const editLink = document.createElement('button');
                 editLink.type = 'button';
                 editLink.textContent = 'Update my email';
-                editLink.className = 'mt-1.5 text-xs text-teal-700 hover:text-teal-900 underline underline-offset-2 self-start';
+                editLink.className = 'mt-1.5 text-xs text-teal-700 hover:text-teal-900 underline underline-offset-2 block w-full text-center';
                 editLink.addEventListener('click', () => {
                     input.disabled = false;
                     input.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed', 'opacity-60', 'select-none');
