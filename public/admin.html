@@ -312,7 +312,21 @@
               <button onclick="execFmt('removeFormat')" title="Remove formatting" style="font-size:0.7rem;">Clear</button>
             </div>
             <span style="flex:1"></span>
-            <span style="font-size:0.68rem; color:#475569; white-space:nowrap;">{{name}} {{email}} {{resetUrl}} {{magicUrl}} {{setPasswordBlock}} {{watchlistChartBlock}}</span>
+            <div style="position:relative;">
+              <button onclick="togglePlaceholders()" style="background:#1e293b; border:1px solid #334155; color:#94a3b8; border-radius:6px; padding:0.2rem 0.6rem; font-size:0.72rem; font-weight:600; cursor:pointer;">Placeholders</button>
+              <div id="placeholders-popup" style="display:none; position:absolute; top:calc(100% + 6px); right:0; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.75rem 1rem; z-index:100; min-width:320px; box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+                <p style="color:#94a3b8; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0.5rem;">Available placeholders</p>
+                <table style="border-collapse:collapse; font-size:0.75rem; width:100%;">
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{name}}</td><td style="color:#94a3b8;">Recipient first name</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{email}}</td><td style="color:#94a3b8;">Recipient email address</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{resetUrl}}</td><td style="color:#94a3b8;">Password reset link (password-reset template)</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{magicUrl}}</td><td style="color:#94a3b8;">Magic sign-in link (magic-link template)</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{unsubscribeUrl}}</td><td style="color:#94a3b8;">Newsletter unsubscribe link</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{setPasswordBlock}}</td><td style="color:#94a3b8;">Set-password CTA (onboarding, newsletter signup)</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{watchlistChartBlock}}</td><td style="color:#94a3b8;">Watchlist bar chart image (onboarding)</td></tr>
+                </table>
+              </div>
+            </div>
           </div>
           <textarea id="tpl-html" oninput="schedulePreview()" spellcheck="false"></textarea>
           <iframe  id="tpl-wysiwyg-frame"></iframe>
@@ -994,6 +1008,18 @@
         status.textContent = 'Error: ' + e.message; status.style.color = '#f87171';
       }
     }
+
+    function togglePlaceholders() {
+      const popup = document.getElementById('placeholders-popup');
+      if (!popup) return;
+      popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', function(e) {
+      const popup = document.getElementById('placeholders-popup');
+      if (popup && popup.style.display !== 'none' && !popup.parentElement.contains(e.target)) {
+        popup.style.display = 'none';
+      }
+    });
 
     async function triggerOnboarding() {
       const out = document.getElementById('test-stocks-output');
