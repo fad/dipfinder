@@ -100,8 +100,10 @@
       <div class="actions">
         <button class="btn btn-sky" id="send-newsletter-btn" onclick="sendTestNewsletter()">Send Test Newsletter</button>
         <button class="btn" style="background:#334155; color:#e2e8f0;" onclick="previewNewsletter()">Preview Newsletter</button>
+        <button class="btn" style="background:#1e3a2f; color:#4ade80; border:1px solid #166534;" onclick="testStocks()">Test Stock Fetch</button>
         <span id="newsletter-status"></span>
       </div>
+      <pre id="test-stocks-output" style="display:none; margin-top:1rem; background:#0f1a12; border:1px solid #166534; border-radius:8px; padding:1rem; font-size:0.75rem; color:#86efac; white-space:pre-wrap; word-break:break-all;"></pre>
     </div>
 
     <!-- Users tab -->
@@ -340,6 +342,28 @@
       } catch (e) {
         status.textContent = 'Network error: ' + e.message;
         status.style.color = '#f87171';
+      }
+    }
+
+    async function testStocks() {
+      const out = document.getElementById('test-stocks-output');
+      out.style.display = 'block';
+      out.textContent = 'Running tests…';
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=test-stocks', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+        // Colour the output red if anything failed
+        const anyFailed = Object.values(data).some(v => v && typeof v === 'object' && v.ok === false);
+        out.style.borderColor = anyFailed ? '#dc2626' : '#166534';
+        out.style.color = anyFailed ? '#fca5a5' : '#86efac';
+      } catch (e) {
+        out.textContent = 'Network error: ' + e.message;
+        out.style.borderColor = '#dc2626';
+        out.style.color = '#fca5a5';
       }
     }
 

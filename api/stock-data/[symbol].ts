@@ -347,7 +347,8 @@ async function handleStockPriceInternal(db: any, symbol: string) {
   }
 
   // Use yahoo-finance2 to avoid Yahoo Finance's 429 on plain HTTP requests
-  const chartData = await yahooFinance.chart(symbol, { period1: '18monthsAgo', interval: '1d' });
+  const period1 = new Date(Date.now() - 548 * 24 * 60 * 60 * 1000); // ~18 months
+  const chartData = await yahooFinance.chart(symbol, { period1, interval: '1d' });
   const quotes: any[] = chartData?.quotes ?? [];
   const closes = quotes.map((q: any) => q.close);
   const timestamps = quotes.map((q: any) => Math.floor(new Date(q.date).getTime() / 1000));

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 import { connectToDatabase } from './lib/mongodb';
+import { yahooFinance } from './lib/stocks';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -33,11 +34,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (action) {
       case 'list-users':
         return await handleListUsers(req, res);
+      case 'test-stocks':
+        return await handleTestStocks(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
-  } catch {
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Internal server error', detail: err?.message });
   }
 }
 
@@ -67,4 +70,52 @@ async function handleListUsers(_req: VercelRequest, res: VercelResponse) {
     .toArray();
 
   return res.status(200).json({ users });
+}
+
+async function handleTestStocks(_req: VercelRequest, res: VercelResponse) {
+  const results: Record<string, any> = {};
+
+  // 1. MongoDB connectivity
+  try {
+    const db = await connectToDatabase();
+    const colNames = (await db.listCollections().toArray()).map((c: any) => c.name);
+    results.mongodb = { ok: true, collections: colNames };
+  } catch (err: any) {
+    results.mongodb = { ok: false, error: err?.message };
+  }
+
+  // 2. Yahoo Finance via yahoo-finance2
+  const period1 = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000); // 10 days ago
+  try {
+    const chart = await yahooFinance.chart('AAPL', { period1, interval: '1d' });
+    const quotes: any[] = chart?.quotes ?? [];
+    const closes = quotes.map((q: any) => q.close).filter((p: any) => Number.isFinite(p));
+    results.yahooFinance = {
+      ok: true,
+      symbol: chart?.meta?.symbol,
+      quotesReturned: quotes.length,
+      closesFiltered: closes.length,
+      lastClose: closes[closes.length - 1] ?? null,
+      metaKeys: Object.keys(chart?.meta ?? {}),
+    };
+  } catch (err: any) {
+    results.yahooFinance = {
+      ok: false,
+      error: err?.message,
+      stack: err?.stack?.split('\n').slice(0, 6).join('\n'),
+    };
+  }
+
+  // 3. batch-stocks cache check
+  try {
+    const db = await connectToDatabase();
+    const doc = await db.collection('dashboardStocks').findOne({ cacheKey: 'dashboard-stock-AAPL' });
+    results.dashboardCache = doc
+      ? { ok: true, age_minutes: Math.round((Date.now() - doc.timestamp) / 60000), keys: Object.keys(doc.data ?? {}) }
+      : { ok: false, note: 'no cache entry for AAPL' };
+  } catch (err: any) {
+    results.dashboardCache = { ok: false, error: err?.message };
+  }
+
+  return res.status(200).json(results);
 }

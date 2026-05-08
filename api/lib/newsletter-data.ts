@@ -62,7 +62,8 @@ export async function fetchStockData(symbol: string, db: any): Promise<Dashboard
     return doc.data as DashboardStockCache;
   }
 
-  const chartData = await yahooFinance.chart(symbol.toUpperCase(), { period1: '200daysAgo', interval: '1d' });
+  const period1 = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000);
+  const chartData = await yahooFinance.chart(symbol.toUpperCase(), { period1, interval: '1d' });
   const closes: number[] = (chartData?.quotes ?? [])
     .map((q: any) => q.close)
     .filter((p: unknown) => Number.isFinite(p));

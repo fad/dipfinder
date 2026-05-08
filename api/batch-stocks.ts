@@ -105,7 +105,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
-        const chartData = await yahooFinance.chart(normalizedSymbol, { period1: '200daysAgo', interval: '1d' });
+        const period1 = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000);
+        const chartData = await yahooFinance.chart(normalizedSymbol, { period1, interval: '1d' });
         dashboardStock = getCachedDashboardStock(chartData);
 
         if (!dashboardStock) {
