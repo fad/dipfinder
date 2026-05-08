@@ -1206,22 +1206,55 @@ function updateNewsletterEmptyState() {
 (function() {
     document.addEventListener('click', function(e) {
         if (!e.target.matches('#newsletter-submit-v2')) return;
-        const input = document.getElementById('newsletter-email-v2');
-        const promo = document.getElementById('newsletter-promo');
-        if (!input || !promo) return;
-        window.umami?.track('newsletter_subscribe', { hasEmail: !!input.value.trim() });
+        const input   = document.getElementById('newsletter-email-v2');
+        const errMsg  = document.getElementById('newsletter-email-error');
+        const form    = document.getElementById('newsletter-form-content');
+        const confirm = document.getElementById('newsletter-confirm-content');
+        const promo   = document.getElementById('newsletter-promo');
+        if (!input || !form || !confirm || !promo) return;
 
-        // Replace card contents with confirmation, then fade out and remove
-        promo.style.transition = 'opacity 0.5s ease';
-        promo.innerHTML = `
-            <div class="flex items-center justify-center py-10 px-6">
-                <p class="text-xl font-bold text-gray-900 text-center" style="font-family:'Lora',Georgia,serif;">You're on the list. See you Sunday.</p>
-            </div>`;
+        // Validate email format
+        if (!input.value.trim() || !input.checkValidity()) {
+            input.classList.add('border-red-400', 'ring-2', 'ring-red-100');
+            input.classList.remove('border-gray-200');
+            if (errMsg) errMsg.classList.remove('hidden');
+            input.focus();
+            return;
+        }
 
+        // Clear any error state
+        input.classList.remove('border-red-400', 'ring-2', 'ring-red-100');
+        input.classList.add('border-gray-200');
+        if (errMsg) errMsg.classList.add('hidden');
+
+        window.umami?.track('newsletter_subscribe', { hasEmail: true });
+
+        // Fade out form, fade in confirmation
+        form.style.opacity = '0';
+        form.style.pointerEvents = 'none';
         setTimeout(() => {
+            confirm.style.opacity = '1';
+            confirm.style.pointerEvents = 'none';
+        }, 400);
+
+        // Fade out and remove the whole card after a moment
+        setTimeout(() => {
+            promo.style.transition = 'opacity 0.6s ease';
             promo.style.opacity = '0';
-            setTimeout(() => promo.remove(), 500);
-        }, 3000);
+            setTimeout(() => promo.remove(), 600);
+        }, 4000);
+    });
+
+    // Clear error state as soon as the user starts correcting the email
+    document.addEventListener('input', function(e) {
+        if (!e.target.matches('#newsletter-email-v2')) return;
+        const input  = document.getElementById('newsletter-email-v2');
+        const errMsg = document.getElementById('newsletter-email-error');
+        if (input && input.checkValidity()) {
+            input.classList.remove('border-red-400', 'ring-2', 'ring-red-100');
+            input.classList.add('border-gray-200');
+            if (errMsg) errMsg.classList.add('hidden');
+        }
     });
 })();
 
