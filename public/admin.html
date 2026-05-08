@@ -69,6 +69,9 @@
     .badge-fresh  { background: #14532d; color: #86efac; }
     .badge-stale  { background: #422006; color: #fdba74; }
     .badge-missing { background: #450a0a; color: #fca5a5; }
+    .btn-red { background: #7f1d1d; color: #fca5a5; }
+    .btn-red:hover:not(:disabled) { opacity: 0.85; }
+    select option { background: #1e293b; }
   </style>
 </head>
 <body>
@@ -96,6 +99,7 @@
       <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
       <div class="tab" onclick="switchTab('cache')">Cache Health</div>
       <div class="tab" onclick="switchTab('users')">Signed-up Users</div>
+      <div class="tab" onclick="switchTab('templates')">Email Templates</div>
     </div>
 
     <!-- Dashboard tab -->
@@ -161,6 +165,35 @@
       <div class="pagination" id="pagination"></div>
       <p id="row-count"></p>
     </div>
+    <!-- Email Templates tab -->
+    <div id="tab-templates" class="tab-panel">
+      <div style="max-width:860px;">
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+          <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; white-space:nowrap;">Template:</label>
+          <select id="tpl-select" onchange="loadTemplate()" style="background:#1e293b; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.4rem 0.75rem; font-size:0.85rem; outline:none; cursor:pointer;"></select>
+          <button class="btn" style="background:#1e3a2f; color:#4ade80; border:1px solid #166534;" onclick="previewTemplate()">Preview</button>
+          <button class="btn btn-sky" onclick="sendTestTemplate()">Send Test to Admin</button>
+          <button class="btn" style="background:#1a2a3b; color:#7dd3fc; border:1px solid #1e40af;" onclick="triggerOnboarding()">Run Onboarding Cron</button>
+          <span id="tpl-status" style="font-size:0.8rem; color:#94a3b8;"></span>
+        </div>
+        <div style="margin-bottom:0.75rem;">
+          <label style="color:#94a3b8; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:0.35rem;">Subject</label>
+          <input id="tpl-subject" type="text" style="width:100%; background:#1e293b; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.5rem 0.75rem; font-size:0.85rem; outline:none; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:0.75rem;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.35rem;">
+            <label style="color:#94a3b8; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">HTML</label>
+            <span style="font-size:0.72rem; color:#64748b;">Use {{name}}, {{email}}, {{resetUrl}}, {{magicUrl}}, {{unsubscribeUrl}} for variables</span>
+          </div>
+          <textarea id="tpl-html" rows="24" style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:7px; color:#cbd5e1; padding:0.75rem; font-size:0.75rem; font-family:ui-monospace, 'Cascadia Code', monospace; line-height:1.5; outline:none; resize:vertical; box-sizing:border-box;"></textarea>
+        </div>
+        <div style="display:flex; gap:0.75rem;">
+          <button class="btn btn-sky" onclick="saveTemplate()">Save Template</button>
+          <button class="btn" style="background:#334155; color:#e2e8f0;" onclick="resetTemplate()">Reset to Default</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -176,6 +209,7 @@
       document.querySelector(`.tab[onclick="switchTab('${name}')"]`).classList.add('active');
       document.getElementById('tab-' + name).classList.add('active');
       if (name === 'cache' && cacheData.length === 0) loadCacheHealth();
+      if (name === 'templates' && !tplLoaded) loadTemplateList();
     }
 
     function fmt(dateStr) {
@@ -503,6 +537,147 @@
         out.textContent = 'Network error: ' + e.message;
         out.style.borderColor = '#dc2626';
         out.style.color = '#fca5a5';
+      }
+    }
+
+    // ── Email Templates ───────────────────────────────────────────────────────
+    let tplLoaded = false;
+    let tplKeys = [];
+
+    async function loadTemplateList() {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=list-templates', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        tplKeys = data.templates || [];
+        const sel = document.getElementById('tpl-select');
+        sel.innerHTML = tplKeys.map(t => `<option value="${t.key}">${t.name}${t.saved ? '' : ' (default)'}</option>`).join('');
+        tplLoaded = true;
+        if (tplKeys.length) loadTemplate();
+      } catch (e) {
+        document.getElementById('tpl-status').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    async function loadTemplate() {
+      const key = document.getElementById('tpl-select').value;
+      if (!key) return;
+      const token = localStorage.getItem('token');
+      document.getElementById('tpl-status').textContent = 'Loading…';
+      try {
+        const res = await fetch(`/api/admin?action=get-template&key=${encodeURIComponent(key)}`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        document.getElementById('tpl-subject').value = data.subject || '';
+        document.getElementById('tpl-html').value = data.html || '';
+        document.getElementById('tpl-status').textContent = '';
+      } catch (e) {
+        document.getElementById('tpl-status').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    async function saveTemplate() {
+      const key = document.getElementById('tpl-select').value;
+      const subject = document.getElementById('tpl-subject').value.trim();
+      const html = document.getElementById('tpl-html').value;
+      const status = document.getElementById('tpl-status');
+      if (!key || !subject || !html) { status.textContent = 'Subject and HTML are required.'; status.style.color = '#f87171'; return; }
+      const token = localStorage.getItem('token');
+      status.textContent = 'Saving…'; status.style.color = '#94a3b8';
+      try {
+        const res = await fetch('/api/admin?action=save-template', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, subject, html })
+        });
+        const data = await res.json();
+        status.textContent = data.ok ? 'Saved.' : ('Error: ' + data.error);
+        status.style.color = data.ok ? '#4ade80' : '#f87171';
+        // Refresh list to mark as saved
+        if (data.ok) loadTemplateList().then(() => { document.getElementById('tpl-select').value = key; });
+      } catch (e) {
+        status.textContent = 'Network error: ' + e.message; status.style.color = '#f87171';
+      }
+    }
+
+    async function previewTemplate() {
+      const key = document.getElementById('tpl-select').value;
+      const token = localStorage.getItem('token');
+      const status = document.getElementById('tpl-status');
+      status.textContent = 'Opening preview…'; status.style.color = '#94a3b8';
+      try {
+        const res = await fetch(`/api/admin?action=preview-template&key=${encodeURIComponent(key)}`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!res.ok) { status.textContent = 'Preview error: ' + res.status; status.style.color = '#f87171'; return; }
+        const html = await res.text();
+        const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+        window.open(url, '_blank');
+        status.textContent = '';
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message; status.style.color = '#f87171';
+      }
+    }
+
+    async function sendTestTemplate() {
+      const key = document.getElementById('tpl-select').value;
+      const token = localStorage.getItem('token');
+      const status = document.getElementById('tpl-status');
+      status.textContent = 'Sending…'; status.style.color = '#94a3b8';
+      try {
+        const res = await fetch('/api/admin?action=send-test-template', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key })
+        });
+        const data = await res.json();
+        status.textContent = data.ok ? `Sent to ${data.to}` : ('Error: ' + data.error);
+        status.style.color = data.ok ? '#4ade80' : '#f87171';
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message; status.style.color = '#f87171';
+      }
+    }
+
+    async function resetTemplate() {
+      if (!confirm('Reset this template to the built-in default? This will delete your custom edits.')) return;
+      const key = document.getElementById('tpl-select').value;
+      const token = localStorage.getItem('token');
+      const status = document.getElementById('tpl-status');
+      status.textContent = 'Resetting…'; status.style.color = '#94a3b8';
+      try {
+        // Delete from DB so next fetch re-seeds the default
+        const res = await fetch('/api/admin?action=save-template', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, _delete: true })
+        });
+        // Re-load template (will re-seed default from server)
+        await loadTemplate();
+        status.textContent = 'Reset to default.'; status.style.color = '#4ade80';
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message; status.style.color = '#f87171';
+      }
+    }
+
+    async function triggerOnboarding() {
+      const out = document.getElementById('test-stocks-output');
+      out.style.display = 'block';
+      out.textContent = 'Running onboarding cron…'; out.style.borderColor = '#1e40af'; out.style.color = '#7dd3fc';
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=trigger-onboarding', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+        out.style.borderColor = '#166534'; out.style.color = '#86efac';
+        // switch to dashboard to show output
+        switchTab('dashboard');
+      } catch (e) {
+        out.textContent = 'Network error: ' + e.message; out.style.borderColor = '#dc2626'; out.style.color = '#fca5a5';
       }
     }
 

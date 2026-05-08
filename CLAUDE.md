@@ -46,7 +46,8 @@ api/                  ← Serverless functions (one file = one route)
   newsletter-send.ts  ← Cron trigger + admin preview (Sunday 14:00 UTC)
   newsletter-preview.ts  ← Public tokenized newsletter view (/newsletter/:token)
   newsletter-unsubscribe.ts ← Unsubscribe via JWT token
-  admin.ts            ← Admin: list users
+  newsletter-onboarding.ts ← Daily cron (10:00 UTC): sends welcome email to new brief subscribers
+  admin.ts            ← Admin: list users, template management
   check.ts            ← Health check
 ```
 
@@ -57,9 +58,10 @@ api/                  ← Serverless functions (one file = one route)
 Vercel cron (Sunday 14:00 UTC) → `newsletter-send.ts` → reads user watchlist from `users` → `buildStockResults()` (Yahoo Finance + Finnhub, cached in MongoDB) → `buildNewsletterHtml()` → Resend API. View-online link points to `/newsletter/:token` → `newsletter-preview.ts`.
 
 **MongoDB collections:**
-- `users` — auth, watchlist, smaPeriod, chartOrientation, newsletterSubscribed
+- `users` — auth, watchlist, smaPeriod, chartOrientation, newsletterSubscribed, sundayBriefSubscribed, onboardingEmailSentAt
 - `dashboardStocks` — price/SMA cache (30-min TTL)
 - `news` — Finnhub news cache (3-hour TTL)
+- `emailTemplates` — editable email templates (onboarding, password-reset, magic-link); auto-seeded on first use
 
 ## Key files & entry points
 
@@ -146,6 +148,24 @@ curl https://dipfinder.com/api/check
 ### Writing copy
 
 Always use a regular hyphen (`-`) instead of an em dash (`—`) in all user-facing text. No exceptions — apply this when writing or editing any copy in HTML, JS, or email templates.
+
+### Email theme
+
+All transactional emails share a single branded shell built by `buildEmailHtml(bodyHtml, footerHtml?)` in `api/lib/email.ts`. The shell has:
+- **Header**: gradient banner (`#2563EB → #4F46E5 → #7C3AED`) with logo image + "Dip Finder" wordmark, centered
+- **Body area**: white card with 36px padding, `font-family: Arial, Helvetica, sans-serif`
+- **Footer**: `#94A3B8` small text, border-top separator
+- **Wrapper background**: `#F1F5F9` slate-100
+
+Body copy style: `font-size:15px; color:#374151; line-height:1.75`  
+CTA buttons: `background: linear-gradient(135deg,#2563EB,#4F46E5); color:#FFFFFF; padding:14px 32px; border-radius:8px; font-weight:700`  
+Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
+
+**Template variable substitution**: use `{{varName}}` placeholders in HTML (e.g. `{{name}}`, `{{resetUrl}}`, `{{magicUrl}}`). `renderTemplate(html, vars)` replaces them at send time.
+
+**DB-backed templates**: templates are stored in the MongoDB `emailTemplates` collection (key, name, subject, html, updatedAt). `getEmailTemplate(db, key)` auto-seeds the default if no DB record exists. Admin can edit all templates in the "Email Templates" tab of the admin panel. When updating the visual theme, update `buildEmailHtml` in `email.ts` AND delete the affected DB docs so they re-seed with the new shell next time (or resave via admin panel).
+
+**Known templates** (keys): `onboarding`, `password-reset`, `magic-link`
 
 ### Adding a new API endpoint
 

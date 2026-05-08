@@ -8,6 +8,10 @@
         {
             "path": "/api/health-check",
             "schedule": "0 9 * * *"
+        },
+        {
+            "path": "/api/newsletter-onboarding",
+            "schedule": "0 10 * * *"
         }
     ],
     "headers": [

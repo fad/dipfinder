@@ -645,7 +645,13 @@ async function handleUpdateEmailPreferences(req: VercelRequest, res: VercelRespo
 
     const updateData: Record<string, any> = { emailPreferencesUpdatedAt: new Date() };
     if (typeof newsletterSubscribed === 'boolean') updateData.newsletterSubscribed = newsletterSubscribed;
-    if (typeof sundayBriefSubscribed === 'boolean') updateData.sundayBriefSubscribed = sundayBriefSubscribed;
+    if (typeof sundayBriefSubscribed === 'boolean') {
+      updateData.sundayBriefSubscribed = sundayBriefSubscribed;
+      // Record the first-subscribe timestamp so the onboarding cron can find new subscribers
+      if (sundayBriefSubscribed && !user.sundayBriefSubscribedAt) {
+        updateData.sundayBriefSubscribedAt = new Date();
+      }
+    }
 
     if (newEmail && typeof newEmail === 'string') {
       const trimmedEmail = newEmail.trim().toLowerCase();

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import { connectToDatabase } from './lib/mongodb';
 import { yahooFinance } from './lib/stocks';
+import { getEmailTemplate, saveEmailTemplate, listTemplateKeys, sendEmail, buildEmailHtml, renderTemplate } from './lib/email';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -43,6 +44,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleCacheHealth(req, res);
       case 'trigger-health-check':
         return await handleTriggerHealthCheck(req, res);
+      case 'list-templates':
+        return await handleListTemplates(req, res);
+      case 'get-template':
+        return await handleGetTemplate(req, res);
+      case 'save-template':
+        return await handleSaveTemplate(req, res);
+      case 'preview-template':
+        return await handlePreviewTemplate(req, res);
+      case 'send-test-template':
+        return await handleSendTestTemplate(req, res);
+      case 'trigger-onboarding':
+        return await handleTriggerOnboarding(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -257,14 +270,106 @@ async function handleCacheHealth(_req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleTriggerHealthCheck(_req: VercelRequest, res: VercelResponse) {
-  // Forward to the health-check endpoint using internal fetch
   const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
   const CRON_SECRET = process.env.CRON_SECRET;
   if (!CRON_SECRET) return res.status(500).json({ error: 'CRON_SECRET not set' });
-
   try {
     const r = await fetch(`${FRONTEND_URL}/api/health-check`, {
       method: 'GET',
+      headers: { Authorization: `Bearer ${CRON_SECRET}` }
+    });
+    const data = await r.json();
+    return res.status(200).json(data);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message });
+  }
+}
+
+// ── Email template management ─────────────────────────────────────────────────
+
+async function handleListTemplates(_req: VercelRequest, res: VercelResponse) {
+  const keys = listTemplateKeys();
+  const db = await connectToDatabase();
+  const docs = await db.collection('emailTemplates').find({}).toArray();
+  const savedKeys = new Set(docs.map((d: any) => d.key));
+  return res.status(200).json({
+    templates: keys.map(k => ({ ...k, saved: savedKeys.has(k.key) }))
+  });
+}
+
+async function handleGetTemplate(req: VercelRequest, res: VercelResponse) {
+  const key = req.query.key as string;
+  if (!key) return res.status(400).json({ error: 'key required' });
+  const db = await connectToDatabase();
+  const template = await getEmailTemplate(db, key);
+  if (!template) return res.status(404).json({ error: 'Template not found' });
+  return res.status(200).json(template);
+}
+
+async function handleSaveTemplate(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { key, subject, html, _delete } = req.body;
+  if (!key) return res.status(400).json({ error: 'key required' });
+  const db = await connectToDatabase();
+  if (_delete) {
+    await db.collection('emailTemplates').deleteOne({ key });
+    return res.status(200).json({ ok: true });
+  }
+  if (!subject || !html) return res.status(400).json({ error: 'subject and html required' });
+  await saveEmailTemplate(db, key, subject, html);
+  return res.status(200).json({ ok: true });
+}
+
+async function handlePreviewTemplate(req: VercelRequest, res: VercelResponse) {
+  const key = (req.query.key || req.body?.key) as string;
+  if (!key) return res.status(400).json({ error: 'key required' });
+  const db = await connectToDatabase();
+  const template = await getEmailTemplate(db, key);
+  if (!template) return res.status(404).send('<p>Template not found</p>');
+
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const dummyVars: Record<string, string> = {
+    name: 'Frank',
+    email: ADMIN_EMAIL || 'admin@dipfinder.com',
+    resetUrl: `${FRONTEND_URL}/reset-password.html?token=PREVIEW_TOKEN`,
+    magicUrl: `${FRONTEND_URL}/app?magic=PREVIEW_TOKEN`,
+    unsubscribeUrl: `${FRONTEND_URL}/api/newsletter-unsubscribe?token=PREVIEW_TOKEN`,
+  };
+  const html = renderTemplate(template.html, dummyVars);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.status(200).send(html);
+}
+
+async function handleSendTestTemplate(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { key } = req.body;
+  if (!key) return res.status(400).json({ error: 'key required' });
+  if (!ADMIN_EMAIL) return res.status(500).json({ error: 'ADMIN_EMAIL not set' });
+
+  const db = await connectToDatabase();
+  const template = await getEmailTemplate(db, key);
+  if (!template) return res.status(404).json({ error: 'Template not found' });
+
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const dummyVars: Record<string, string> = {
+    name: 'Frank',
+    email: ADMIN_EMAIL,
+    resetUrl: `${FRONTEND_URL}/reset-password.html?token=TEST_TOKEN`,
+    magicUrl: `${FRONTEND_URL}/app?magic=TEST_TOKEN`,
+    unsubscribeUrl: `${FRONTEND_URL}/api/newsletter-unsubscribe?token=TEST_TOKEN`,
+  };
+  const html = renderTemplate(template.html, dummyVars);
+  const ok = await sendEmail({ to: ADMIN_EMAIL, subject: `[TEST] ${template.subject}`, html });
+  return res.status(200).json({ ok, to: ADMIN_EMAIL });
+}
+
+async function handleTriggerOnboarding(_req: VercelRequest, res: VercelResponse) {
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const CRON_SECRET = process.env.CRON_SECRET;
+  if (!CRON_SECRET) return res.status(500).json({ error: 'CRON_SECRET not set' });
+  try {
+    const r = await fetch(`${FRONTEND_URL}/api/newsletter-onboarding`, {
+      method: 'POST',
       headers: { Authorization: `Bearer ${CRON_SECRET}` }
     });
     const data = await r.json();

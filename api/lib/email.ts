@@ -1,8 +1,126 @@
 // Email service for DipFinder notifications
 // Using Resend API with EMAIL_NOREPLY_API_KEY
 
+import { connectToDatabase } from './mongodb';
+
 const RESEND_API_KEY = process.env.EMAIL_NOREPLY_API_KEY;
 const FROM_EMAIL = 'noreply@dipfinder.com';
+const SITE_URL = 'https://dipfinder.com';
+
+// ── Themed email wrapper ──────────────────────────────────────────────────────
+// All transactional emails share this branded shell.
+// bodyHtml: the main content area; footerHtml: overrides the default footer.
+export function buildEmailHtml(bodyHtml: string, footerHtml?: string): string {
+  const baseUrl = process.env.FRONTEND_URL || SITE_URL;
+  const footer = footerHtml ?? `<p style="margin:0 0 4px;">Dip Finder &bull; <a href="${baseUrl}" style="color:#94A3B8;text-decoration:none;">dipfinder.com</a></p><p style="margin:0;">Please do not reply to this email.</p>`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+<tr>
+  <td style="background:linear-gradient(135deg,#2563EB 0%,#4F46E5 55%,#7C3AED 100%);padding:28px 40px;text-align:center;">
+    <table cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr>
+      <td style="padding-right:10px;vertical-align:middle;">
+        <img src="${baseUrl}/img/logo.png" width="36" height="36" alt="" style="border-radius:8px;display:block;">
+      </td>
+      <td style="vertical-align:middle;">
+        <span style="color:#FFFFFF;font-size:18px;font-weight:800;letter-spacing:0.5px;font-family:Arial,sans-serif;">Dip Finder</span>
+      </td>
+    </tr></table>
+  </td>
+</tr>
+<tr>
+  <td style="padding:36px 40px 32px;">${bodyHtml}</td>
+</tr>
+<tr>
+  <td style="padding:20px 40px 28px;border-top:1px solid #E2E8F0;text-align:center;color:#94A3B8;font-size:12px;line-height:1.8;font-family:Arial,sans-serif;">${footer}</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
+
+// Replace {{varName}} placeholders with values from vars map
+export function renderTemplate(html: string, vars: Record<string, string>): string {
+  return html.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
+}
+
+// ── Default template bodies (inner HTML only, no outer wrapper) ───────────────
+const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: string }> = {
+  onboarding: {
+    name: 'Welcome / Onboarding',
+    subject: 'Welcome to Dip Finder - your Sunday brief starts now',
+    body: `
+<p style="font-family:Arial,sans-serif;font-size:16px;color:#0F172A;line-height:1.6;margin:0 0 20px;"><strong>Welcome to Dip Finder, {{name}}.</strong></p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">It's a weird time to be an investor. Rate swings, macro headlines, AI booms and busts - the market feels more unpredictable than ever.</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;font-weight:700;">That's where Dip Finder comes in.</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">We rank the stocks on your watchlist by how far they're trading below their moving average. Every Sunday morning, your brief shows you the best opportunities at a glance - the stocks you already want to own, on sale.</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 28px;">To make sure our emails land in your inbox, just reply with a quick "hello". It tells the email gods you want to hear from us.</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0;">Talk to you on Sunday,<br><strong>The Dip Finder Team</strong></p>
+`,
+  },
+  'password-reset': {
+    name: 'Password Reset',
+    subject: 'Reset Your Password - Dip Finder',
+    body: `
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">We received a request to reset the password for your Dip Finder account (<strong>{{email}}</strong>).</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="{{resetUrl}}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Reset Password</a>
+</div>
+<div style="background:#FEF9C3;border-left:4px solid #EAB308;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 20px;">
+  <p style="font-family:Arial,sans-serif;font-size:13px;color:#713F12;margin:0;line-height:1.6;">This link expires in 1 hour. If you didn't request a reset, ignore this email - your password won't change.</p>
+</div>
+<p style="font-family:Arial,sans-serif;font-size:13px;color:#94A3B8;line-height:1.6;margin:0;">Link not working? Copy and paste: <span style="color:#2563EB;word-break:break-all;">{{resetUrl}}</span></p>
+`,
+  },
+  'magic-link': {
+    name: 'Sign-in Link',
+    subject: 'Your Dip Finder sign-in link',
+    body: `
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Click below to sign in to Dip Finder. This link expires in 15 minutes and can only be used once.</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="{{magicUrl}}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Sign In to Dip Finder</a>
+</div>
+<div style="background:#FEF9C3;border-left:4px solid #EAB308;border-radius:0 8px 8px 0;padding:14px 18px;">
+  <p style="font-family:Arial,sans-serif;font-size:13px;color:#713F12;margin:0;line-height:1.6;">If you didn't request this link, you can safely ignore this email. Someone may have entered your email by mistake.</p>
+</div>
+`,
+  },
+};
+
+// Get a template from DB; auto-seeds the default if not found
+export async function getEmailTemplate(db: any, key: string): Promise<{ subject: string; html: string; name: string } | null> {
+  const doc = await db.collection('emailTemplates').findOne({ key });
+  if (doc) return { subject: doc.subject, html: doc.html, name: doc.name };
+
+  const def = DEFAULT_TEMPLATES[key];
+  if (!def) return null;
+
+  const html = buildEmailHtml(def.body);
+  await db.collection('emailTemplates').insertOne({
+    key, name: def.name, subject: def.subject, html, createdAt: new Date(), updatedAt: new Date(),
+  });
+  return { subject: def.subject, html, name: def.name };
+}
+
+// Save (upsert) a template to DB
+export async function saveEmailTemplate(db: any, key: string, subject: string, html: string): Promise<void> {
+  const name = DEFAULT_TEMPLATES[key]?.name ?? key;
+  await db.collection('emailTemplates').updateOne(
+    { key },
+    { $set: { name, subject, html, updatedAt: new Date() }, $setOnInsert: { key, createdAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+// Return a list of all known template keys + names (for admin UI)
+export function listTemplateKeys(): { key: string; name: string }[] {
+  return Object.entries(DEFAULT_TEMPLATES).map(([key, def]) => ({ key, name: def.name }));
+}
 
 export interface EmailOptions {
   to: string;
@@ -104,57 +222,29 @@ export async function sendPasswordChangeNotification(email: string): Promise<boo
  * Send password reset email with reset link
  */
 export async function sendPasswordResetEmail(email: string, resetToken: string): Promise<boolean> {
-  const resetUrl = `${process.env.FRONTEND_URL || 'https://dipfinder.com'}/reset-password.html?token=${resetToken}`;
-  const subject = 'Reset Your Password - DipFinder';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1a365d; margin: 0;">DipFinder</h1>
-      </div>
-      
-      <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #4299e1;">
-        <h2 style="color: #2d3748; margin-top: 0;">Password Reset Request</h2>
-        <p style="color: #4a5568; line-height: 1.6;">
-          We received a request to reset the password for your DipFinder account.
-        </p>
-        <p style="color: #4a5568; line-height: 1.6;">
-          <strong>Account:</strong> ${email}
-        </p>
-      </div>
-      
-      <div style="margin-top: 30px; text-align: center;">
-        <a href="${resetUrl}" 
-           style="display: inline-block; background-color: #4299e1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-          Reset Your Password
-        </a>
-      </div>
-      
-      <div style="margin-top: 30px; padding: 20px; background-color: #fff5f5; border-radius: 8px; border-left: 4px solid #f56565;">
-        <h3 style="color: #c53030; margin-top: 0;">Important</h3>
-        <p style="color: #4a5568; line-height: 1.6;">
-          • This link will expire in 1 hour<br>
-          • If you didn't request this reset, please ignore this email<br>
-          • For security, don't share this link with anyone
-        </p>
-      </div>
-      
-      <div style="margin-top: 30px; text-align: center; color: #718096; font-size: 14px;">
-        <p>
-          This is an automated email from DipFinder.<br>
-          Please do not reply to this email.
-        </p>
-        <p style="margin-top: 10px;">
-          Link not working? Copy and paste: ${resetUrl}
-        </p>
-      </div>
-    </div>
-  `;
+  const baseUrl = process.env.FRONTEND_URL || SITE_URL;
+  const resetUrl = `${baseUrl}/reset-password.html?token=${resetToken}`;
 
-  return await sendEmail({
-    to: email,
-    subject,
-    html
-  });
+  try {
+    const db = await connectToDatabase();
+    const template = await getEmailTemplate(db, 'password-reset');
+    if (template) {
+      const html = renderTemplate(template.html, { email, resetUrl });
+      return sendEmail({ to: email, subject: template.subject, html });
+    }
+  } catch { /* fall through to hardcoded */ }
+
+  const html = buildEmailHtml(`
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">We received a request to reset the password for your Dip Finder account (<strong>${email}</strong>).</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Reset Password</a>
+</div>
+<div style="background:#FEF9C3;border-left:4px solid #EAB308;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 20px;">
+  <p style="font-family:Arial,sans-serif;font-size:13px;color:#713F12;margin:0;line-height:1.6;">This link expires in 1 hour. If you didn't request a reset, ignore this email.</p>
+</div>
+<p style="font-family:Arial,sans-serif;font-size:13px;color:#94A3B8;line-height:1.6;margin:0;">Link not working? Copy and paste: <span style="color:#2563EB;word-break:break-all;">${resetUrl}</span></p>
+`);
+  return sendEmail({ to: email, subject: 'Reset Your Password - Dip Finder', html });
 }
 
 /**
@@ -211,47 +301,41 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<boo
  * Send magic sign-in link email
  */
 export async function sendMagicLinkEmail(email: string, magicUrl: string): Promise<boolean> {
-  const subject = 'Your Dip Finder sign-in link';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1a365d; margin: 0;">Dip Finder</h1>
-      </div>
+  try {
+    const db = await connectToDatabase();
+    const template = await getEmailTemplate(db, 'magic-link');
+    if (template) {
+      const html = renderTemplate(template.html, { magicUrl });
+      return sendEmail({ to: email, subject: template.subject, html });
+    }
+  } catch { /* fall through to hardcoded */ }
 
-      <div style="background-color: #f7fafc; padding: 24px; border-radius: 8px; border-left: 4px solid #4299e1;">
-        <h2 style="color: #2d3748; margin-top: 0;">Sign in to Dip Finder</h2>
-        <p style="color: #4a5568; line-height: 1.6;">
-          Click the button below to sign in. This link expires in 15 minutes and can only be used once.
-        </p>
-      </div>
+  const html = buildEmailHtml(`
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Click below to sign in to Dip Finder. This link expires in 15 minutes and can only be used once.</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${magicUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Sign In to Dip Finder</a>
+</div>
+<div style="background:#FEF9C3;border-left:4px solid #EAB308;border-radius:0 8px 8px 0;padding:14px 18px;">
+  <p style="font-family:Arial,sans-serif;font-size:13px;color:#713F12;margin:0;line-height:1.6;">If you didn't request this link, you can safely ignore this email.</p>
+</div>
+`);
+  return sendEmail({ to: email, subject: 'Your Dip Finder sign-in link', html });
+}
 
-      <div style="margin-top: 30px; text-align: center;">
-        <a href="${magicUrl}"
-           style="display: inline-block; background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-          Sign In to Dip Finder
-        </a>
-      </div>
-
-      <div style="margin-top: 24px; padding: 16px; background-color: #fffbeb; border-radius: 8px; border-left: 4px solid #f59e0b;">
-        <p style="color: #92400e; margin: 0; font-size: 14px; line-height: 1.6;">
-          If you didn't request this link, you can safely ignore this email. Someone may have entered your email by mistake.
-        </p>
-      </div>
-
-      <div style="margin-top: 30px; text-align: center; color: #718096; font-size: 14px;">
-        <p>
-          This is an automated email from Dip Finder.<br>
-          Please do not reply to this email.
-        </p>
-        <p style="margin-top: 10px;">
-          Link not working? Copy and paste:<br>
-          <span style="color: #4299e1; word-break: break-all;">${magicUrl}</span>
-        </p>
-      </div>
-    </div>
-  `;
-
-  return await sendEmail({ to: email, subject, html });
+/**
+ * Send onboarding welcome email (uses DB template, auto-seeds default)
+ */
+export async function sendOnboardingEmail(toEmail: string, name: string): Promise<boolean> {
+  try {
+    const db = await connectToDatabase();
+    const template = await getEmailTemplate(db, 'onboarding');
+    if (!template) return false;
+    const html = renderTemplate(template.html, { name: name || 'there' });
+    return sendEmail({ to: toEmail, subject: template.subject, html });
+  } catch (err) {
+    console.error('sendOnboardingEmail error:', err);
+    return false;
+  }
 }
 
 export interface NewsletterStockRow {
