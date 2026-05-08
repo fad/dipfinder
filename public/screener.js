@@ -160,9 +160,27 @@ window.initializeScreener = function(params) {
         return data.news || [];
     }
 
-    function renderFundamentals(fundamentals) {
-/*console.log('renderFundamentals called with:', fundamentals);*/ 
-        
+    function computePERange(timeseries, eps, currentPE) {
+        if (!eps || eps <= 0) return null;
+        const result = timeseries?.chart?.result?.[0];
+        if (!result) return null;
+        const prices = result.indicators?.quote?.[0]?.close || [];
+        const peValues = prices
+            .filter(p => p != null && p > 0)
+            .map(p => p / eps)
+            .filter(pe => pe > 0 && pe < 500); // filter outliers / negative-eps spikes
+        if (peValues.length < 20) return null;
+        const peMin = Math.min(...peValues);
+        const peMax = Math.max(...peValues);
+        const current = currentPE > 0 ? currentPE : (peValues[peValues.length - 1] ?? null);
+        if (!current) return null;
+        const pct = Math.round(Math.max(0, Math.min(100, (current - peMin) / (peMax - peMin) * 100)));
+        return { current, min: peMin, max: peMax, pct };
+    }
+
+    function renderFundamentals(fundamentals, timeseries) {
+/*console.log('renderFundamentals called with:', fundamentals);*/
+
         if (!fundamentals || fundamentals.error) {
             const errorMsg = fundamentals?.error || 'No fundamentals found for this ticker.';
             console.error('Fundamentals error:', errorMsg);
@@ -170,11 +188,40 @@ window.initializeScreener = function(params) {
             $("#fundamentals-grid").html(`<div class="text-red-500 text-center col-span-full">${errorMsg}</div>`);
             return;
         }
-        
+
         // Helper function to format numbers
         const formatPercent = (val) => val !== null && val !== undefined ? `${val.toFixed(2)}%` : 'N/A';
         const formatNumber = (val, decimals = 2) => val !== null && val !== undefined ? val.toFixed(decimals) : 'N/A';
         const formatCurrency = (val) => val !== null && val !== undefined ? `$${val.toFixed(2)}` : 'N/A';
+
+        const isDark = document.documentElement.classList.contains('dark-mode');
+        const peRange = computePERange(timeseries, fundamentals.eps, fundamentals.peRatio);
+        const peRowHtml = (() => {
+            if (!peRange) {
+                return `<div class="flex justify-between">
+                    <span class="text-gray-600">P/E Ratio:</span>
+                    <span class="font-medium">${formatNumber(fundamentals.peRatio)}</span>
+                </div>`;
+            }
+            const barColor = peRange.pct < 30 ? '#16a34a' : peRange.pct > 70 ? '#dc2626' : '#d97706';
+            const label    = peRange.pct < 30 ? 'Historically cheap' : peRange.pct > 70 ? 'Historically expensive' : 'Near average';
+            const track    = isDark ? 'rgba(255,255,255,0.10)' : '#e2e8f0';
+            return `<div>
+                <div class="flex justify-between mb-0.5">
+                    <span class="text-gray-600">P/E Ratio:</span>
+                    <span class="font-medium">${peRange.current.toFixed(1)}</span>
+                </div>
+                <div class="text-xs text-gray-400 mb-1.5">1Y range ${peRange.min.toFixed(1)} - ${peRange.max.toFixed(1)}</div>
+                <div style="background:${track};border-radius:4px;height:5px;width:100%;margin-bottom:4px;">
+                    <div style="background:${barColor};border-radius:4px;height:5px;width:${peRange.pct}%;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;">
+                    <span class="text-gray-400">Low</span>
+                    <span style="color:${barColor};font-weight:600;">${label}</span>
+                    <span class="text-gray-400">High</span>
+                </div>
+            </div>`;
+        })();
         
         // Render Company Overview in the search section
         $("#company-overview").html(`
@@ -254,10 +301,7 @@ window.initializeScreener = function(params) {
             <div class="bg-white p-4 rounded-lg shadow-sm border">
                 <h3 class="font-bold text-lg text-purple-600 mb-3">Valuation Metrics</h3>
                 <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">P/E Ratio:</span>
-                        <span class="font-medium">${formatNumber(fundamentals.peRatio)}</span>
-                    </div>
+                    ${peRowHtml}
                     <div class="flex justify-between">
                         <span class="text-gray-600">Forward P/E:</span>
                         <span class="font-medium">${formatNumber(fundamentals.forwardPE)}</span>
@@ -753,7 +797,7 @@ window.initializeScreener = function(params) {
             if (loadId !== currentLoadId) return;
 
             // Render all sections
-            renderFundamentals(fundamentals);
+            renderFundamentals(fundamentals, timeseries);
             renderChart(timeseries, smaData);
             renderNews(news);
             
