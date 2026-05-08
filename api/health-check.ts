@@ -4,6 +4,7 @@ import { connectToDatabase } from './lib/mongodb';
 import { yahooFinance } from './lib/stocks';
 import { sendEmail } from './lib/email';
 import { verifyJWT } from './lib/auth';
+import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
@@ -29,7 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!isAuthed) return res.status(401).json({ error: 'Unauthorized' });
 
-  const isCron = !!req.headers['x-vercel-cron'];
+  const isCronInvocation = !!req.headers['x-vercel-cron'];
+  const db0 = await connectToDatabase();
+  const run = await shouldCronRun(db0, 'health-check', { enabled: true, hour: 9 }, isCronInvocation);
+  if (!run) return res.status(200).json({ skipped: true, reason: 'outside scheduled window' });
+
+  const isCron = isCronInvocation;
   const results: Record<string, any> = { checkedAt: new Date().toISOString() };
 
   // 1. MongoDB
@@ -131,5 +137,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   results.emailSent = emailSent;
+  await recordCronRun(db0, 'health-check', { anyFailed: results.anyFailed, emailSent }, !isCronInvocation);
   return res.status(200).json(results);
 }

@@ -70,6 +70,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetSettings(req, res);
       case 'save-settings':
         return await handleSaveSettings(req, res);
+      case 'get-crons':
+        return await handleGetCrons(req, res);
+      case 'save-cron-schedule':
+        return await handleSaveCronSchedule(req, res);
+      case 'trigger-cron':
+        return await handleTriggerCron(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -428,6 +434,101 @@ async function handleDeleteUser(req: VercelRequest, res: VercelResponse) {
   const result = await db.collection('users').deleteOne({ email: email.toLowerCase() });
   if (result.deletedCount === 0) return res.status(404).json({ error: 'User not found' });
   return res.status(200).json({ ok: true });
+}
+
+// ── Cron management ───────────────────────────────────────────────────────────
+
+const CRON_DEFS = [
+  {
+    id: 'newsletter-send',
+    name: 'Weekly Newsletter',
+    description: 'Sends the weekly dip report to all subscribers.',
+    endpoint: '/api/newsletter-send',
+    method: 'POST',
+    defaultSchedule: { enabled: true, dayOfWeek: 0, hour: 14 },
+  },
+  {
+    id: 'health-check',
+    name: 'Health Check',
+    description: 'Verifies MongoDB, Yahoo Finance, Finnhub, and Resend connectivity. Emails admin on failure.',
+    endpoint: '/api/health-check',
+    method: 'GET',
+    defaultSchedule: { enabled: true, hour: 9 },
+  },
+  {
+    id: 'newsletter-onboarding',
+    name: 'Onboarding Emails',
+    description: 'Sends welcome emails to new Sunday Brief subscribers who have not yet received one.',
+    endpoint: '/api/newsletter-onboarding',
+    method: 'POST',
+    defaultSchedule: { enabled: true, hour: 10 },
+  },
+] as const;
+
+async function handleGetCrons(_req: VercelRequest, res: VercelResponse) {
+  const db = await connectToDatabase();
+  const crons = await Promise.all(CRON_DEFS.map(async def => {
+    const [scheduleDoc, lastRunDoc] = await Promise.all([
+      db.collection('settings').findOne({ key: `cron-schedule-${def.id}` }),
+      db.collection('settings').findOne({ key: `cron-last-run-${def.id}` }),
+    ]);
+    return {
+      ...def,
+      schedule: scheduleDoc?.value ?? def.defaultSchedule,
+      lastRun: lastRunDoc?.value ?? null,
+    };
+  }));
+  return res.status(200).json({ crons });
+}
+
+async function handleSaveCronSchedule(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { id, schedule } = req.body || {};
+  if (!id || !schedule) return res.status(400).json({ error: 'id and schedule required' });
+  const def = CRON_DEFS.find(d => d.id === id);
+  if (!def) return res.status(404).json({ error: 'Unknown cron id' });
+
+  const { enabled, dayOfWeek, hour } = schedule;
+  if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be boolean' });
+  const parsedHour = Number(hour);
+  if (!Number.isInteger(parsedHour) || parsedHour < 0 || parsedHour > 23) return res.status(400).json({ error: 'hour must be 0–23' });
+
+  const saved: Record<string, any> = { enabled, hour: parsedHour };
+  if ('dayOfWeek' in def.defaultSchedule) {
+    const parsedDay = Number(dayOfWeek);
+    if (!Number.isInteger(parsedDay) || parsedDay < 0 || parsedDay > 6) return res.status(400).json({ error: 'dayOfWeek must be 0–6' });
+    saved.dayOfWeek = parsedDay;
+  }
+
+  const db = await connectToDatabase();
+  await db.collection('settings').updateOne(
+    { key: `cron-schedule-${id}` },
+    { $set: { key: `cron-schedule-${id}`, value: saved, updatedAt: new Date() } },
+    { upsert: true }
+  );
+  return res.status(200).json({ ok: true, schedule: saved });
+}
+
+async function handleTriggerCron(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { id } = req.body || {};
+  const def = CRON_DEFS.find(d => d.id === id);
+  if (!def) return res.status(404).json({ error: 'Unknown cron id' });
+
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const CRON_SECRET = process.env.CRON_SECRET;
+  if (!CRON_SECRET) return res.status(500).json({ error: 'CRON_SECRET not set' });
+
+  try {
+    const r = await fetch(`${FRONTEND_URL}${def.endpoint}`, {
+      method: def.method,
+      headers: { Authorization: `Bearer ${CRON_SECRET}` },
+    });
+    const data = await r.json();
+    return res.status(200).json(data);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message });
+  }
 }
 
 async function handleGetSettings(_req: VercelRequest, res: VercelResponse) {

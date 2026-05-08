@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
 import { sendOnboardingEmail } from './lib/email';
+import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -29,8 +30,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  const isCronInvocation = !!req.headers['x-vercel-cron'];
+
   try {
     const db = await connectToDatabase();
+
+    const run = await shouldCronRun(db, 'newsletter-onboarding', { enabled: true, hour: 10 }, isCronInvocation);
+    if (!run) return res.status(200).json({ skipped: true, reason: 'outside scheduled window' });
 
     // Find subscribers who haven't received an onboarding email yet
     const pending = await db.collection('users').find({
@@ -59,7 +65,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (pending.length > 1) await new Promise(r => setTimeout(r, 400));
     }
 
-    return res.status(200).json({ sent, failed, pending: pending.length });
+    const result = { sent, failed, pending: pending.length };
+    await recordCronRun(db, 'newsletter-onboarding', result, !isCronInvocation);
+    return res.status(200).json(result);
   } catch (err) {
     console.error('newsletter-onboarding error:', err);
     return res.status(500).json({ error: 'Internal server error' });

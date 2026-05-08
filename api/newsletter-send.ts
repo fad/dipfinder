@@ -4,6 +4,7 @@ import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
 import { sendNewsletterEmail, buildNewsletterHtml } from './lib/email';
 import { NEWSLETTER_SMA_DEFAULT, buildStockResults } from './lib/newsletter-data';
+import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -41,9 +42,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const isPreview = req.query.preview === 'true';
+  const isCronInvocation = !!req.headers['x-vercel-cron'];
 
   try {
     const db = await connectToDatabase();
+
+    if (!isPreview) {
+      const run = await shouldCronRun(db, 'newsletter-send', { enabled: true, dayOfWeek: 0, hour: 14 }, isCronInvocation);
+      if (!run) return res.status(200).json({ skipped: true, reason: 'outside scheduled window' });
+    }
 
     // Only send to admin for now. Admin bypasses subscription check so
     // preview/test always works regardless of profile settings.
@@ -113,7 +120,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isPreview) {
       return res.status(404).send('<p>No eligible user or watchlist found for preview.</p>');
     }
-    return res.status(200).json({ sent, failed, skipped });
+    const result = { sent, failed, skipped };
+    await recordCronRun(db, 'newsletter-send', result, !isCronInvocation);
+    return res.status(200).json(result);
   } catch (error) {
     console.error('Newsletter send error:', error);
     return res.status(500).json({ error: 'Internal server error' });

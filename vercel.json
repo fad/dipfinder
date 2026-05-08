@@ -3,15 +3,15 @@
     "crons": [
         {
             "path": "/api/newsletter-send",
-            "schedule": "0 14 * * 0"
+            "schedule": "0 * * * *"
         },
         {
             "path": "/api/health-check",
-            "schedule": "0 9 * * *"
+            "schedule": "0 * * * *"
         },
         {
             "path": "/api/newsletter-onboarding",
-            "schedule": "0 10 * * *"
+            "schedule": "0 * * * *"
         }
     ],
     "headers": [
