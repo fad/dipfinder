@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
 import { connectToDatabase } from './lib/mongodb';
 import { yahooFinance } from './lib/stocks';
 
@@ -38,6 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleTestStocks(req, res);
       case 'clear-stock-cache':
         return await handleClearStockCache(req, res);
+      case 'cache-health':
+        return await handleCacheHealth(req, res);
+      case 'trigger-health-check':
+        return await handleTriggerHealthCheck(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -174,14 +179,96 @@ async function handleTestStocks(_req: VercelRequest, res: VercelResponse) {
     results.adminUser = { ok: false, error: err?.message };
   }
 
+  // 5. Finnhub
+  try {
+    const finnhubKey = process.env.FINNHUB_API_KEY;
+    if (!finnhubKey) throw new Error('FINNHUB_API_KEY not set');
+    const today = new Date().toISOString().split('T')[0];
+    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const r = await axios.get(
+      `https://finnhub.io/api/v1/company-news?symbol=AAPL&from=${lastWeek}&to=${today}&token=${finnhubKey}`
+    );
+    results.finnhub = { ok: Array.isArray(r.data), itemsReturned: Array.isArray(r.data) ? r.data.length : 0 };
+  } catch (err: any) {
+    results.finnhub = { ok: false, error: err?.message };
+  }
+
+  // 6. Resend
+  try {
+    const resendKey = process.env.EMAIL_NOREPLY_API_KEY;
+    if (!resendKey) throw new Error('EMAIL_NOREPLY_API_KEY not set');
+    const r = await fetch('https://api.resend.com/domains', {
+      headers: { Authorization: `Bearer ${resendKey}` }
+    });
+    results.resend = { ok: r.ok, httpStatus: r.status };
+  } catch (err: any) {
+    results.resend = { ok: false, error: err?.message };
+  }
+
   return res.status(200).json(results);
 }
 
 async function handleClearStockCache(_req: VercelRequest, res: VercelResponse) {
   const db = await connectToDatabase();
   const result = await db.collection('dashboardStocks').deleteMany({});
-  // Also clear in-memory cache on this function instance
   const g = globalThis as any;
   if (g._dashboardStockCache) g._dashboardStockCache = {};
   return res.status(200).json({ ok: true, deleted: result.deletedCount });
+}
+
+async function handleCacheHealth(_req: VercelRequest, res: VercelResponse) {
+  const db = await connectToDatabase();
+
+  // Collect all unique symbols across all user watchlists
+  const users = await db.collection('users').find({}, { projection: { watchlist: 1 } }).toArray();
+  const symbolSet = new Set<string>();
+  for (const u of users) {
+    for (const s of (u.watchlist || [])) symbolSet.add(s.toUpperCase());
+  }
+  const symbols = Array.from(symbolSet).sort();
+
+  // Fetch all dashboardStocks docs in one query
+  const cacheDocs = await db.collection('dashboardStocks')
+    .find({ cacheKey: { $in: symbols.map(s => `dashboard-stock-${s}`) } })
+    .toArray();
+  const cacheByKey: Record<string, any> = {};
+  for (const doc of cacheDocs) cacheByKey[doc.cacheKey] = doc;
+
+  const CACHE_TTL_MS = 30 * 60 * 1000;
+  const rows = symbols.map(symbol => {
+    const doc = cacheByKey[`dashboard-stock-${symbol}`];
+    if (!doc) {
+      return { symbol, companyName: '-', cacheAge_minutes: null, closesCount: null, currentPrice: null, status: 'missing' };
+    }
+    const age = Math.round((Date.now() - doc.timestamp) / 60000);
+    const data = doc.data || {};
+    return {
+      symbol,
+      companyName: data.companyName || '-',
+      cacheAge_minutes: age,
+      closesCount: (data.closes || []).length,
+      currentPrice: data.currentPrice ?? null,
+      status: age <= 30 ? 'fresh' : 'stale',
+    };
+  });
+
+  return res.status(200).json({ symbols: rows, total: rows.length, ttl_minutes: CACHE_TTL_MS / 60000 });
+}
+
+async function handleTriggerHealthCheck(_req: VercelRequest, res: VercelResponse) {
+  // Forward to the health-check endpoint using internal fetch
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const CRON_SECRET = process.env.CRON_SECRET;
+  if (!CRON_SECRET) return res.status(500).json({ error: 'CRON_SECRET not set' });
+
+  try {
+    const r = await fetch(`${FRONTEND_URL}/api/health-check`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${CRON_SECRET}` }
+    });
+    const data = await r.json();
+    return res.status(200).json(data);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message });
+  }
 }

@@ -66,6 +66,9 @@
     .page-btn.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; font-weight: 700; }
     .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     #row-count { color: #64748b; font-size: 0.75rem; margin-top: 0.5rem; }
+    .badge-fresh  { background: #14532d; color: #86efac; }
+    .badge-stale  { background: #422006; color: #fdba74; }
+    .badge-missing { background: #450a0a; color: #fca5a5; }
   </style>
 </head>
 <body>
@@ -91,6 +94,7 @@
   <div id="content" style="display:none">
     <div class="tabs">
       <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+      <div class="tab" onclick="switchTab('cache')">Cache Health</div>
       <div class="tab" onclick="switchTab('users')">Signed-up Users</div>
     </div>
 
@@ -101,10 +105,35 @@
         <button class="btn btn-sky" id="send-newsletter-btn" onclick="sendTestNewsletter()">Send Test Newsletter</button>
         <button class="btn" style="background:#334155; color:#e2e8f0;" onclick="previewNewsletter()">Preview Newsletter</button>
         <button class="btn" style="background:#1e3a2f; color:#4ade80; border:1px solid #166534;" onclick="testStocks()">Test Stock Fetch</button>
+        <button class="btn" style="background:#1a2a3b; color:#7dd3fc; border:1px solid #1e40af;" onclick="triggerHealthCheck()">Test Health Check</button>
         <button class="btn" style="background:#3b1a1a; color:#fca5a5; border:1px solid #7f1d1d;" onclick="clearStockCache()">Clear Stock Cache</button>
         <span id="newsletter-status"></span>
       </div>
       <pre id="test-stocks-output" style="display:none; margin-top:1rem; background:#0f1a12; border:1px solid #166534; border-radius:8px; padding:1rem; font-size:0.75rem; color:#86efac; white-space:pre-wrap; word-break:break-all;"></pre>
+    </div>
+
+    <!-- Cache Health tab -->
+    <div id="tab-cache" class="tab-panel">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+        <span id="cache-summary" style="color:#64748b; font-size:0.8rem;"></span>
+        <button class="btn" style="background:#1e293b; color:#94a3b8;" onclick="loadCacheHealth()">Refresh</button>
+        <button class="btn" style="background:#3b1a1a; color:#fca5a5; border:1px solid #7f1d1d;" onclick="clearStockCache()">Clear All Cache</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortCache('symbol')">Symbol <span class="sort-arrow" id="ca-symbol">↕</span></th>
+              <th onclick="sortCache('companyName')">Company <span class="sort-arrow" id="ca-companyName">↕</span></th>
+              <th onclick="sortCache('cacheAge_minutes')">Age (min) <span class="sort-arrow" id="ca-cacheAge_minutes">↕</span></th>
+              <th onclick="sortCache('closesCount')">Closes <span class="sort-arrow" id="ca-closesCount">↕</span></th>
+              <th onclick="sortCache('currentPrice')">Price <span class="sort-arrow" id="ca-currentPrice">↕</span></th>
+              <th onclick="sortCache('status')">Status <span class="sort-arrow" id="ca-status">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="cache-rows"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Users tab -->
@@ -146,6 +175,7 @@
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       document.querySelector(`.tab[onclick="switchTab('${name}')"]`).classList.add('active');
       document.getElementById('tab-' + name).classList.add('active');
+      if (name === 'cache' && cacheData.length === 0) loadCacheHealth();
     }
 
     function fmt(dateStr) {
@@ -343,6 +373,94 @@
       } catch (e) {
         status.textContent = 'Network error: ' + e.message;
         status.style.color = '#f87171';
+      }
+    }
+
+    // ── Cache Health ─────────────────────────────────────────────────────────
+    let cacheData = [];
+    let cacheSortKey = 'symbol';
+    let cacheSortDir = 1;
+
+    function sortCache(key) {
+      if (cacheSortKey === key) cacheSortDir *= -1;
+      else { cacheSortKey = key; cacheSortDir = 1; }
+      renderCacheTable();
+    }
+
+    function renderCacheTable() {
+      const sorted = [...cacheData].sort((a, b) => {
+        const av = a[cacheSortKey] ?? (cacheSortKey === 'cacheAge_minutes' ? Infinity : '');
+        const bv = b[cacheSortKey] ?? (cacheSortKey === 'cacheAge_minutes' ? Infinity : '');
+        return av < bv ? -cacheSortDir : av > bv ? cacheSortDir : 0;
+      });
+
+      ['symbol','companyName','cacheAge_minutes','closesCount','currentPrice','status'].forEach(k => {
+        const el = document.getElementById('ca-' + k);
+        if (!el) return;
+        el.textContent = k === cacheSortKey ? (cacheSortDir === 1 ? '↑' : '↓') : '↕';
+      });
+
+      const tbody = document.getElementById('cache-rows');
+      if (sorted.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No data</td></tr>';
+        return;
+      }
+      tbody.innerHTML = sorted.map(r => {
+        const statusClass = r.status === 'fresh' ? 'badge-fresh' : r.status === 'stale' ? 'badge-stale' : 'badge-missing';
+        const age = r.cacheAge_minutes !== null ? r.cacheAge_minutes + ' min' : '—';
+        const price = r.currentPrice !== null ? '$' + r.currentPrice.toFixed(2) : '—';
+        return `<tr>
+          <td style="font-weight:700;color:#f1f5f9;">${r.symbol}</td>
+          <td>${r.companyName}</td>
+          <td>${age}</td>
+          <td>${r.closesCount ?? '—'}</td>
+          <td>${price}</td>
+          <td><span class="badge ${statusClass}">${r.status}</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function loadCacheHealth() {
+      const token = localStorage.getItem('token');
+      document.getElementById('cache-summary').textContent = 'Loading…';
+      try {
+        const res = await fetch('/api/admin?action=cache-health', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        cacheData = data.symbols || [];
+        const fresh = cacheData.filter(r => r.status === 'fresh').length;
+        const stale = cacheData.filter(r => r.status === 'stale').length;
+        const missing = cacheData.filter(r => r.status === 'missing').length;
+        document.getElementById('cache-summary').textContent =
+          `${cacheData.length} symbols — ${fresh} fresh · ${stale} stale · ${missing} missing`;
+        renderCacheTable();
+      } catch (e) {
+        document.getElementById('cache-summary').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    // ── Health Check ─────────────────────────────────────────────────────────
+    async function triggerHealthCheck() {
+      const out = document.getElementById('test-stocks-output');
+      out.style.display = 'block';
+      out.textContent = 'Running health check + sending email…';
+      out.style.borderColor = '#1e40af';
+      out.style.color = '#7dd3fc';
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=trigger-health-check', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+        const anyFailed = data.anyFailed;
+        out.style.borderColor = anyFailed ? '#dc2626' : '#166534';
+        out.style.color = anyFailed ? '#fca5a5' : '#86efac';
+      } catch (e) {
+        out.textContent = 'Network error: ' + e.message;
+        out.style.borderColor = '#dc2626';
+        out.style.color = '#fca5a5';
       }
     }
 
