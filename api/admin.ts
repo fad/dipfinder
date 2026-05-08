@@ -84,37 +84,92 @@ async function handleTestStocks(_req: VercelRequest, res: VercelResponse) {
     results.mongodb = { ok: false, error: err?.message };
   }
 
-  // 2. Yahoo Finance via yahoo-finance2
-  const period1 = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000); // 10 days ago
+  // 2. Yahoo Finance via yahoo-finance2 — 200-day window (same as batch-stocks)
+  const period1_200 = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000);
   try {
-    const chart = await yahooFinance.chart('AAPL', { period1, interval: '1d' });
+    const chart = await yahooFinance.chart('AAPL', { period1: period1_200, interval: '1d' });
     const quotes: any[] = chart?.quotes ?? [];
     const closes = quotes.map((q: any) => q.close).filter((p: any) => Number.isFinite(p));
-    results.yahooFinance = {
+    const sampleQuote = quotes[0] ?? null;
+    results.yahooFinance200d = {
       ok: true,
       symbol: chart?.meta?.symbol,
       quotesReturned: quotes.length,
       closesFiltered: closes.length,
       lastClose: closes[closes.length - 1] ?? null,
-      metaKeys: Object.keys(chart?.meta ?? {}),
+      sampleQuoteKeys: sampleQuote ? Object.keys(sampleQuote) : [],
+      sampleQuote,
     };
   } catch (err: any) {
-    results.yahooFinance = {
+    results.yahooFinance200d = {
       ok: false,
       error: err?.message,
-      stack: err?.stack?.split('\n').slice(0, 6).join('\n'),
+      stack: err?.stack?.split('\n').slice(0, 8).join('\n'),
     };
   }
 
-  // 3. batch-stocks cache check
+  // 3. Full batch-stocks simulation for AAPL with SMA 50
   try {
     const db = await connectToDatabase();
-    const doc = await db.collection('dashboardStocks').findOne({ cacheKey: 'dashboard-stock-AAPL' });
-    results.dashboardCache = doc
-      ? { ok: true, age_minutes: Math.round((Date.now() - doc.timestamp) / 60000), keys: Object.keys(doc.data ?? {}) }
-      : { ok: false, note: 'no cache entry for AAPL' };
+    const cacheKey = 'dashboard-stock-AAPL';
+    const doc = await db.collection('dashboardStocks').findOne({ cacheKey });
+    const cacheAge = doc ? Math.round((Date.now() - doc.timestamp) / 60000) : null;
+    const cacheHit = doc && (Date.now() - doc.timestamp) <= 30 * 60 * 1000;
+
+    let dashboardStock = cacheHit ? doc.data : null;
+
+    if (!dashboardStock) {
+      // simulate fresh fetch
+      const period1 = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000);
+      const chartData = await yahooFinance.chart('AAPL', { period1, interval: '1d' });
+      const quotes: any[] = chartData?.quotes ?? [];
+      const closes = quotes.map((q: any) => q.close).filter((p: unknown) => Number.isFinite(p));
+      if (closes.length >= 2) {
+        dashboardStock = {
+          companyName: chartData?.meta?.longName || 'Apple Inc.',
+          currentPrice: closes[closes.length - 1],
+          previousPrice: closes[closes.length - 2],
+          closes,
+        };
+      }
+    }
+
+    if (!dashboardStock) {
+      results.batchStocksSimulation = { ok: false, note: 'getCachedDashboardStock returned null', cacheAge };
+    } else {
+      const closes: number[] = dashboardStock.closes;
+      const smaPeriod = 50;
+      const enoughData = closes.length >= smaPeriod;
+      const sma = enoughData ? closes.slice(-smaPeriod).reduce((a: number, b: number) => a + b, 0) / smaPeriod : null;
+      results.batchStocksSimulation = {
+        ok: enoughData,
+        cacheHit,
+        cacheAge_minutes: cacheAge,
+        closesCount: closes.length,
+        enoughFor50SMA: enoughData,
+        currentPrice: dashboardStock.currentPrice,
+        sma50: sma ? parseFloat(sma.toFixed(2)) : null,
+        companyName: dashboardStock.companyName,
+      };
+    }
   } catch (err: any) {
-    results.dashboardCache = { ok: false, error: err?.message };
+    results.batchStocksSimulation = {
+      ok: false,
+      error: err?.message,
+      stack: err?.stack?.split('\n').slice(0, 8).join('\n'),
+    };
+  }
+
+  // 4. Check admin user watchlist
+  try {
+    const db = await connectToDatabase();
+    const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+    const user = await db.collection('users').findOne({ email: adminEmail });
+    results.adminUser = user
+      ? { ok: true, watchlist: user.watchlist, smaPeriod: user.smaPeriod }
+      : { ok: false, note: 'admin user not found in DB' };
+  } catch (err: any) {
+    results.adminUser = { ok: false, error: err?.message };
   }
 
   return res.status(200).json(results);
