@@ -102,7 +102,7 @@
     <a href="/app" style="display:inline-flex; align-items:center; text-decoration:none;">
       <img src="/img/logo.png" alt="Dip Finder">
     </a>
-    <h1>Admin</h1>
+    <h1><a href="https://dipfinder.com/admin" style="color:#f8fafc; text-decoration:none;">Admin</a></h1>
   </div>
   <div id="admin-chrome" style="display:none;">
     <div class="ext-links">
@@ -179,8 +179,10 @@
             <button class="stf-btn" data-tf="MAX" onclick="setSignupTf('MAX')">Max</button>
           </div>
         </div>
-        <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:1rem 1rem 0.5rem; height:200px;">
-          <canvas id="signup-chart"></canvas>
+        <div style="max-width:380px; aspect-ratio:1/1;">
+          <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:1rem 1rem 0.5rem; height:100%;">
+            <canvas id="signup-chart"></canvas>
+          </div>
         </div>
       </div>
     </div>
@@ -1011,16 +1013,19 @@
       if (signupChart) { signupChart.destroy(); signupChart = null; }
 
       signupChart = new Chart(canvas.getContext('2d'), {
-        type: 'bar',
+        type: 'line',
         data: {
           labels,
           datasets: [{
             label: 'Signups',
             data,
-            backgroundColor: 'rgba(56,189,248,0.65)',
+            backgroundColor: 'rgba(56,189,248,0.12)',
             borderColor: '#38bdf8',
-            borderWidth: 1,
-            borderRadius: 3,
+            borderWidth: 2,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            fill: true,
+            tension: 0.35,
           }]
         },
         options: {
