@@ -1070,6 +1070,13 @@ window.initializeScreener = function(params) {
 
     window.applyTimeframe = applyTimeframe;
 
+    // Re-render charts when theme changes
+    function onThemeChange() {
+        if (storedAllDates.length) applyTimeframe(currentTimeframe);
+        if (lastHistoryData) renderFundamentalsHistory(lastHistoryData);
+    }
+    document.addEventListener('themechange', onThemeChange);
+
     window.destroyScreener = function() {
 /*console.log("Destroying Screener page...");*/ 
         
@@ -1077,6 +1084,7 @@ window.initializeScreener = function(params) {
         saveScreenerContentState();
         
         destroyScreenerChart();
+        document.removeEventListener('themechange', onThemeChange);
         // Remove all event listeners
         eventListeners.forEach(listener => {
             listener.element.removeEventListener(listener.type, listener.handler);

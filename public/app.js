@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isDark = document.documentElement.classList.toggle('dark-mode');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             updateThemeToggle();
+            document.dispatchEvent(new CustomEvent('themechange', { detail: { isDark } }));
         });
     }
 

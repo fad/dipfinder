@@ -870,6 +870,13 @@ async function updateTableAndChart(period) {
     saveDipfinderContentState();
 }
 
+// ── Re-render chart on theme change ──────────────────────────────────────────
+document.addEventListener('themechange', function() {
+    if (lastRenderCache.data) {
+        renderDashboardData(lastRenderCache.data, lastRenderCache.period, lastRenderCache.tableBody);
+    }
+});
+
 // ── SPA lifecycle ─────────────────────────────────────────────────────────────
 
 window.initializeDipfinder = function() {
