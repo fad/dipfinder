@@ -1207,10 +1207,21 @@ function updateNewsletterEmptyState() {
     document.addEventListener('click', function(e) {
         if (!e.target.matches('#newsletter-submit-v2')) return;
         const input = document.getElementById('newsletter-email-v2');
-        const msg   = document.getElementById('newsletter-msg-v2');
-        if (!input || !msg) return;
+        const promo = document.getElementById('newsletter-promo');
+        if (!input || !promo) return;
         window.umami?.track('newsletter_subscribe', { hasEmail: !!input.value.trim() });
-        msg.classList.remove('hidden');
+
+        // Replace card contents with confirmation, then fade out and remove
+        promo.style.transition = 'opacity 0.5s ease';
+        promo.innerHTML = `
+            <div class="flex items-center justify-center py-10 px-6">
+                <p class="text-xl font-bold text-gray-900 text-center" style="font-family:'Lora',Georgia,serif;">You're on the list. See you Sunday.</p>
+            </div>`;
+
+        setTimeout(() => {
+            promo.style.opacity = '0';
+            setTimeout(() => promo.remove(), 500);
+        }, 3000);
     });
 })();
 
