@@ -122,6 +122,14 @@ html.dark-mode .stock-row:hover {
     background: #1e293b !important;
 }
 
+/* ── Nav link hover ──────────────────────────────────────────────────────── */
+
+html.dark-mode nav a:hover,
+html.dark-mode nav button:hover {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+
 /* ── Autocomplete suggestion box ─────────────────────────────────────────── */
 
 .ticker-suggestion-box {

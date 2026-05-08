@@ -369,6 +369,10 @@ window.initializeScreener = function(params) {
         const years = history.map(d => String(d.year));
 
         // ── chart config helpers ──────────────────────────────────────────────
+        const isDarkMode = document.documentElement.classList.contains('dark-mode');
+        const axisTickColor = isDarkMode ? '#e5e7eb' : '#6B7280';
+        const gridLineColor = isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)';
+
         const baseOptions = (yLabel, isPercent) => ({
             responsive: true,
             maintainAspectRatio: false,
@@ -381,11 +385,11 @@ window.initializeScreener = function(params) {
                 }
             },
             scales: {
-                x: { grid: { display: false }, ticks: { color: '#6B7280', font: { size: 11 } } },
+                x: { grid: { display: false }, ticks: { color: axisTickColor, font: { size: 11 } } },
                 y: {
-                    grid: { color: 'rgba(0,0,0,0.06)' },
+                    grid: { color: gridLineColor },
                     ticks: {
-                        color: '#6B7280', font: { size: 11 },
+                        color: axisTickColor, font: { size: 11 },
                         callback: v => isPercent ? `${v}%` : `$${v}`
                     }
                 }
@@ -643,12 +647,25 @@ window.initializeScreener = function(params) {
                         ticks: {
                             maxTicksLimit: 12,
                             maxRotation: 0,
+                            color: document.documentElement.classList.contains('dark-mode') ? '#e5e7eb' : '#6B7280',
                             callback: function(val) {
                                 return tickFormatForTimeframe(this.getLabelForValue(val), currentTimeframe);
                             }
+                        },
+                        grid: {
+                            color: document.documentElement.classList.contains('dark-mode') ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
                         }
                     },
-                    y: { display: true, beginAtZero: false }
+                    y: {
+                        display: true,
+                        beginAtZero: false,
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark-mode') ? '#e5e7eb' : '#6B7280'
+                        },
+                        grid: {
+                            color: document.documentElement.classList.contains('dark-mode') ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
+                        }
+                    }
                 }
             }
         });
