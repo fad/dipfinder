@@ -365,9 +365,13 @@
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
             <div>
               <label style="color:#94a3b8; font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:0.4rem;">SMA Period</label>
-              <input id="settings-sma-period" type="number" min="5" max="500" placeholder="200"
-                style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.6rem 0.9rem; font-size:0.875rem; outline:none; box-sizing:border-box; transition:border-color 0.15s;"
-                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'">
+              <select id="settings-sma-period"
+                style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.6rem 0.9rem; font-size:0.875rem; outline:none; box-sizing:border-box; cursor:pointer;">
+                <option value="200">200-day</option>
+                <option value="100">100-day</option>
+                <option value="50">50-day</option>
+                <option value="10">10-day</option>
+              </select>
             </div>
             <div>
               <label style="color:#94a3b8; font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:0.4rem;">Bar Orientation</label>
