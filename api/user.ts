@@ -849,7 +849,7 @@ async function handleNewsletterSubscribe(req: VercelRequest, res: VercelResponse
   const setupToken = jwt.sign({ email, purpose: 'set-password' }, JWT_SECRET, { expiresIn: '7d' });
   const setPasswordUrl = `${FRONTEND_URL}/reset-password.html?setup=${setupToken}`;
 
-  sendOnboardingEmail(email, name, { setPasswordUrl }).catch((err: any) =>
+  await sendOnboardingEmail(email, name, { setPasswordUrl }).catch((err: any) =>
     console.error('sendOnboardingEmail failed:', err?.message)
   );
 
