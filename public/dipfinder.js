@@ -1209,13 +1209,29 @@ function initNewsletterPromo() {
                 return;
             }
 
-            // Prefill email, disable input
+            // Prefill email, disable input, show edit link
             const input = document.getElementById('newsletter-email-v2');
             if (input && data.email) {
                 input.value = data.email;
+                input.dataset.originalEmail = data.email;
                 input.disabled = true;
                 input.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed', 'opacity-60', 'select-none');
                 input.classList.remove('bg-white', 'border-gray-300');
+
+                const editLink = document.createElement('button');
+                editLink.type = 'button';
+                editLink.textContent = 'Update my email';
+                editLink.className = 'mt-1.5 text-xs text-teal-700 hover:text-teal-900 underline underline-offset-2 self-start';
+                editLink.addEventListener('click', () => {
+                    input.disabled = false;
+                    input.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed', 'opacity-60', 'select-none');
+                    input.classList.add('bg-white', 'border-gray-300');
+                    editLink.remove();
+                    input.focus();
+                    input.select();
+                });
+                const errorEl = document.getElementById('newsletter-email-error');
+                if (errorEl) errorEl.insertAdjacentElement('afterend', editLink);
             }
         })
         .catch(() => {});
@@ -1274,13 +1290,19 @@ function updateNewsletterEmptyState() {
 
         window.umami?.track('newsletter_subscribe', { hasEmail: true });
 
-        // Save subscription flag if logged in
+        // Save subscription flag (and updated email if changed) if logged in
         const authToken = localStorage.getItem('token');
         if (authToken) {
+            const payload = { sundayBriefSubscribed: true };
+            const originalEmail = input.dataset.originalEmail;
+            const currentEmail = input.value.trim();
+            if (originalEmail && currentEmail !== originalEmail) {
+                payload.email = currentEmail;
+            }
             fetch('/api/user?action=update-email-preferences', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-                body: JSON.stringify({ sundayBriefSubscribed: true })
+                body: JSON.stringify(payload)
             }).catch(() => {});
         }
 

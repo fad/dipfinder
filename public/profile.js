@@ -237,12 +237,69 @@ window.initializeProfile = function() {
         }
     }
 
+    // Setup email change functionality
+    function setupEmailChange() {
+        const saveEmailBtn = document.getElementById('save-email-btn');
+        if (saveEmailBtn) {
+            const handler = handleEmailChange;
+            saveEmailBtn.addEventListener('click', handler);
+            eventListeners.push({ element: saveEmailBtn, type: 'click', handler });
+        }
+    }
+
+    // Handle email address change
+    async function handleEmailChange() {
+        const emailInput = document.getElementById('settings-email');
+        const messageDiv = document.getElementById('email-change-message');
+        const submitBtn = document.getElementById('save-email-btn');
+
+        const newEmail = emailInput?.value.trim();
+        if (!newEmail) {
+            showMessage(messageDiv, 'Please enter an email address.', 'error');
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+            showMessage(messageDiv, 'Please enter a valid email address.', 'error');
+            return;
+        }
+
+        const token = window.AuthManager?.token || localStorage.getItem('token');
+        if (!token) {
+            showMessage(messageDiv, 'Authentication required. Please log in again.', 'error');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+        messageDiv.innerHTML = '';
+
+        try {
+            const res = await fetch(`${BASE_URL}/api/user?action=update-email-preferences`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ email: newEmail })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showMessage(messageDiv, 'Email address updated successfully!', 'success');
+            } else {
+                showMessage(messageDiv, data.error || 'Failed to update email. Please try again.', 'error');
+            }
+        } catch (e) {
+            console.error('Email change error:', e);
+            showMessage(messageDiv, 'Network error. Please try again.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Update Email';
+        }
+    }
+
     // Load email preferences
     async function loadEmailPreferences() {
         // Wait for AuthManager to be available
         let retryCount = 0;
         const maxRetries = 50;
-        
+
         while (!window.AuthManager && retryCount < maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 100));
             retryCount++;
@@ -259,8 +316,11 @@ window.initializeProfile = function() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
-            
+
             if (res.ok) {
+                const emailInput = document.getElementById('settings-email');
+                if (emailInput && data.email) emailInput.value = data.email;
+
                 const newsletterCheckbox = document.getElementById('newsletter-subscription');
                 if (newsletterCheckbox) newsletterCheckbox.checked = data.newsletterSubscribed || false;
 
@@ -341,6 +401,7 @@ window.initializeProfile = function() {
     setupTabSwitching();
     loadProfileInfo();
     setupPasswordChange();
+    setupEmailChange();
     setupEmailPreferences();
     loadEmailPreferences();
 

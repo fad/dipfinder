@@ -629,7 +629,7 @@ async function handleUpdateEmailPreferences(req: VercelRequest, res: VercelRespo
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const { newsletterSubscribed, sundayBriefSubscribed } = req.body;
+    const { newsletterSubscribed, sundayBriefSubscribed, email: newEmail } = req.body;
 
     const db = await connectToDatabase();
     const user = await db.collection('users').findOne({ _id: new ObjectId(decoded.userId) });
@@ -641,12 +641,27 @@ async function handleUpdateEmailPreferences(req: VercelRequest, res: VercelRespo
     if (typeof newsletterSubscribed === 'boolean') updateData.newsletterSubscribed = newsletterSubscribed;
     if (typeof sundayBriefSubscribed === 'boolean') updateData.sundayBriefSubscribed = sundayBriefSubscribed;
 
+    if (newEmail && typeof newEmail === 'string') {
+      const trimmedEmail = newEmail.trim().toLowerCase();
+      if (!validateEmail(trimmedEmail)) {
+        return res.status(400).json({ error: 'Invalid email address' });
+      }
+      if (trimmedEmail !== user.email) {
+        const existing = await db.collection('users').findOne({ email: trimmedEmail });
+        if (existing) {
+          return res.status(409).json({ error: 'Email already in use' });
+        }
+        updateData.email = trimmedEmail;
+      }
+    }
+
     await db.collection('users').updateOne({ _id: new ObjectId(decoded.userId) }, { $set: updateData });
 
     return res.status(200).json({
       message: 'Email preferences updated successfully',
       newsletterSubscribed: updateData.newsletterSubscribed ?? user.newsletterSubscribed ?? false,
-      sundayBriefSubscribed: updateData.sundayBriefSubscribed ?? user.sundayBriefSubscribed ?? false
+      sundayBriefSubscribed: updateData.sundayBriefSubscribed ?? user.sundayBriefSubscribed ?? false,
+      ...(updateData.email ? { email: updateData.email } : {})
     });
   } catch (error) {
     console.error('Email preferences update error:', error);
