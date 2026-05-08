@@ -36,6 +36,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleListUsers(req, res);
       case 'test-stocks':
         return await handleTestStocks(req, res);
+      case 'clear-stock-cache':
+        return await handleClearStockCache(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -173,4 +175,13 @@ async function handleTestStocks(_req: VercelRequest, res: VercelResponse) {
   }
 
   return res.status(200).json(results);
+}
+
+async function handleClearStockCache(_req: VercelRequest, res: VercelResponse) {
+  const db = await connectToDatabase();
+  const result = await db.collection('dashboardStocks').deleteMany({});
+  // Also clear in-memory cache on this function instance
+  const g = globalThis as any;
+  if (g._dashboardStockCache) g._dashboardStockCache = {};
+  return res.status(200).json({ ok: true, deleted: result.deletedCount });
 }
