@@ -1325,6 +1325,8 @@ window.initializeDipfinder = function() {
     function updateGuestUI(isAuthenticated) {
         const wrap = document.getElementById('guest-watchlist-wrap');
         if (wrap) wrap.classList.toggle('hidden', !!isAuthenticated);
+        const sampleBox = document.getElementById('sample-watchlist-box');
+        if (sampleBox) sampleBox.classList.toggle('hidden', !!isAuthenticated);
     }
 
     let lastAuthStatus = false;
@@ -1471,25 +1473,7 @@ function initNewsletterPromo() {
 
 function updateNewsletterEmptyState() {
     const newsSection = document.getElementById('news-section');
-    const emptyState  = document.getElementById('newsletter-empty-state');
-    if (!newsSection || !emptyState) return;
-
-    const count = stocks.length;
-    if (count < 5) {
-        newsSection.classList.add('hidden');
-        emptyState.classList.remove('hidden');
-        const progressText = document.getElementById('wtd-progress-text');
-        const progressDots = document.getElementById('wtd-progress-dots');
-        if (progressText) progressText.textContent = `${count} of 5 added`;
-        if (progressDots) {
-            progressDots.innerHTML = Array.from({ length: 5 }, (_, i) =>
-                `<span class="inline-block h-2.5 w-2.5 rounded-full ${i < count ? 'bg-teal-600' : 'bg-slate-200'}"></span>`
-            ).join('');
-        }
-    } else {
-        newsSection.classList.remove('hidden');
-        emptyState.classList.add('hidden');
-    }
+    if (newsSection) newsSection.classList.remove('hidden');
 }
 
 // ── Newsletter signup ─────────────────────────────────────────────────────────
