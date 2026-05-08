@@ -623,6 +623,7 @@ function removeStockFromUI(stockToRemove) {
 
     $('#stock-limit-message').addClass('hidden');
     saveDipfinderContentState();
+    updateNewsletterEmptyState();
 }
 
 function attachRemoveStockListeners() {
@@ -753,6 +754,7 @@ function renderDashboardData(stockDataArray, period, tableBody) {
 
     hideChartLoading();
     attachDashboardRowListeners();
+    updateNewsletterEmptyState();
 }
 
 // ── Main data-fetch + render orchestrator ─────────────────────────────────────
@@ -1085,6 +1087,7 @@ window.initializeDipfinder = function() {
         });
 
         saveDipfinderContentState();
+        updateNewsletterEmptyState();
     });
 
     $('#new-stock').keypress(function(event) {
@@ -1173,13 +1176,38 @@ window.initializeDipfinder = function() {
     }, 5000);
 };
 
+// ── Newsletter empty-state toggle ─────────────────────────────────────────────
+
+function updateNewsletterEmptyState() {
+    const newsSection = document.getElementById('news-section');
+    const emptyState  = document.getElementById('newsletter-empty-state');
+    if (!newsSection || !emptyState) return;
+
+    const count = stocks.length;
+    if (count < 5) {
+        newsSection.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        const progressText = document.getElementById('wtd-progress-text');
+        const progressDots = document.getElementById('wtd-progress-dots');
+        if (progressText) progressText.textContent = `${count} of 5 added`;
+        if (progressDots) {
+            progressDots.innerHTML = Array.from({ length: 5 }, (_, i) =>
+                `<span class="inline-block h-2.5 w-2.5 rounded-full ${i < count ? 'bg-teal-600' : 'bg-slate-200'}"></span>`
+            ).join('');
+        }
+    } else {
+        newsSection.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+    }
+}
+
 // ── Newsletter signup ─────────────────────────────────────────────────────────
 
 (function() {
     document.addEventListener('click', function(e) {
-        if (!e.target.matches('#newsletter-submit')) return;
-        const input = document.getElementById('newsletter-email');
-        const msg   = document.getElementById('newsletter-msg');
+        if (!e.target.matches('#newsletter-submit-v2')) return;
+        const input = document.getElementById('newsletter-email-v2');
+        const msg   = document.getElementById('newsletter-msg-v2');
         if (!input || !msg) return;
         window.umami?.track('newsletter_subscribe', { hasEmail: !!input.value.trim() });
         msg.classList.remove('hidden');

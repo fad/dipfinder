@@ -150,39 +150,91 @@
                         </div>
                     </div>
 
-                    <!-- Newsletter signup -->
-                    <div class="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 shadow-sm">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div class="flex items-start gap-3">
-                                <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-                                    <i class="fas fa-envelope text-xs"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-bold text-gray-900">Newsletter <span class="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-600">Weekly</span></p>
-                                    <p class="mt-0.5 text-xs text-gray-500 leading-snug">A personalized weekly email based on your watchlist.<br>No doomscrolling required.</p>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-2 sm:pl-2">
-                                <input type="email" id="newsletter-email" placeholder="your@email.com"
-                                    class="w-64 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                                <button id="newsletter-submit"
-                                    class="gradient-btn shrink-0 rounded-lg px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:opacity-90 whitespace-nowrap">
-                                    SUBSCRIBE
-                                </button>
-                            </div>
-                        </div>
-                        <p id="newsletter-msg" class="mt-2 hidden text-xs text-blue-600"><i class="fas fa-info-circle mr-1"></i>Newsletter not implemented yet. Coming soon. Thanks for your interest!</p>
-                    </div>
-
                 </section>
             </div>
 
+            <!-- ── What The Dip? newsletter promo ──────────────────────────────── -->
+            <div id="newsletter-promo" class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-5">
+
+                    <!-- Left: pitch + form (3/5) -->
+                    <div class="lg:col-span-3 p-6">
+                        <div class="flex flex-wrap items-baseline gap-2 mb-1">
+                            <h2 class="text-2xl font-bold text-gray-900 leading-tight" style="font-family:'Lora',Georgia,serif;">What The Dip?</h2>
+                            <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-500 tracking-wide">Sundays</span>
+                        </div>
+                        <p class="text-sm font-semibold text-gray-700 mb-2">Your watchlist's dips, explained. Every Sunday.</p>
+                        <p class="text-sm text-gray-500 leading-relaxed mb-5">A calm weekly read for patient investors. Synthesis, not headlines. No buy/sell advice.</p>
+                        <div class="flex flex-col sm:flex-row gap-2 mb-2">
+                            <label for="newsletter-email-v2" class="sr-only">Email address</label>
+                            <input type="email" id="newsletter-email-v2"
+                                placeholder="your@email.com"
+                                class="flex-1 min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-teal-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100">
+                            <button id="newsletter-submit-v2"
+                                class="shrink-0 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 whitespace-nowrap"
+                                aria-label="Subscribe to the What The Dip? Sunday brief">
+                                Get this Sunday's brief
+                            </button>
+                        </div>
+                        <p id="newsletter-msg-v2" class="hidden text-xs text-teal-700 mb-1"><i class="fas fa-check-circle mr-1"></i>You're on the list. See you Sunday.</p>
+                        <p class="text-xs text-gray-400">Research trigger, not a buy signal.</p>
+                    </div>
+
+                    <!-- Right: email preview mockup (2/5) -->
+                    <div class="lg:col-span-2 flex items-center justify-center bg-slate-50 p-6 border-t border-gray-100 lg:border-t-0 lg:border-l lg:border-gray-100">
+                        <div style="transform:rotate(1.5deg);filter:drop-shadow(0 4px 20px rgba(0,0,0,0.10));width:100%;max-width:260px;">
+                            <div class="rounded-xl bg-white border border-gray-200 overflow-hidden" style="font-size:11px;line-height:1.45;">
+                                <!-- Preview: header -->
+                                <div class="px-4 py-3" style="background:linear-gradient(135deg,#0F766E,#14B8A6);">
+                                    <div class="font-bold text-white" style="font-family:'Lora',Georgia,serif;font-size:13px;">What The Dip?</div>
+                                    <div style="font-size:10px;color:#99f6e4;">The Sunday Brief &middot; May 11, 2025</div>
+                                </div>
+                                <!-- Preview: status pills -->
+                                <div class="px-4 pt-3 pb-2 flex flex-wrap gap-1">
+                                    <span class="rounded px-1.5 py-0.5 font-semibold" style="background:#0F766E;color:#f0fdfa;">Deep dip 2</span>
+                                    <span class="rounded px-1.5 py-0.5 font-semibold" style="background:#CCFBF1;color:#0F766E;">Dipping 3</span>
+                                    <span class="rounded px-1.5 py-0.5 font-semibold" style="background:#F1F5F9;color:#475569;">Fair 2</span>
+                                    <span class="rounded px-1.5 py-0.5 font-semibold" style="background:#FFEDD5;color:#c2410c;">Hot 1</span>
+                                </div>
+                                <!-- Preview: bar chart silhouette -->
+                                <div class="px-4 pb-2">
+                                    <svg width="100%" height="52" viewBox="0 0 180 52" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <rect y="0"  width="130" height="8" rx="2" fill="#0F766E"/>
+                                        <rect y="11" width="98"  height="8" rx="2" fill="#14B8A6"/>
+                                        <rect y="22" width="72"  height="8" rx="2" fill="#14B8A6"/>
+                                        <rect y="33" width="55"  height="8" rx="2" fill="#94A3B8"/>
+                                        <rect y="44" width="82"  height="8" rx="2" fill="#F97316"/>
+                                    </svg>
+                                </div>
+                                <!-- Preview: sample synthesis -->
+                                <div class="px-4 pb-4 pt-2.5 border-t border-gray-100">
+                                    <p style="font-size:10px;line-height:1.55;color:#6b7280;">ASML crossed below its 200-day average for the first time in 14 months, despite beating earnings — guidance softened on China.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
             <!-- News – full width, 3-column ticker layout -->
-            <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div id="news-section" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                 <h2 id="news-title" class="mb-3 text-base font-bold text-gray-900">News by ticker</h2>
                 <div id="news-feed">
                     <span id="news-loading" class="block text-center text-blue-500 text-xs font-semibold"></span>
                     <!-- News articles will be appended here by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Empty-state: shown instead of news when watchlist has fewer than 5 tickers -->
+            <div id="newsletter-empty-state" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
+                <div class="max-w-xl">
+                    <h3 class="text-base font-bold text-gray-900 mb-2" style="font-family:'Lora',Georgia,serif;">Add 5 tickers and we'll send you the Sunday Brief</h3>
+                    <p class="text-sm text-gray-500 leading-relaxed mb-4">What The Dip? is a calm weekly read tailored to your watchlist — synthesis of what changed and why. Available once you've added 5 stocks.</p>
+                    <div class="flex items-center gap-3">
+                        <div class="flex gap-1.5" id="wtd-progress-dots"></div>
+                        <span class="text-sm font-medium text-gray-600" id="wtd-progress-text">0 of 5 added</span>
+                    </div>
                 </div>
             </div>
         </div>
