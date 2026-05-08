@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
-import { calculateSma, CACHE_EXPIRY_STOCKS } from './lib/stocks';
+import { calculateSma, CACHE_EXPIRY_STOCKS, yahooAxios } from './lib/stocks';
 import { verifyJWT } from './lib/auth';
 import axios from 'axios';
 
@@ -107,7 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=200d`;
-        const response = await axios.get(url);
+        const response = await yahooAxios.get(url);
         dashboardStock = getCachedDashboardStock(response.data);
 
         if (!dashboardStock) {

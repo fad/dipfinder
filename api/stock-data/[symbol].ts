@@ -8,6 +8,7 @@ import {
   CACHE_EXPIRY_FUNDAMENTALS,
   CACHE_EXPIRY_NEWS,
   CACHE_EXPIRY_COMPANY,
+  yahooAxios,
 } from '../lib/stocks';
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
@@ -270,7 +271,7 @@ async function handleStockPrice(db: any, symbol: string, res: VercelResponse) {
     return res.status(200).json(cached.data);
   }
 
-  const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=18mo`);
+  const response = await yahooAxios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=18mo`);
   const data = response.data;
 
   if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
@@ -321,7 +322,7 @@ async function handleSMATimeSeries(symbol: string, period: number, res: VercelRe
       return res.status(200).json(cached.data);
     }
 
-    const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2y`);
+    const response = await yahooAxios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2y`);
     const data = response.data;
 
     if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
@@ -371,7 +372,7 @@ async function handleStockPriceInternal(db: any, symbol: string) {
     return cached.data;
   }
 
-  const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=18mo`);
+  const response = await yahooAxios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=18mo`);
   const data = response.data;
 
   if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
