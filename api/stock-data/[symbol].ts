@@ -8,7 +8,7 @@ import {
   CACHE_EXPIRY_FUNDAMENTALS,
   CACHE_EXPIRY_NEWS,
   CACHE_EXPIRY_COMPANY,
-  yahooAxios,
+  yahooFinance,
 } from '../lib/stocks';
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
@@ -263,27 +263,8 @@ async function handleCompanyName(db: any, symbol: string, res: VercelResponse) {
 
 // Handle stock price data
 async function handleStockPrice(db: any, symbol: string, res: VercelResponse) {
-  const cacheKey = `stock-${symbol}`;
-  const collection = db.collection('stocks');
-  
-  const cached = await collection.findOne({ cacheKey });
-  if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_STOCKS) {
-    return res.status(200).json(cached.data);
-  }
-
-  const response = await yahooAxios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=18mo`);
-  const data = response.data;
-
-  if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
-    return res.status(404).json({ error: `No data found for symbol ${symbol}` });
-  }
-
-  await collection.updateOne(
-    { cacheKey },
-    { $set: { cacheKey, data, timestamp: Date.now() } },
-    { upsert: true }
-  );
-
+  const data = await handleStockPriceInternal(db, symbol);
+  if (!data) return res.status(404).json({ error: `No data found for symbol ${symbol}` });
   res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   return res.status(200).json(data);
 }
@@ -310,44 +291,36 @@ async function handleSMA(db: any, symbol: string, period: number, res: VercelRes
 // Handle SMA time series
 async function handleSMATimeSeries(symbol: string, period: number, res: VercelResponse) {
   try {
-    // Connect to the database
     const db = await connectToDatabase();
     const cacheKey = `sma-timeseries-${symbol}-${period}`;
     const collection = db.collection('smaTimeseries');
-    
-    // Check cache
+
     const cached = await collection.findOne({ cacheKey });
     if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_STOCKS) {
       res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
       return res.status(200).json(cached.data);
     }
 
-    const response = await yahooAxios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2y`);
-    const data = response.data;
-
-    if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
-      console.error(`No chart data found for ${symbol}`);
+    const priceData = await handleStockPriceInternal(db, symbol);
+    if (!priceData?.chart?.result?.[0]) {
       return res.status(404).json({ error: `No data found for symbol ${symbol}` });
     }
 
-    const result = data.chart.result[0];
-    const timestamps = result.timestamp;
-    const prices = result.indicators.quote[0].close;
+    const result = priceData.chart.result[0];
+    const timestamps: number[] = result.timestamp;
+    const prices: number[] = result.indicators.quote[0].close;
 
     if (prices.length < period) {
-      console.error(`Not enough price data for ${symbol} SMA calculation`);
       return res.status(400).json({ error: `Not enough data for ${period}-day SMA` });
     }
 
     const smaValues = calculateSmaTimeSeries(prices, period);
-    const smaData = timestamps.map((timestamp: number, index: number) => ({
-      date: new Date(timestamp * 1000).toISOString().split('T')[0],
-      value: isNaN(smaValues[index]) ? null : parseFloat(smaValues[index].toFixed(2))
+    const smaData = timestamps.map((ts: number, i: number) => ({
+      date: new Date(ts * 1000).toISOString().split('T')[0],
+      value: isNaN(smaValues[i]) ? null : parseFloat(smaValues[i].toFixed(2))
     })).filter((item: any) => item.value !== null);
 
     const responseData = { values: smaData };
-    
-    // Cache the result
     await collection.updateOne(
       { cacheKey },
       { $set: { cacheKey, data: responseData, timestamp: Date.now() } },
@@ -362,22 +335,36 @@ async function handleSMATimeSeries(symbol: string, period: number, res: VercelRe
   }
 }
 
-// Internal helper for stock price (no response)
+// Internal helper — fetches/caches stock price in the Yahoo v8 wire format
+// (screener.js parses chart.result[0].timestamp + indicators.quote[0].close directly)
 async function handleStockPriceInternal(db: any, symbol: string) {
   const cacheKey = `stock-${symbol}`;
   const collection = db.collection('stocks');
-  
+
   const cached = await collection.findOne({ cacheKey });
   if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_STOCKS) {
     return cached.data;
   }
 
-  const response = await yahooAxios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=18mo`);
-  const data = response.data;
+  // Use yahoo-finance2 to avoid Yahoo Finance's 429 on plain HTTP requests
+  const chartData = await yahooFinance.chart(symbol, { period1: '18monthsAgo', interval: '1d' });
+  const quotes: any[] = chartData?.quotes ?? [];
+  const closes = quotes.map((q: any) => q.close);
+  const timestamps = quotes.map((q: any) => Math.floor(new Date(q.date).getTime() / 1000));
 
-  if (!data.chart || data.chart.error || !Array.isArray(data.chart.result) || data.chart.result.length === 0) {
-    return null;
-  }
+  if (quotes.length === 0) return null;
+
+  // Build a shape compatible with what the screener expects
+  const data = {
+    chart: {
+      result: [{
+        meta: chartData?.meta ?? {},
+        timestamp: timestamps,
+        indicators: { quote: [{ close: closes }] },
+      }],
+      error: null,
+    },
+  };
 
   await collection.updateOne(
     { cacheKey },

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { calculateSma, CACHE_EXPIRY_STOCKS, yahooAxios } from './stocks';
+import { calculateSma, CACHE_EXPIRY_STOCKS, yahooFinance } from './stocks';
 
 export const NEWSLETTER_SMA_DEFAULT = 200;
 const CACHE_EXPIRY_NEWS = 3 * 60 * 60 * 1000; // 3 hours
@@ -62,16 +62,14 @@ export async function fetchStockData(symbol: string, db: any): Promise<Dashboard
     return doc.data as DashboardStockCache;
   }
 
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=200d`;
-  const response = await yahooAxios.get(url);
-  const result = response.data?.chart?.result?.[0];
-  const closes: number[] = (result?.indicators?.quote?.[0]?.close ?? []).filter(
-    (p: unknown) => Number.isFinite(p)
-  );
+  const chartData = await yahooFinance.chart(symbol.toUpperCase(), { period1: '200daysAgo', interval: '1d' });
+  const closes: number[] = (chartData?.quotes ?? [])
+    .map((q: any) => q.close)
+    .filter((p: unknown) => Number.isFinite(p));
 
   if (closes.length < 2) throw new Error(`No chart data for ${symbol}`);
 
-  const meta = result.meta || {};
+  const meta = chartData?.meta ?? {};
   const data: DashboardStockCache = {
     companyName: meta.longName || meta.shortName || meta.symbol || symbol,
     currentPrice: closes[closes.length - 1],

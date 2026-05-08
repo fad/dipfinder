@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
-import { calculateSma, CACHE_EXPIRY_STOCKS, yahooAxios } from './lib/stocks';
+import { calculateSma, CACHE_EXPIRY_STOCKS, yahooFinance } from './lib/stocks';
 import { verifyJWT } from './lib/auth';
-import axios from 'axios';
 
 const GUEST_STOCK_LIMIT = 5;
 const AUTH_STOCK_LIMIT = 10;
@@ -28,19 +27,19 @@ const memoryCache = globalThis._dashboardStockCache || {};
 globalThis._dashboardStockCache = memoryCache;
 
 function getCachedDashboardStock(data: any): DashboardStockCache | null {
-  const result = data?.chart?.result?.[0];
-  const closes = result?.indicators?.quote?.[0]?.close?.filter((price: unknown) => Number.isFinite(price));
+  // yahoo-finance2 chart() response: { meta, quotes: [{close, ...}] }
+  const closes: number[] = (data?.quotes ?? [])
+    .map((q: any) => q.close)
+    .filter((p: unknown) => Number.isFinite(p));
 
-  if (!Array.isArray(closes) || closes.length < 2) {
-    return null;
-  }
+  if (closes.length < 2) return null;
 
-  const meta = result.meta || {};
+  const meta = data?.meta ?? {};
   return {
     companyName: meta.longName || meta.shortName || meta.symbol || 'Unknown',
     currentPrice: closes[closes.length - 1],
     previousPrice: closes[closes.length - 2],
-    closes
+    closes,
   };
 }
 
@@ -106,9 +105,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=200d`;
-        const response = await yahooAxios.get(url);
-        dashboardStock = getCachedDashboardStock(response.data);
+        const chartData = await yahooFinance.chart(normalizedSymbol, { period1: '200daysAgo', interval: '1d' });
+        dashboardStock = getCachedDashboardStock(chartData);
 
         if (!dashboardStock) {
           throw new Error(`No chart data found for ${symbol}`);

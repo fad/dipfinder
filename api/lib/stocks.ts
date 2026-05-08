@@ -1,14 +1,8 @@
-import axios from 'axios';
-
 // Shared stock calculation utilities
 
-// Yahoo Finance requires a browser-like User-Agent — plain axios requests get 429
-export const yahooAxios = axios.create({
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-  },
-});
+import YahooFinanceClass from 'yahoo-finance2';
+// yahoo-finance2 v3 exports the class as default; instantiate once and share
+export const yahooFinance = new (YahooFinanceClass as any)();
 
 /**
  * Calculate a simple moving average over the most recent `period` prices.
