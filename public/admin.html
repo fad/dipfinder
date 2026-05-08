@@ -260,7 +260,8 @@
               <th onclick="sortBy('email')">Email <span class="sort-arrow" id="arrow-email">↕</span></th>
               <th onclick="sortBy('createdDate')">Joined <span class="sort-arrow" id="arrow-createdDate">↕</span></th>
               <th onclick="sortBy('isVerified')">Verified <span class="sort-arrow" id="arrow-isVerified">↕</span></th>
-              <th onclick="sortBy('newsletterSubscribed')">Newsletter <span class="sort-arrow" id="arrow-newsletterSubscribed">↕</span></th>
+              <th onclick="sortBy('newsletterSubscribed')">Subscribed <span class="sort-arrow" id="arrow-newsletterSubscribed">↕</span></th>
+              <th onclick="sortBy('sundayBriefSubscribed')">Sunday Brief <span class="sort-arrow" id="arrow-sundayBriefSubscribed">↕</span></th>
               <th onclick="sortBy('totalLoginCount')">Logins <span class="sort-arrow" id="arrow-totalLoginCount">↕</span></th>
               <th onclick="sortBy('lastLoginAt')">Last Login <span class="sort-arrow" id="arrow-lastLoginAt">↕</span></th>
               <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
@@ -440,6 +441,7 @@
       if (key === 'totalLoginCount') return user.totalLoginCount || 0;
       if (key === 'isVerified') return user.isVerified ? 1 : 0;
       if (key === 'newsletterSubscribed') return user.newsletterSubscribed ? 1 : 0;
+      if (key === 'sundayBriefSubscribed') return user.sundayBriefSubscribed ? 1 : 0;
       if (key === 'isPro') return user.isPro ? 1 : 0;
       if (key === 'createdDate' || key === 'lastLoginAt') return user[key] ? new Date(user[key]).getTime() : 0;
       return (user[key] || '').toString().toLowerCase();
@@ -459,7 +461,7 @@
       });
 
       document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
-      ['name','email','createdDate','isVerified','newsletterSubscribed','totalLoginCount','lastLoginAt','watchlist','isPro'].forEach(k => {
+      ['name','email','createdDate','isVerified','newsletterSubscribed','sundayBriefSubscribed','totalLoginCount','lastLoginAt','watchlist','isPro'].forEach(k => {
         const el = document.getElementById('arrow-' + k);
         if (!el) return;
         if (k === sortKey) {
@@ -491,6 +493,9 @@
               ? '<span class="badge badge-green">Yes</span>'
               : '<span class="badge badge-gray">No</span>'}</td>
             <td>${u.newsletterSubscribed
+              ? '<span class="badge badge-blue">Yes</span>'
+              : '<span class="badge badge-gray">No</span>'}</td>
+            <td>${u.sundayBriefSubscribed
               ? '<span class="badge badge-blue">Yes</span>'
               : '<span class="badge badge-gray">No</span>'}</td>
             <td>${u.totalLoginCount || 0}</td>
