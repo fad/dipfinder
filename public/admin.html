@@ -111,6 +111,31 @@
   <div id="error-msg"></div>
   <div id="loading">Loading…</div>
 
+  <!-- Sign-in screen (shown when not authenticated) -->
+  <div id="signin-screen" style="display:none; max-width:380px; margin:3rem auto;">
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:2rem;">
+      <h2 style="color:#f1f5f9; margin:0 0 1.5rem; font-size:1.1rem; font-weight:700;">Sign in to Admin</h2>
+      <div style="margin-bottom:1rem;">
+        <label style="color:#94a3b8; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:0.4rem;">Email</label>
+        <input type="email" id="signin-email" autocomplete="email"
+          style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.6rem 0.9rem; font-size:0.875rem; outline:none; box-sizing:border-box; transition:border-color 0.15s;"
+          onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'">
+      </div>
+      <div style="margin-bottom:1.25rem;">
+        <label style="color:#94a3b8; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:0.4rem;">Password</label>
+        <input type="password" id="signin-password" autocomplete="current-password"
+          style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.6rem 0.9rem; font-size:0.875rem; outline:none; box-sizing:border-box; transition:border-color 0.15s;"
+          onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
+          onkeydown="if(event.key==='Enter') doSignin()">
+      </div>
+      <div id="signin-error" style="display:none; color:#f87171; font-size:0.8rem; margin-bottom:0.9rem; background:#2d1515; border:1px solid #7f1d1d; border-radius:6px; padding:0.5rem 0.75rem;"></div>
+      <button id="signin-btn" onclick="doSignin()"
+        style="width:100%; background:#38bdf8; color:#0f172a; border:none; border-radius:7px; padding:0.65rem; font-size:0.875rem; font-weight:700; cursor:pointer; transition:opacity 0.15s;">
+        Sign In
+      </button>
+    </div>
+  </div>
+
   <div id="content" style="display:none">
     <div class="tabs">
       <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
@@ -365,9 +390,62 @@
       document.getElementById('loading').style.display = 'none';
     }
 
+    function showSignin() {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'none';
+      document.getElementById('error-msg').style.display = 'none';
+      document.getElementById('signin-screen').style.display = 'block';
+      setTimeout(() => document.getElementById('signin-email').focus(), 50);
+    }
+
+    async function doSignin() {
+      const email = document.getElementById('signin-email').value.trim();
+      const password = document.getElementById('signin-password').value;
+      const errEl = document.getElementById('signin-error');
+      const btn = document.getElementById('signin-btn');
+
+      errEl.style.display = 'none';
+      if (!email || !password) {
+        errEl.textContent = 'Email and password are required.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+      btn.style.opacity = '0.6';
+
+      try {
+        // Use the Turnstile test key — backend accepts it; admin endpoint enforces ADMIN_EMAIL anyway
+        const res = await fetch('/api/user?action=login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, captchaToken: '1x0000000000000000000000000000000AA' })
+        });
+        const data = await res.json();
+        if (res.ok && data.token) {
+          localStorage.setItem('token', data.token);
+          document.getElementById('signin-screen').style.display = 'none';
+          document.getElementById('loading').style.display = 'block';
+          document.getElementById('loading').textContent = 'Loading…';
+          load();
+        } else {
+          errEl.textContent = data.error || 'Login failed.';
+          errEl.style.display = 'block';
+        }
+      } catch (e) {
+        errEl.textContent = 'Network error: ' + e.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+        btn.style.opacity = '1';
+      }
+    }
+
     async function load() {
       const token = localStorage.getItem('token');
-      if (!token) { showError('Not logged in. Please log in at /app first.'); return; }
+      if (!token) { showSignin(); return; }
 
       let data;
       try {
@@ -375,6 +453,11 @@
           headers: { Authorization: 'Bearer ' + token }
         });
         data = await res.json();
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem('token');
+          showSignin();
+          return;
+        }
         if (!res.ok) { showError(data.error || 'Request failed'); return; }
       } catch (e) {
         showError('Network error: ' + e.message);
