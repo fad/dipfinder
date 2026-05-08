@@ -1210,8 +1210,10 @@ function initNewsletterPromo() {
                 return;
             }
 
-            // Not yet subscribed — reveal promo and prefill email
+            // Not yet subscribed — reveal promo, hide name field (we know who they are), prefill email
             promo.style.display = '';
+            const nameRow = document.getElementById('newsletter-name-row');
+            if (nameRow) nameRow.style.display = 'none';
 
             // Prefill email, disable input, show edit link
             const input = document.getElementById('newsletter-email-v2');
@@ -1271,12 +1273,29 @@ function updateNewsletterEmptyState() {
 (function() {
     document.addEventListener('click', function(e) {
         if (!e.target.matches('#newsletter-submit-v2')) return;
-        const input   = document.getElementById('newsletter-email-v2');
-        const errMsg  = document.getElementById('newsletter-email-error');
+        const input      = document.getElementById('newsletter-email-v2');
+        const nameInput  = document.getElementById('newsletter-name-v2');
+        const errMsg     = document.getElementById('newsletter-email-error');
+        const nameErrMsg = document.getElementById('newsletter-name-error');
         const form    = document.getElementById('newsletter-form-content');
         const confirm = document.getElementById('newsletter-confirm-content');
         const promo   = document.getElementById('newsletter-promo');
         if (!input || !form || !confirm || !promo) return;
+
+        const authToken = localStorage.getItem('token');
+        const isGuest = !authToken;
+
+        // Validate name (guests only, when name row is visible)
+        if (isGuest && nameInput && nameInput.closest('#newsletter-name-row')?.style.display !== 'none') {
+            if (!nameInput.value.trim()) {
+                nameInput.classList.add('border-red-400', 'ring-2', 'ring-red-100');
+                if (nameErrMsg) nameErrMsg.classList.remove('hidden');
+                nameInput.focus();
+                return;
+            }
+            nameInput.classList.remove('border-red-400', 'ring-2', 'ring-red-100');
+            if (nameErrMsg) nameErrMsg.classList.add('hidden');
+        }
 
         // Validate email format
         if (!input.value.trim() || !input.checkValidity()) {
@@ -1293,8 +1312,6 @@ function updateNewsletterEmptyState() {
         if (errMsg) errMsg.classList.add('hidden');
 
         window.umami?.track('newsletter_subscribe', { hasEmail: true });
-
-        const authToken = localStorage.getItem('token');
 
         if (authToken) {
             // Logged-in path: update email preferences, then show confirmation
@@ -1313,11 +1330,12 @@ function updateNewsletterEmptyState() {
         } else {
             // Guest path: create account via newsletter-subscribe
             const email = input.value.trim();
+            const name = nameInput ? nameInput.value.trim() : '';
             const watchlistSymbols = Array.isArray(stocks) ? stocks.filter(s => typeof s === 'string') : [];
             fetch('/api/user?action=newsletter-subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, watchlist: watchlistSymbols })
+                body: JSON.stringify({ email, name, watchlist: watchlistSymbols })
             }).then(async (r) => {
                 const data = await r.json();
                 if (data.userExists) {
@@ -1353,15 +1371,23 @@ function updateNewsletterEmptyState() {
         }
     });
 
-    // Clear error state as soon as the user starts correcting the email
+    // Clear error state as soon as the user starts correcting the field
     document.addEventListener('input', function(e) {
-        if (!e.target.matches('#newsletter-email-v2')) return;
-        const input  = document.getElementById('newsletter-email-v2');
-        const errMsg = document.getElementById('newsletter-email-error');
-        if (input && input.checkValidity()) {
-            input.classList.remove('border-red-400', 'ring-2', 'ring-red-100');
-            input.classList.add('border-gray-200');
-            if (errMsg) errMsg.classList.add('hidden');
+        if (e.target.matches('#newsletter-email-v2')) {
+            const input  = document.getElementById('newsletter-email-v2');
+            const errMsg = document.getElementById('newsletter-email-error');
+            if (input && input.checkValidity()) {
+                input.classList.remove('border-red-400', 'ring-2', 'ring-red-100');
+                input.classList.add('border-gray-200');
+                if (errMsg) errMsg.classList.add('hidden');
+            }
+        } else if (e.target.matches('#newsletter-name-v2')) {
+            const nameInput  = document.getElementById('newsletter-name-v2');
+            const nameErrMsg = document.getElementById('newsletter-name-error');
+            if (nameInput && nameInput.value.trim()) {
+                nameInput.classList.remove('border-red-400', 'ring-2', 'ring-red-100');
+                if (nameErrMsg) nameErrMsg.classList.add('hidden');
+            }
         }
     });
 })();

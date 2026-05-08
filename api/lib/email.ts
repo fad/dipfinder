@@ -59,6 +59,7 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">It's a weird time to be an investor. Rate swings, macro headlines, AI booms and busts - the market feels more unpredictable than ever.</p>
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;font-weight:700;">That's where Dip Finder comes in.</p>
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">We rank the stocks on your watchlist by how far they're trading below their moving average. Every Sunday morning, your brief shows you the best opportunities at a glance - the stocks you already want to own, on sale.</p>
+{{setPasswordBlock}}
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 28px;">To make sure our emails land in your inbox, just reply with a quick "hello". It tells the email gods you want to hear from us.</p>
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0;">Talk to you on Sunday,<br><strong>The Dip Finder Team</strong></p>
 `,
@@ -323,38 +324,36 @@ export async function sendMagicLinkEmail(email: string, magicUrl: string): Promi
 }
 
 /**
- * Send onboarding welcome email.
- * - With setPasswordUrl: sends a newsletter-signup welcome email (hardcoded, not DB template)
- *   telling the user they've been gifted 10 stock slots and giving them a set-password CTA.
- * - Without setPasswordUrl: uses the DB-backed 'onboarding' template.
+ * Send onboarding welcome email using the DB-backed 'onboarding' template.
+ * When setPasswordUrl is provided the template's {{setPasswordBlock}} placeholder
+ * is replaced with a "gift 10 slots + set password" CTA block.
  */
 export async function sendOnboardingEmail(
   toEmail: string,
   name: string,
   options?: { setPasswordUrl?: string }
 ): Promise<boolean> {
-  if (options?.setPasswordUrl) {
-    const html = buildEmailHtml(`
-<p style="font-family:Arial,sans-serif;font-size:16px;color:#0F172A;line-height:1.6;margin:0 0 20px;"><strong>Welcome to Dip Finder, ${name}.</strong></p>
-<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">You're now subscribed to the Sunday Brief - every week you'll get a ranked view of your watchlist stocks, showing which ones are trading furthest below their moving average.</p>
-<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 24px;">As a welcome gift, we've upgraded your watchlist to <strong>10 stock slots</strong> - double the usual free limit. Set a password to keep your account.</p>
-<div style="text-align:center;margin:28px 0;">
-  <a href="${options.setPasswordUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Set My Password &rarr;</a>
-</div>
-<div style="background:#DCFCE7;border-left:4px solid #16A34A;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 20px;">
-  <p style="font-family:Arial,sans-serif;font-size:13px;color:#14532D;margin:0;line-height:1.6;">This link expires in 7 days. You can also sign in at any time using a magic link from the login page.</p>
-</div>
-<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0;">Talk to you on Sunday,<br><strong>The Dip Finder Team</strong></p>
-`);
-    return sendEmail({ to: toEmail, subject: 'Welcome to Dip Finder - claim your free upgrade', html });
-  }
-
   try {
     const db = await connectToDatabase();
     const template = await getEmailTemplate(db, 'onboarding');
     if (!template) return false;
-    const html = renderTemplate(template.html, { name: name || 'there' });
-    return sendEmail({ to: toEmail, subject: template.subject, html });
+
+    const setPasswordBlock = options?.setPasswordUrl
+      ? `<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">As a welcome gift, we've upgraded your watchlist to <strong>10 stock slots</strong> - double the usual free limit. Set a password to keep your account.</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${options.setPasswordUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Set My Password &rarr;</a>
+</div>
+<div style="background:#DCFCE7;border-left:4px solid #16A34A;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 24px;">
+  <p style="font-family:Arial,sans-serif;font-size:13px;color:#14532D;margin:0;line-height:1.6;">This link expires in 7 days. You can also sign in at any time using a magic link from the login page.</p>
+</div>`
+      : '';
+
+    const subject = options?.setPasswordUrl
+      ? 'Welcome to Dip Finder - claim your free upgrade'
+      : template.subject;
+
+    const html = renderTemplate(template.html, { name: name || 'there', setPasswordBlock });
+    return sendEmail({ to: toEmail, subject, html });
   } catch (err) {
     console.error('sendOnboardingEmail error:', err);
     return false;

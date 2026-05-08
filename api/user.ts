@@ -806,7 +806,7 @@ async function handleNewsletterSubscribe(req: VercelRequest, res: VercelResponse
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email: rawEmail, watchlist } = req.body;
+  const { email: rawEmail, name: rawName, watchlist } = req.body;
   const email = sanitizeInput(rawEmail || '').toLowerCase();
 
   if (!email || !validateEmail(email)) {
@@ -822,7 +822,7 @@ async function handleNewsletterSubscribe(req: VercelRequest, res: VercelResponse
 
   const randomPass = randomBytes(24).toString('hex');
   const hashedPassword = await bcrypt.hash(randomPass, 10);
-  const name = email.split('@')[0];
+  const name = sanitizeInput(rawName || '') || email.split('@')[0];
   const safeWatchlist = Array.isArray(watchlist)
     ? watchlist.slice(0, 10).map((s: any) => String(s).toUpperCase().trim()).filter(Boolean)
     : [];
