@@ -61,6 +61,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'newsletter-subscribe':
         return await handleNewsletterSubscribe(req, res);
 
+      case 'initial-stocks':
+        return await handleInitialStocks(req, res);
+
       case 'set-initial-password':
         return await handleSetInitialPassword(req, res);
 
@@ -161,7 +164,7 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email: rawEmail, password, name: rawName, captchaToken, termsAccepted, newsletterSubscribed } = req.body;
+  const { email: rawEmail, password, name: rawName, captchaToken, termsAccepted, newsletterSubscribed, watchlist: rawWatchlist } = req.body;
 
   const email = sanitizeInput(rawEmail || '');
   const name = sanitizeInput(rawName || '');
@@ -188,6 +191,19 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     return res.status(409).json({ error: 'User already exists' });
   }
 
+  // Use localStorage watchlist if provided; otherwise fall back to admin initial stocks
+  const TICKER_RE = /^[A-Z0-9.\-]{1,10}$/;
+  let watchlist: string[] = Array.isArray(rawWatchlist)
+    ? (rawWatchlist as any[])
+        .filter((s: any) => typeof s === 'string' && TICKER_RE.test(s.toUpperCase()))
+        .map((s: any) => (s as string).toUpperCase())
+        .slice(0, 10)
+    : [];
+  if (watchlist.length === 0) {
+    const settingsDoc = await db.collection('settings').findOne({ key: 'initialStocks' });
+    watchlist = settingsDoc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const newUser = {
@@ -198,7 +214,8 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     isVerified: false,
     termsAccepted: true,
     termsAcceptedDate: new Date(),
-    newsletterSubscribed: Boolean(newsletterSubscribed)
+    newsletterSubscribed: Boolean(newsletterSubscribed),
+    watchlist,
   };
 
   const result = await usersCollection.insertOne(newUser);
@@ -823,9 +840,13 @@ async function handleNewsletterSubscribe(req: VercelRequest, res: VercelResponse
   const randomPass = randomBytes(24).toString('hex');
   const hashedPassword = await bcrypt.hash(randomPass, 10);
   const name = sanitizeInput(rawName || '') || email.split('@')[0];
-  const safeWatchlist = Array.isArray(watchlist)
+  let safeWatchlist: string[] = Array.isArray(watchlist)
     ? watchlist.slice(0, 10).map((s: any) => String(s).toUpperCase().trim()).filter(Boolean)
     : [];
+  if (safeWatchlist.length === 0) {
+    const settingsDoc = await db.collection('settings').findOne({ key: 'initialStocks' });
+    safeWatchlist = settingsDoc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
+  }
 
   const newUser = {
     email,
@@ -906,6 +927,14 @@ async function handleSetInitialPassword(req: VercelRequest, res: VercelResponse)
     token: authToken,
     user: { id: user._id, email: user.email, name: user.name },
   });
+}
+
+// Return admin-configured initial stocks (no auth required)
+async function handleInitialStocks(_req: VercelRequest, res: VercelResponse) {
+  const db = await connectToDatabase();
+  const doc = await db.collection('settings').findOne({ key: 'initialStocks' });
+  const stocks: string[] = doc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
+  return res.status(200).json({ stocks });
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────

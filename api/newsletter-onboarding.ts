@@ -41,7 +41,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let sent = 0, failed = 0;
 
     for (const user of pending) {
-      const ok = await sendOnboardingEmail(user.email, user.name || user.email.split('@')[0]);
+      const ok = await sendOnboardingEmail(
+        user.email,
+        user.name || user.email.split('@')[0],
+        { watchlist: user.watchlist || [], db }
+      );
       if (ok) {
         await db.collection('users').updateOne(
           { _id: user._id },

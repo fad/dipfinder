@@ -312,20 +312,28 @@ const AuthManager = (function() {
         regBtn.disabled = true;
         regBtn.textContent = "Registering...";
         
+        // Read current localStorage watchlist to seed the new account
+        let localWatchlist = [];
+        try {
+            const stored = localStorage.getItem('stocks');
+            if (stored) localWatchlist = JSON.parse(stored);
+        } catch { /* ignore */ }
+
         try {
             const res = await fetch(`${BASE_URL}/api/user?action=register`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    email, 
-                    password, 
+                body: JSON.stringify({
+                    email,
+                    password,
                     captchaToken: captchaResponse,
                     termsAccepted,
-                    newsletterSubscribed
+                    newsletterSubscribed,
+                    watchlist: localWatchlist
                 }),
             });
             const data = await res.json();
-            
+
             if (res.ok) {
                 showAuthSuccess(data.msg || "Registration successful! Please log in.");
                 setTimeout(() => showLoginForm(), 1200);

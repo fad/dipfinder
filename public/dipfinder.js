@@ -1397,7 +1397,11 @@ window.initializeDipfinder = function() {
         if (storedStocks) {
             stocks = JSON.parse(storedStocks);
         } else {
-            stocks = ['CRM', 'MSFT', 'AAPL', 'INTU'];
+            // Use admin-configured initial stocks (cached from last background fetch), or fall back
+            try {
+                const cachedDefaults = localStorage.getItem('dipfinder-initial-stocks');
+                stocks = cachedDefaults ? JSON.parse(cachedDefaults) : ['CRM', 'MSFT', 'AAPL', 'INTU'];
+            } catch { stocks = ['CRM', 'MSFT', 'AAPL', 'INTU']; }
             localStorage.setItem('stocks', JSON.stringify(stocks));
         }
     } catch (error) {
@@ -1405,6 +1409,17 @@ window.initializeDipfinder = function() {
         stocks = ['CRM', 'MSFT', 'AAPL', 'INTU'];
     }
     validateStocksArray();
+
+    // Background-refresh admin initial stocks cache for next guest visit
+    if (!localStorage.getItem('token')) {
+        fetch(`${BASE_URL}/api/user?action=initial-stocks`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (Array.isArray(data?.stocks) && data.stocks.length) {
+                    localStorage.setItem('dipfinder-initial-stocks', JSON.stringify(data.stocks));
+                }
+            }).catch(() => {});
+    }
 
     // 2. Bail if the dashboard DOM isn't loaded
     if (!document.getElementById('stocks-table')) return;

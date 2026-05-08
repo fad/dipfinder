@@ -2,6 +2,7 @@
 // Using Resend API with EMAIL_NOREPLY_API_KEY
 
 import { connectToDatabase } from './mongodb';
+import { buildStockResults } from './newsletter-data';
 
 const RESEND_API_KEY = process.env.EMAIL_NOREPLY_API_KEY;
 const FROM_EMAIL = 'noreply@dipfinder.com';
@@ -60,6 +61,7 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;font-weight:700;">That's where Dip Finder comes in.</p>
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">We rank the stocks on your watchlist by how far they're trading below their moving average. Every Sunday morning, your brief shows you the best opportunities at a glance - the stocks you already want to own, on sale.</p>
 {{setPasswordBlock}}
+{{watchlistChartBlock}}
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 28px;">To make sure our emails land in your inbox, just reply with a quick "hello". It tells the email gods you want to hear from us.</p>
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0;">Talk to you on Sunday,<br><strong>The Dip Finder Team</strong></p>
 `,
@@ -327,14 +329,16 @@ export async function sendMagicLinkEmail(email: string, magicUrl: string): Promi
  * Send onboarding welcome email using the DB-backed 'onboarding' template.
  * When setPasswordUrl is provided the template's {{setPasswordBlock}} placeholder
  * is replaced with a "gift 10 slots + set password" CTA block.
+ * When watchlist + db are provided the template's {{watchlistChartBlock}} placeholder
+ * is replaced with a bar chart of the user's watchlist.
  */
 export async function sendOnboardingEmail(
   toEmail: string,
   name: string,
-  options?: { setPasswordUrl?: string }
+  options?: { setPasswordUrl?: string; watchlist?: string[]; db?: any; smaPeriod?: number }
 ): Promise<boolean> {
   try {
-    const db = await connectToDatabase();
+    const db = options?.db ?? await connectToDatabase();
     const template = await getEmailTemplate(db, 'onboarding');
     if (!template) return false;
 
@@ -348,11 +352,30 @@ export async function sendOnboardingEmail(
 </div>`
       : '';
 
+    // Build watchlist chart block if watchlist data is available
+    let watchlistChartBlock = '';
+    if (options?.watchlist?.length) {
+      try {
+        const smaPeriod = options.smaPeriod || 50;
+        const stockResults = await buildStockResults(options.watchlist, db, smaPeriod);
+        if (stockResults.length > 0) {
+          const chartUrl = generateBarChartUrl(stockResults, 'y');
+          watchlistChartBlock = `
+<div style="margin:24px 0;">
+  <p style="font-family:Arial,sans-serif;font-size:12px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 10px;">Your Watchlist vs ${smaPeriod}-day SMA</p>
+  <img src="${chartUrl}" width="100%" alt="Your watchlist dip chart" style="display:block;border-radius:8px;border:1px solid #e2e8f0;max-width:556px;">
+</div>`;
+        }
+      } catch (chartErr) {
+        console.error('sendOnboardingEmail: chart generation failed:', chartErr);
+      }
+    }
+
     const subject = options?.setPasswordUrl
       ? 'Welcome to Dip Finder - claim your free upgrade'
       : template.subject;
 
-    const html = renderTemplate(template.html, { name: name || 'there', setPasswordBlock });
+    const html = renderTemplate(template.html, { name: name || 'there', setPasswordBlock, watchlistChartBlock });
     return sendEmail({ to: toEmail, subject, html });
   } catch (err) {
     console.error('sendOnboardingEmail error:', err);

@@ -66,6 +66,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleDeleteUser(req, res);
       case 'toggle-pro':
         return await handleTogglePro(req, res);
+      case 'get-settings':
+        return await handleGetSettings(req, res);
+      case 'save-settings':
+        return await handleSaveSettings(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -420,6 +424,32 @@ async function handleDeleteUser(req: VercelRequest, res: VercelResponse) {
   const result = await db.collection('users').deleteOne({ email: email.toLowerCase() });
   if (result.deletedCount === 0) return res.status(404).json({ error: 'User not found' });
   return res.status(200).json({ ok: true });
+}
+
+async function handleGetSettings(_req: VercelRequest, res: VercelResponse) {
+  const db = await connectToDatabase();
+  const doc = await db.collection('settings').findOne({ key: 'initialStocks' });
+  const initialStocks: string[] = doc?.value ?? ['CRM', 'MSFT', 'AAPL', 'INTU'];
+  return res.status(200).json({ initialStocks });
+}
+
+const TICKER_RE_SETTINGS = /^[A-Z0-9.\-]{1,10}$/;
+
+async function handleSaveSettings(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { initialStocks } = req.body || {};
+  if (!Array.isArray(initialStocks)) return res.status(400).json({ error: 'initialStocks must be an array' });
+  const safe = (initialStocks as any[])
+    .filter((s: any) => typeof s === 'string' && TICKER_RE_SETTINGS.test(s.toUpperCase()))
+    .map((s: any) => (s as string).toUpperCase())
+    .slice(0, 20);
+  const db = await connectToDatabase();
+  await db.collection('settings').updateOne(
+    { key: 'initialStocks' },
+    { $set: { key: 'initialStocks', value: safe, updatedAt: new Date() } },
+    { upsert: true }
+  );
+  return res.status(200).json({ ok: true, initialStocks: safe });
 }
 
 async function handleTogglePro(req: VercelRequest, res: VercelResponse) {
