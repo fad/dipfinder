@@ -72,6 +72,23 @@
     .btn-red { background: #7f1d1d; color: #fca5a5; }
     .btn-red:hover:not(:disabled) { opacity: 0.85; }
     select option { background: #1e293b; }
+
+    /* ── Email template editor ─────────────────────────────────────────── */
+    .tpl-split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; height: calc(100vh - 310px); min-height: 420px; }
+    .tpl-editor-col, .tpl-preview-col { display: flex; flex-direction: column; min-height: 0; }
+    .tpl-pane-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; flex-shrink: 0; flex-wrap: wrap; min-height: 30px; }
+    #tpl-html { flex: 1; min-height: 0; width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 7px; color: #cbd5e1; padding: 0.75rem; font-size: 0.74rem; font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace; line-height: 1.55; outline: none; resize: none; box-sizing: border-box; }
+    #tpl-html:focus { border-color: #38bdf8; }
+    #tpl-wysiwyg-frame { flex: 1; min-height: 0; border: 1px solid #475569; border-radius: 7px; background: #fff; display: none; }
+    #tpl-preview-frame { flex: 1; min-height: 0; border: 1px solid #334155; border-radius: 7px; background: #fff; }
+    .mode-toggle { display: flex; background: #0f172a; border: 1px solid #334155; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+    .mode-btn { background: none; border: none; color: #64748b; padding: 0.28rem 0.75rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.12s; white-space: nowrap; }
+    .mode-btn:hover { color: #e2e8f0; }
+    .mode-btn.active { background: #1e3a5f; color: #38bdf8; }
+    .wysiwyg-toolbar { display: none; align-items: center; gap: 1px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 2px 5px; }
+    .wysiwyg-toolbar button { background: none; border: none; color: #94a3b8; padding: 0.2rem 0.48rem; font-size: 0.78rem; cursor: pointer; border-radius: 4px; transition: all 0.1s; line-height: 1.4; }
+    .wysiwyg-toolbar button:hover { background: #334155; color: #e2e8f0; }
+    .wysiwyg-toolbar .tbar-sep { width: 1px; height: 14px; background: #334155; margin: 0 3px; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -167,29 +184,56 @@
     </div>
     <!-- Email Templates tab -->
     <div id="tab-templates" class="tab-panel">
-      <div style="max-width:860px;">
-        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem; flex-wrap:wrap;">
-          <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; white-space:nowrap;">Template:</label>
-          <select id="tpl-select" onchange="loadTemplate()" style="background:#1e293b; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.4rem 0.75rem; font-size:0.85rem; outline:none; cursor:pointer;"></select>
-          <button class="btn" style="background:#1e3a2f; color:#4ade80; border:1px solid #166534;" onclick="previewTemplate()">Preview</button>
-          <button class="btn btn-sky" onclick="sendTestTemplate()">Send Test to Admin</button>
-          <button class="btn" style="background:#1a2a3b; color:#7dd3fc; border:1px solid #1e40af;" onclick="triggerOnboarding()">Run Onboarding Cron</button>
-          <span id="tpl-status" style="font-size:0.8rem; color:#94a3b8;"></span>
-        </div>
-        <div style="margin-bottom:0.75rem;">
-          <label style="color:#94a3b8; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:0.35rem;">Subject</label>
-          <input id="tpl-subject" type="text" style="width:100%; background:#1e293b; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.5rem 0.75rem; font-size:0.85rem; outline:none; box-sizing:border-box;">
-        </div>
-        <div style="margin-bottom:0.75rem;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.35rem;">
-            <label style="color:#94a3b8; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">HTML</label>
-            <span style="font-size:0.72rem; color:#64748b;">Use {{name}}, {{email}}, {{resetUrl}}, {{magicUrl}}, {{unsubscribeUrl}} for variables</span>
+      <!-- Top bar: template selector + actions -->
+      <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+        <label style="color:#94a3b8; font-size:0.8rem; font-weight:600; white-space:nowrap;">Template:</label>
+        <select id="tpl-select" onchange="loadTemplate()" style="background:#1e293b; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.35rem 0.7rem; font-size:0.85rem; outline:none; cursor:pointer;"></select>
+        <button class="btn btn-sky" onclick="saveTemplate()">Save</button>
+        <button class="btn" style="background:#334155; color:#e2e8f0;" onclick="resetTemplate()">Reset to Default</button>
+        <button class="btn btn-sky" onclick="sendTestTemplate()">Send Test to Admin</button>
+        <button class="btn" style="background:#1a2a3b; color:#7dd3fc; border:1px solid #1e40af;" onclick="triggerOnboarding()">Run Onboarding Cron</button>
+        <span id="tpl-status" style="font-size:0.8rem; color:#94a3b8;"></span>
+      </div>
+
+      <!-- Subject line -->
+      <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem;">
+        <label style="color:#94a3b8; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap; flex-shrink:0;">Subject</label>
+        <input id="tpl-subject" type="text" style="flex:1; background:#1e293b; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.4rem 0.75rem; font-size:0.85rem; outline:none; box-sizing:border-box;">
+      </div>
+
+      <!-- Split: editor (left) + preview (right) -->
+      <div class="tpl-split">
+        <!-- Editor column -->
+        <div class="tpl-editor-col">
+          <div class="tpl-pane-header">
+            <div class="mode-toggle">
+              <button id="mode-html"   class="mode-btn active" onclick="setEditorMode('html')">HTML</button>
+              <button id="mode-visual" class="mode-btn"        onclick="setEditorMode('visual')">Visual</button>
+            </div>
+            <div id="wysiwyg-toolbar" class="wysiwyg-toolbar">
+              <button onclick="execFmt('bold')"        title="Bold"><strong>B</strong></button>
+              <button onclick="execFmt('italic')"      title="Italic"><em>I</em></button>
+              <button onclick="execFmt('underline')"   title="Underline" style="text-decoration:underline">U</button>
+              <span class="tbar-sep"></span>
+              <button onclick="insertLink()"           title="Insert link">&#128279; Link</button>
+              <button onclick="execFmt('removeFormat')" title="Remove formatting" style="font-size:0.7rem;">Clear</button>
+            </div>
+            <span style="flex:1"></span>
+            <span style="font-size:0.68rem; color:#475569; white-space:nowrap;">{{name}} {{email}} {{resetUrl}} {{magicUrl}}</span>
           </div>
-          <textarea id="tpl-html" rows="24" style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:7px; color:#cbd5e1; padding:0.75rem; font-size:0.75rem; font-family:ui-monospace, 'Cascadia Code', monospace; line-height:1.5; outline:none; resize:vertical; box-sizing:border-box;"></textarea>
+          <textarea id="tpl-html" oninput="schedulePreview()" spellcheck="false"></textarea>
+          <iframe  id="tpl-wysiwyg-frame"></iframe>
         </div>
-        <div style="display:flex; gap:0.75rem;">
-          <button class="btn btn-sky" onclick="saveTemplate()">Save Template</button>
-          <button class="btn" style="background:#334155; color:#e2e8f0;" onclick="resetTemplate()">Reset to Default</button>
+
+        <!-- Preview column -->
+        <div class="tpl-preview-col">
+          <div class="tpl-pane-header">
+            <span style="color:#94a3b8; font-size:0.78rem; font-weight:600;">Preview</span>
+            <span style="font-size:0.68rem; color:#475569;">vars replaced with dummy values</span>
+            <span style="flex:1"></span>
+            <button class="btn" style="background:#1e293b; color:#94a3b8; padding:0.2rem 0.6rem; font-size:0.72rem;" onclick="openPreviewTab()">Open in tab ↗</button>
+          </div>
+          <iframe id="tpl-preview-frame"></iframe>
         </div>
       </div>
     </div>
@@ -543,6 +587,123 @@
     // ── Email Templates ───────────────────────────────────────────────────────
     let tplLoaded = false;
     let tplKeys = [];
+    let currentEditorMode = 'html';
+    let wysiwygReady = false;
+    let previewTimer = null;
+    let wysiwygObserver = null;
+
+    const TPL_DUMMY_VARS = {
+      name: 'Frank',
+      email: 'admin@dipfinder.com',
+      resetUrl:       'https://dipfinder.com/reset-password.html?token=PREVIEW_TOKEN',
+      magicUrl:       'https://dipfinder.com/app?magic=PREVIEW_TOKEN',
+      unsubscribeUrl: 'https://dipfinder.com/api/newsletter-unsubscribe?token=PREVIEW_TOKEN',
+    };
+
+    function applyDummyVars(html) {
+      let out = html;
+      Object.entries(TPL_DUMMY_VARS).forEach(([k, v]) => {
+        out = out.split('{{' + k + '}}').join(v);
+      });
+      return out;
+    }
+
+    function getCurrentHtml() {
+      if (currentEditorMode === 'visual') {
+        const frame = document.getElementById('tpl-wysiwyg-frame');
+        if (wysiwygReady && frame.contentDocument) {
+          return frame.contentDocument.documentElement.outerHTML;
+        }
+      }
+      return document.getElementById('tpl-html').value;
+    }
+
+    function schedulePreview() {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(updatePreview, 350);
+    }
+
+    function updatePreview() {
+      const html = applyDummyVars(getCurrentHtml());
+      const frame = document.getElementById('tpl-preview-frame');
+      // Use srcdoc to avoid navigation
+      frame.srcdoc = html;
+    }
+
+    function setEditorMode(mode) {
+      if (mode === currentEditorMode) return;
+
+      const textarea  = document.getElementById('tpl-html');
+      const frame     = document.getElementById('tpl-wysiwyg-frame');
+      const toolbar   = document.getElementById('wysiwyg-toolbar');
+      const btnHtml   = document.getElementById('mode-html');
+      const btnVisual = document.getElementById('mode-visual');
+
+      if (mode === 'visual') {
+        const html = textarea.value;
+        textarea.style.display = 'none';
+        frame.style.display = 'block';
+        toolbar.style.display = 'flex';
+        btnHtml.classList.remove('active');
+        btnVisual.classList.add('active');
+
+        wysiwygReady = false;
+        frame.srcdoc = html;
+        frame.onload = () => {
+          try {
+            const doc = frame.contentDocument;
+            doc.designMode = 'on';
+            wysiwygReady = true;
+
+            // Observe DOM mutations to drive live preview
+            if (wysiwygObserver) wysiwygObserver.disconnect();
+            wysiwygObserver = new MutationObserver(schedulePreview);
+            wysiwygObserver.observe(doc.body, {
+              childList: true, subtree: true, characterData: true, attributes: true
+            });
+            // Also listen to keyup/paste for immediate feedback
+            doc.addEventListener('keyup',  schedulePreview);
+            doc.addEventListener('paste',  schedulePreview);
+          } catch (e) { /* cross-origin guard */ }
+          schedulePreview();
+        };
+      } else {
+        // visual → html: extract current iframe content
+        if (wysiwygReady && frame.contentDocument) {
+          textarea.value = frame.contentDocument.documentElement.outerHTML;
+        }
+        if (wysiwygObserver) { wysiwygObserver.disconnect(); wysiwygObserver = null; }
+        wysiwygReady = false;
+        frame.srcdoc = '';
+        frame.style.display = 'none';
+        textarea.style.display = 'block';
+        toolbar.style.display = 'none';
+        btnVisual.classList.remove('active');
+        btnHtml.classList.add('active');
+        schedulePreview();
+      }
+
+      currentEditorMode = mode;
+    }
+
+    function execFmt(cmd, value) {
+      const frame = document.getElementById('tpl-wysiwyg-frame');
+      if (!wysiwygReady || !frame.contentDocument) return;
+      frame.contentDocument.execCommand(cmd, false, value ?? null);
+      frame.contentWindow.focus();
+      schedulePreview();
+    }
+
+    function insertLink() {
+      const url = prompt('Enter URL (include https://):');
+      if (url) execFmt('createLink', url);
+    }
+
+    function openPreviewTab() {
+      const html = applyDummyVars(getCurrentHtml());
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      window.open(url, '_blank');
+    }
 
     async function loadTemplateList() {
       const token = localStorage.getItem('token');
@@ -564,8 +725,11 @@
     async function loadTemplate() {
       const key = document.getElementById('tpl-select').value;
       if (!key) return;
+      // Always reset to HTML mode when switching templates
+      if (currentEditorMode === 'visual') setEditorMode('html');
       const token = localStorage.getItem('token');
       document.getElementById('tpl-status').textContent = 'Loading…';
+      document.getElementById('tpl-status').style.color = '#94a3b8';
       try {
         const res = await fetch(`/api/admin?action=get-template&key=${encodeURIComponent(key)}`, {
           headers: { Authorization: 'Bearer ' + token }
@@ -574,17 +738,19 @@
         document.getElementById('tpl-subject').value = data.subject || '';
         document.getElementById('tpl-html').value = data.html || '';
         document.getElementById('tpl-status').textContent = '';
+        updatePreview();
       } catch (e) {
         document.getElementById('tpl-status').textContent = 'Error: ' + e.message;
+        document.getElementById('tpl-status').style.color = '#f87171';
       }
     }
 
     async function saveTemplate() {
       const key = document.getElementById('tpl-select').value;
       const subject = document.getElementById('tpl-subject').value.trim();
-      const html = document.getElementById('tpl-html').value;
+      const html = getCurrentHtml();
       const status = document.getElementById('tpl-status');
-      if (!key || !subject || !html) { status.textContent = 'Subject and HTML are required.'; status.style.color = '#f87171'; return; }
+      if (!key || !subject || !html) { status.textContent = 'Subject and HTML required.'; status.style.color = '#f87171'; return; }
       const token = localStorage.getItem('token');
       status.textContent = 'Saving…'; status.style.color = '#94a3b8';
       try {
@@ -596,29 +762,9 @@
         const data = await res.json();
         status.textContent = data.ok ? 'Saved.' : ('Error: ' + data.error);
         status.style.color = data.ok ? '#4ade80' : '#f87171';
-        // Refresh list to mark as saved
         if (data.ok) loadTemplateList().then(() => { document.getElementById('tpl-select').value = key; });
       } catch (e) {
         status.textContent = 'Network error: ' + e.message; status.style.color = '#f87171';
-      }
-    }
-
-    async function previewTemplate() {
-      const key = document.getElementById('tpl-select').value;
-      const token = localStorage.getItem('token');
-      const status = document.getElementById('tpl-status');
-      status.textContent = 'Opening preview…'; status.style.color = '#94a3b8';
-      try {
-        const res = await fetch(`/api/admin?action=preview-template&key=${encodeURIComponent(key)}`, {
-          headers: { Authorization: 'Bearer ' + token }
-        });
-        if (!res.ok) { status.textContent = 'Preview error: ' + res.status; status.style.color = '#f87171'; return; }
-        const html = await res.text();
-        const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-        window.open(url, '_blank');
-        status.textContent = '';
-      } catch (e) {
-        status.textContent = 'Error: ' + e.message; status.style.color = '#f87171';
       }
     }
 
@@ -648,13 +794,11 @@
       const status = document.getElementById('tpl-status');
       status.textContent = 'Resetting…'; status.style.color = '#94a3b8';
       try {
-        // Delete from DB so next fetch re-seeds the default
-        const res = await fetch('/api/admin?action=save-template', {
+        await fetch('/api/admin?action=save-template', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, _delete: true })
         });
-        // Re-load template (will re-seed default from server)
         await loadTemplate();
         status.textContent = 'Reset to default.'; status.style.color = '#4ade80';
       } catch (e) {
@@ -674,7 +818,6 @@
         const data = await res.json();
         out.textContent = JSON.stringify(data, null, 2);
         out.style.borderColor = '#166534'; out.style.color = '#86efac';
-        // switch to dashboard to show output
         switchTab('dashboard');
       } catch (e) {
         out.textContent = 'Network error: ' + e.message; out.style.borderColor = '#dc2626'; out.style.color = '#fca5a5';
