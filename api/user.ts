@@ -164,7 +164,7 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email: rawEmail, password, name: rawName, captchaToken, termsAccepted, newsletterSubscribed, watchlist: rawWatchlist } = req.body;
+  const { email: rawEmail, password, name: rawName, captchaToken, termsAccepted, newsletterSubscribed, sundayBriefSubscribed: rawSundayBriefReg, watchlist: rawWatchlist } = req.body;
 
   const email = sanitizeInput(rawEmail || '');
   const name = sanitizeInput(rawName || '');
@@ -220,6 +220,8 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     termsAccepted: true,
     termsAcceptedDate: new Date(),
     newsletterSubscribed: Boolean(newsletterSubscribed),
+    sundayBriefSubscribed: rawSundayBriefReg !== false,
+    sundayBriefSubscribedAt: rawSundayBriefReg !== false ? new Date() : undefined,
     watchlist,
     smaPeriod: defaultSmaPeriod,
     chartOrientation: defaultChartOrientation,

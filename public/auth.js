@@ -285,6 +285,7 @@ const AuthManager = (function() {
         const rawPassword = document.getElementById("register-password").value;
         const termsAccepted = document.getElementById("register-terms").checked;
         const newsletterSubscribed = document.getElementById("register-newsletter").checked;
+        const sundayBriefSubscribed = document.getElementById("register-sunday-brief").checked;
         
         // Sanitize inputs (but keep password as-is for security reasons)
         const email = sanitizeInput(rawEmail);
@@ -329,6 +330,7 @@ const AuthManager = (function() {
                     captchaToken: captchaResponse,
                     termsAccepted,
                     newsletterSubscribed,
+                    sundayBriefSubscribed,
                     watchlist: localWatchlist
                 }),
             });
@@ -480,8 +482,10 @@ const AuthManager = (function() {
         // Reset registration checkboxes
         const termsCheckbox = document.getElementById("register-terms");
         const newsletterCheckbox = document.getElementById("register-newsletter");
+        const sundayBriefCheckbox = document.getElementById("register-sunday-brief");
         if (termsCheckbox) termsCheckbox.checked = false;
         if (newsletterCheckbox) newsletterCheckbox.checked = false;
+        if (sundayBriefCheckbox) sundayBriefCheckbox.checked = true;
         
         showAuthError("");
         showAuthSuccess("");
