@@ -32,36 +32,78 @@ public/               ← Frontend SPA
   styles/input.css    ← Tailwind source ← EDIT THIS
   styles/styles.css   ← Generated output ← DO NOT EDIT
 
-api/                  ← Serverless functions (one file = one route)
+api/                  ← Serverless functions (one file = one route, 9 total — Hobby plan limit is 12)
   lib/
     mongodb.ts        ← Singleton DB connection (globalThis caching)
     auth.ts           ← bcrypt + JWT helpers
     email.ts          ← Resend API + all email templates + newsletter HTML builder
     newsletter-data.ts← buildStockResults(), fetchStockData(), fetchNewsForSymbol()
     stocks.ts         ← calculateSma(), calculateSmaTimeSeries(), cache TTL constants
+    tickers.ts        ← upsertTicker(), markTickerFailed(), getActiveTickers()
   user.ts             ← Auth: login, register, password reset, profile, captcha
   watchlist.ts        ← GET/POST watchlist (also saves smaPeriod, chartOrientation)
-  batch-stocks.ts     ← POST: multi-stock SMA fetch for dashboard
-  stock-data/[symbol].ts ← Dynamic route: price, SMA, news, fundamentals
+  batch-stocks.ts     ← POST: multi-stock SMA fetch for dashboard; GET ?action=tickers for autocomplete
+  stock-data.ts       ← All per-stock data: price+SMA (Yahoo→Finnhub fallback), news, fundamentals
   newsletter-send.ts  ← Cron trigger + admin preview (Sunday 14:00 UTC)
-  newsletter-preview.ts  ← Public tokenized newsletter view (/newsletter/:token)
-  newsletter-unsubscribe.ts ← Unsubscribe via JWT token
+  newsletter.ts       ← GET ?action=view (tokenized view-online) + ?action=unsubscribe
   newsletter-onboarding.ts ← Daily cron (10:00 UTC): sends welcome email to new brief subscribers
   admin.ts            ← Admin: list users, template management
-  check.ts            ← Health check
+  health-check.ts     ← System health check (MongoDB, Yahoo, Finnhub, Resend) + ping
+
+scripts/
+  setup-indexes.js    ← One-time MongoDB index creation (run once per environment)
 ```
 
 **Data flow — dashboard:**
 `dipfinder.js` → POST `/batch-stocks` → `batch-stocks.ts` checks memory cache → MongoDB `dashboardStocks` cache → Yahoo Finance → returns ranked list → Chart.js bar chart + table render.
 
+**Data flow — stock price:**
+`stock-data.ts` → check MongoDB `stocks` cache → miss: try Yahoo Finance → fail: try Finnhub `/stock/candle` → fail: `markTickerFailed()` + 404. On success: `upsertTicker()` (self-learning autocomplete) + cache result.
+
 **Data flow — newsletter:**
-Vercel cron (Sunday 14:00 UTC) → `newsletter-send.ts` → reads user watchlist from `users` → `buildStockResults()` (Yahoo Finance + Finnhub, cached in MongoDB) → `buildNewsletterHtml()` → Resend API. View-online link points to `/newsletter/:token` → `newsletter-preview.ts`.
+Vercel cron (Sunday 14:00 UTC) → `newsletter-send.ts` → reads user watchlist from `users` → `buildStockResults()` (Yahoo Finance + Finnhub, cached in MongoDB) → `buildNewsletterEmailHtml()` (checks DB for `sunday-brief` template, falls back to hardcoded) → Resend API. View-online link points to `/newsletter/:token` → `newsletter.ts?action=view`.
 
 **MongoDB collections:**
-- `users` — auth, watchlist, smaPeriod, chartOrientation, newsletterSubscribed, sundayBriefSubscribed, onboardingEmailSentAt
-- `dashboardStocks` — price/SMA cache (30-min TTL)
-- `news` — Finnhub news cache (3-hour TTL)
-- `emailTemplates` — editable email templates (onboarding, password-reset, magic-link); auto-seeded on first use
+
+| Collection | Purpose | TTL |
+|---|---|---|
+| `users` | Auth, watchlist, preferences, subscription flags | permanent |
+| `tickers` | Self-learning autocomplete — upserted on every successful stock fetch | permanent |
+| `stocks` | Yahoo/Finnhub price+OHLC cache | 2h (logical) |
+| `dashboardStocks` | Batch dashboard price/SMA cache | 2h (logical) |
+| `smaTimeseries` | SMA chart series cache | 2h (logical) |
+| `news` | Finnhub news cache | 6h (logical) |
+| `fundamentals` | Finnhub fundamentals cache | 7d (logical) |
+| `companyNames` | Finnhub company name cache | 7d (logical) |
+| `emailTemplates` | Editable email templates — auto-seeded on first use | permanent |
+| `settings` | Key-value store: app config + cron last-run tracking | permanent |
+
+"Logical TTL" = checked at read time via `timestamp` field; documents are not auto-deleted (see Cache purge SOP below).
+
+**`users` document shape:**
+```
+email, passwordHash, name
+watchlist: string[]
+smaPeriod: number
+chartOrientation: 'x'|'y'
+newsletterSubscribed: bool
+sundayBriefSubscribed: bool
+onboardingEmailSentAt: date
+isPro: bool
+namedWatchlists, activeWatchlistId   ← pro features
+loginAttempts, lockedUntil           ← brute-force lockout
+createdAt
+```
+
+**`tickers` document shape:**
+```
+ticker: string (uppercase, unique)
+name: string
+active: bool          ← set false after 3 consecutive Yahoo/Finnhub failures
+failCount: number
+lastSeen: date
+source: 'seed'|'user'
+```
 
 ## Key files & entry points
 
@@ -141,6 +183,9 @@ curl -X POST https://dipfinder.com/api/newsletter-send \
 
 # Health check
 curl https://dipfinder.com/api/check
+
+# Create all MongoDB indexes (run once per environment — safe to re-run)
+MONGODB_URI=<uri> MONGODB_DB=<db> npm run setup-indexes
 ```
 
 ## SOPs
@@ -199,10 +244,29 @@ Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 3. Check `dashboardStocks` MongoDB collection for stale cache (TTL = 30 min). Delete the doc to force a fresh fetch.
 4. Confirm Yahoo Finance returned a full `closes` array (≥ smaPeriod values). Insufficient history returns `sma: null`.
 
+### Cache purge SOP
+
+Cache collections (`stocks`, `dashboardStocks`, `smaTimeseries`, `news`, `fundamentals`, `companyNames`) use logical TTL — stale docs are ignored at read time but never deleted. Over time they accumulate.
+
+**Options:**
+- **Atlas scheduled trigger** (recommended): In Atlas → Triggers → Scheduled, run a JS function nightly that deletes docs where `timestamp < Date.now() - TTL_MS` for each collection.
+- **Purge via admin panel**: Add a "Purge stale cache" button to the admin UI that calls a new endpoint.
+- **Migrate timestamps to Date**: Change `timestamp: Date.now()` → `timestamp: new Date()` everywhere, then add TTL indexes via `npm run setup-indexes` (TTL section currently skipped for this reason).
+
+**Planned TTLs:** stocks/dashboard/SMA = 2h, news = 6h, fundamentals/companyNames = 7d.
+
+### MongoDB indexes
+
+Indexes are defined in `scripts/setup-indexes.js`. Run once per environment after provisioning:
+```bash
+MONGODB_URI=<uri> MONGODB_DB=<db> npm run setup-indexes
+```
+Safe to re-run — existing indexes are skipped. Covers: `users.email` (unique), `users.newsletterSubscribed`, `users.sundayBriefSubscribed`, `cacheKey` (unique) on all cache collections, `tickers.ticker` (unique), `tickers.active`, `settings.key`, `emailTemplates.key`.
+
 ### Expanding newsletter to all subscribers (planned — currently admin-only)
 
 Current `newsletter-send.ts` filters `email: ADMIN_EMAIL`. Steps to expand:
-1. Add MongoDB index on `{ newsletterSubscribed: 1 }` in Atlas before anything else (full scans at scale are slow).
+1. Run `npm run setup-indexes` if not already done — `newsletterSubscribed` index is included.
 2. Remove the `email: ADMIN_EMAIL` filter from the `users.find()` query in `newsletter-send.ts`.
 3. Add a per-user delay between Resend calls — Resend free plan is **100 emails/day, 3,000/month**. At current scale this is probably fine, but add `await new Promise(r => setTimeout(r, 300))` between sends as a safety buffer.
 4. Test with `?preview=true` per-user pass (or a small whitelist) before enabling the cron.
@@ -230,7 +294,7 @@ Current `newsletter-send.ts` filters `email: ADMIN_EMAIL`. Steps to expand:
 
 **Screener canvas race condition.** Always use `destroyScreenerChart()` helper (not inline `.destroy()`) and the `currentLoadId` pattern when loading stock data asynchronously. See `screener.js` for the established pattern.
 
-**No MongoDB indexes have been created** beyond the default `_id`. Every login (`users.email`), newsletter query (`users.newsletterSubscribed`), and cache lookup (`dashboardStocks`, `news` by symbol+action) is a full collection scan. At minimum, add: `users.email` (unique), `users.newsletterSubscribed`, and a compound index on each cache collection's key fields. Do this before expanding the newsletter to all users.
+**MongoDB `timestamp` fields are stored as numbers (ms epoch), not BSON Date.** This means native MongoDB TTL indexes do not work on them — MongoDB TTL requires a Date-typed field. Cache expiry is currently checked at read time in application code. To enable Atlas auto-expiry, either migrate `timestamp` fields to `new Date()` or use a periodic purge cron. See Cache purge SOP.
 
 ## What "done" looks like
 
