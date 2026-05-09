@@ -76,6 +76,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleSaveCronSchedule(req, res);
       case 'trigger-cron':
         return await handleTriggerCron(req, res);
+      case 'list-tickers':
+        return await handleListTickers(req, res);
+      case 'toggle-ticker':
+        return await handleToggleTicker(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -608,4 +612,27 @@ async function handleTogglePro(req: VercelRequest, res: VercelResponse) {
   );
   if (result.matchedCount === 0) return res.status(404).json({ error: 'User not found' });
   return res.status(200).json({ ok: true, isPro: !!isPro });
+}
+
+async function handleListTickers(_req: VercelRequest, res: VercelResponse) {
+  const db = await connectToDatabase();
+  const tickers = await db.collection('tickers')
+    .find({})
+    .project({ ticker: 1, name: 1, active: 1, failCount: 1, lastSeen: 1, source: 1, _id: 0 })
+    .sort({ ticker: 1 })
+    .toArray();
+  return res.status(200).json({ tickers, total: tickers.length });
+}
+
+async function handleToggleTicker(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { ticker, active } = req.body || {};
+  if (!ticker) return res.status(400).json({ error: 'ticker required' });
+  const db = await connectToDatabase();
+  const result = await db.collection('tickers').updateOne(
+    { ticker: ticker.toUpperCase() },
+    { $set: { active: !!active, failCount: active ? 0 : 3 } }
+  );
+  if (result.matchedCount === 0) return res.status(404).json({ error: 'Ticker not found' });
+  return res.status(200).json({ ok: true, ticker: ticker.toUpperCase(), active: !!active });
 }

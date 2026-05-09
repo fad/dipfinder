@@ -152,6 +152,7 @@
       <div class="tab" onclick="switchTab('users')">Users</div>
       <div class="tab" onclick="switchTab('templates')">Email Templates</div>
       <div class="tab" onclick="switchTab('cache')">Cached Tickers</div>
+      <div class="tab" onclick="switchTab('tickers')">Tickers</div>
       <div class="tab" onclick="switchTab('settings')">Settings</div>
       <div class="tab" onclick="switchTab('crons')">Crons</div>
     </div>
@@ -243,6 +244,36 @@
             </tr>
           </thead>
           <tbody id="cache-rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tickers tab -->
+    <div id="tab-tickers" class="tab-panel">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+        <span id="tickers-summary" style="color:#64748b; font-size:0.8rem;"></span>
+        <input type="text" id="tickers-search" placeholder="Search ticker or name…"
+          oninput="renderTickersTable()"
+          style="background:#1e293b; border:1px solid #334155; border-radius:6px; color:#e2e8f0; padding:0.35rem 0.65rem; font-size:0.8rem; width:200px;">
+        <label style="display:flex; align-items:center; gap:0.4rem; color:#94a3b8; font-size:0.8rem; cursor:pointer;">
+          <input type="checkbox" id="tickers-show-inactive" onchange="renderTickersTable()"> Show inactive
+        </label>
+        <button class="btn" style="background:#1e293b; color:#94a3b8;" onclick="loadTickers()">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Fails</th>
+              <th>Last Seen</th>
+              <th>Source</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tickers-rows"></tbody>
         </table>
       </div>
     </div>
@@ -428,6 +459,7 @@
       if (name === 'templates' && !tplLoaded) loadTemplateList();
       if (name === 'settings') loadSettings();
       if (name === 'crons') loadCrons();
+      if (name === 'tickers' && tickersData.length === 0) loadTickers();
     }
 
     function fmt(dateStr) {
@@ -721,6 +753,74 @@
 
     // ── Cache Health ─────────────────────────────────────────────────────────
     let cacheData = [];
+
+    // ── Tickers tab ────────────────────────────────────────────────────────────
+    let tickersData = [];
+
+    async function loadTickers() {
+      const token = localStorage.getItem('token');
+      document.getElementById('tickers-summary').textContent = 'Loading…';
+      try {
+        const res = await fetch('/api/admin?action=list-tickers', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        tickersData = data.tickers || [];
+        renderTickersTable();
+      } catch (e) {
+        document.getElementById('tickers-summary').textContent = 'Error loading tickers.';
+      }
+    }
+
+    function renderTickersTable() {
+      const q = (document.getElementById('tickers-search').value || '').toUpperCase();
+      const showInactive = document.getElementById('tickers-show-inactive').checked;
+      let rows = tickersData.filter(t => {
+        if (!showInactive && !t.active) return false;
+        if (q && !t.ticker.includes(q) && !(t.name || '').toUpperCase().includes(q)) return false;
+        return true;
+      });
+      const active = tickersData.filter(t => t.active).length;
+      const inactive = tickersData.filter(t => !t.active).length;
+      document.getElementById('tickers-summary').textContent =
+        `${tickersData.length} total — ${active} active, ${inactive} inactive`;
+      document.getElementById('tickers-rows').innerHTML = rows.map(t => {
+        const lastSeen = t.lastSeen ? new Date(t.lastSeen).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+        const statusBadge = t.active
+          ? `<span style="background:#064e3b;color:#6ee7b7;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">active</span>`
+          : `<span style="background:#3b1a1a;color:#fca5a5;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">inactive</span>`;
+        const toggleLabel = t.active ? 'Deactivate' : 'Activate';
+        const toggleStyle = t.active
+          ? 'background:#3b1a1a;color:#fca5a5;border:1px solid #7f1d1d;'
+          : 'background:#064e3b;color:#6ee7b7;border:1px solid #065f46;';
+        return `<tr>
+          <td style="font-weight:700;color:#38bdf8;font-family:monospace;">${t.ticker}</td>
+          <td style="color:#94a3b8;">${t.name || '—'}</td>
+          <td>${statusBadge}</td>
+          <td style="color:${t.failCount > 0 ? '#fca5a5' : '#64748b'};">${t.failCount || 0}</td>
+          <td style="color:#64748b;">${lastSeen}</td>
+          <td style="color:#64748b;">${t.source || '—'}</td>
+          <td><button class="btn" style="${toggleStyle}padding:0.2rem 0.6rem;font-size:0.72rem;"
+            onclick="toggleTicker('${t.ticker}', ${!t.active})">${toggleLabel}</button></td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="7" style="text-align:center;color:#475569;padding:1.5rem;">No tickers found.</td></tr>';
+    }
+
+    async function toggleTicker(ticker, active) {
+      const token = localStorage.getItem('token');
+      try {
+        await fetch('/api/admin?action=toggle-ticker', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticker, active })
+        });
+        const t = tickersData.find(x => x.ticker === ticker);
+        if (t) { t.active = active; t.failCount = active ? 0 : 3; }
+        renderTickersTable();
+      } catch (e) {
+        alert('Failed to toggle ticker.');
+      }
+    }
     let cacheSortKey = 'symbol';
     let cacheSortDir = 1;
 
