@@ -52,11 +52,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!run) return res.status(200).json({ skipped: true, reason: 'outside scheduled window' });
     }
 
-    // Only send to admin for now. Admin bypasses subscription check so
-    // preview/test always works regardless of profile settings.
-    const users = await db.collection('users').find({
-      email: ADMIN_EMAIL,
-    }).toArray();
+    // Preview: use admin user so it always works regardless of subscription status.
+    // Live send: all users with Sunday Brief opted in and a non-empty watchlist.
+    const query = isPreview
+      ? { email: ADMIN_EMAIL }
+      : { sundayBriefSubscribed: true };
+    const users = await db.collection('users').find(query).toArray();
 
     let sent = 0, failed = 0, skipped = 0;
 
@@ -117,6 +118,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (ok) sent++;
       else failed++;
+
+      // Pace sends to stay within Resend rate limits (100/day free plan)
+      if (!isPreview) await new Promise(r => setTimeout(r, 300));
     }
 
     if (isPreview) {
