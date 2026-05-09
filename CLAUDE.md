@@ -263,14 +263,11 @@ MONGODB_URI=<uri> MONGODB_DB=<db> npm run setup-indexes
 ```
 Safe to re-run — existing indexes are skipped. Covers: `users.email` (unique), `users.newsletterSubscribed`, `users.sundayBriefSubscribed`, `cacheKey` (unique) on all cache collections, `tickers.ticker` (unique), `tickers.active`, `settings.key`, `emailTemplates.key`.
 
-### Expanding newsletter to all subscribers (planned — currently admin-only)
+### Newsletter send — all subscribers
 
-Current `newsletter-send.ts` filters `email: ADMIN_EMAIL`. Steps to expand:
-1. Run `npm run setup-indexes` if not already done — `newsletterSubscribed` index is included.
-2. Remove the `email: ADMIN_EMAIL` filter from the `users.find()` query in `newsletter-send.ts`.
-3. Add a per-user delay between Resend calls — Resend free plan is **100 emails/day, 3,000/month**. At current scale this is probably fine, but add `await new Promise(r => setTimeout(r, 300))` between sends as a safety buffer.
-4. Test with `?preview=true` per-user pass (or a small whitelist) before enabling the cron.
-5. Update the debug SOP below: "user doc doesn't match" criteria now includes `newsletterSubscribed: true` for all users, not just admin.
+`newsletter-send.ts` queries `{ sundayBriefSubscribed: true }` for live sends. Preview (`?preview=true`) always uses the admin user so it works regardless of subscription status. A 300ms delay is added between sends to respect Resend's free-plan rate limit (100 emails/day, 3,000/month).
+
+To debug a failed send: check that the user doc has `sundayBriefSubscribed: true` and a non-empty `watchlist`. Preview endpoint (`?preview=true`) isolates whether the issue is data or delivery.
 
 ## Gotchas
 
@@ -280,7 +277,7 @@ Current `newsletter-send.ts` filters `email: ADMIN_EMAIL`. Steps to expand:
 
 **`styles/styles.css` is generated.** Always edit `public/styles/input.css`. Running `npm run build:css` overwrites `styles/styles.css` entirely.
 
-**Newsletter currently sends only to `ADMIN_EMAIL`.** The `newsletter-send.ts` query hard-filters by `email: ADMIN_EMAIL`. Expansion to all subscribers is planned — see the SOP above. Resend free plan: 100 emails/day, 3,000/month.
+**Newsletter sends to all `sundayBriefSubscribed: true` users.** Preview (`?preview=true`) uses admin user only. Resend free plan: 100 emails/day, 3,000/month — 300ms delay between sends is built in.
 
 **Serverless cold starts and MongoDB.** `connectToDatabase()` in `api/lib/mongodb.ts` caches the connection in `globalThis`. A ping verifies the connection is alive before reuse. Race condition possible if two cold starts hit simultaneously — TODO: add mutex lock (flagged in security audit).
 
