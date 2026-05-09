@@ -28,21 +28,23 @@
     ],
     "rewrites": [
         { "source": "/api/stock-data/:symbol", "destination": "/api/stock-data?symbol=:symbol" },
+        { "source": "/api/newsletter-unsubscribe", "destination": "/api/newsletter?action=unsubscribe" },
+        { "source": "/api/check", "destination": "/api/health-check?action=ping" },
+        { "source": "/api/tickers", "destination": "/api/batch-stocks?action=tickers" },
         { "source": "/api/(.*)", "destination": "/api/$1" },
-        
+
         { "source": "/stocks/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=price" },
         { "source": "/sma/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=sma" },
         { "source": "/news/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=news" },
         { "source": "/company-name/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=company-name" },
         { "source": "/fundamentals/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=fundamentals" },
         { "source": "/batch-stocks", "destination": "/api/batch-stocks" },
-        { "source": "/api/tickers", "destination": "/api/batch-stocks?action=tickers" },
         { "source": "/login", "destination": "/api/user?action=login" },
         { "source": "/register", "destination": "/api/user?action=register" },
         { "source": "/auth", "destination": "/api/user?action=verify-token" },
         { "source": "/verify-captcha", "destination": "/api/user?action=verify-captcha" },
         
-        { "source": "/newsletter/:token", "destination": "/api/newsletter-preview?token=:token" },
+        { "source": "/newsletter/:token", "destination": "/api/newsletter?action=view&token=:token" },
         { "source": "/admin", "destination": "/admin.html" },
         { "source": "/", "destination": "/start.html" },
         { "source": "/start", "destination": "/start.html" },

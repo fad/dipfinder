@@ -17,6 +17,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Public ping — no auth required
+  if (req.query.action === 'ping') {
+    return res.status(200).json({ status: 'API is working correctly', timestamp: new Date().toISOString() });
+  }
+
   // Auth: Vercel cron OR admin JWT
   let isAuthed = false;
   const authHeader = req.headers.authorization;
