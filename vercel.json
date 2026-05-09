@@ -36,6 +36,7 @@
         { "source": "/company-name/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=company-name" },
         { "source": "/fundamentals/:symbol", "destination": "/api/stock-data?symbol=:symbol&action=fundamentals" },
         { "source": "/batch-stocks", "destination": "/api/batch-stocks" },
+        { "source": "/api/tickers", "destination": "/api/batch-stocks?action=tickers" },
         { "source": "/login", "destination": "/api/user?action=login" },
         { "source": "/register", "destination": "/api/user?action=register" },
         { "source": "/auth", "destination": "/api/user?action=verify-token" },

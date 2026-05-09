@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
 import { calculateSma, CACHE_EXPIRY_STOCKS, yahooFinance } from './lib/stocks';
 import { verifyJWT } from './lib/auth';
+import { getActiveTickers } from './lib/tickers';
 
 const GUEST_STOCK_LIMIT = 5;
 const AUTH_STOCK_LIMIT = 10;
@@ -45,6 +46,19 @@ function getCachedDashboardStock(data: any): DashboardStockCache | null {
 
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // GET /api/batch-stocks?action=tickers — used by stock autocomplete
+  if (req.method === 'GET' && req.query.action === 'tickers') {
+    try {
+      const db = await connectToDatabase();
+      const tickers = await getActiveTickers(db);
+      res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+      return res.status(200).json({ tickers });
+    } catch (error) {
+      console.error('Tickers error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
