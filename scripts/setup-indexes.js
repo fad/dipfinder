@@ -39,6 +39,10 @@ const QUERY_INDEXES = [
   { col: 'tickers',        spec: { ticker: 1 },                  opts: { unique: true,  name: 'tickers_ticker_unique' } },
   { col: 'tickers',        spec: { active: 1 },                  opts: { name: 'tickers_active' } },
 
+  // weekly snapshots — keyed by (userId, weekOf) for opener delta computation
+  { col: 'weeklySnapshots', spec: { userId: 1, weekOf: -1 },     opts: { name: 'weeklySnapshots_userId_weekOf' } },
+  { col: 'weeklySnapshots', spec: { userId: 1, weekOf: 1 },      opts: { unique: true,  name: 'weeklySnapshots_userId_weekOf_unique' } },
+
   // key-value stores
   { col: 'settings',       spec: { key: 1 },                     opts: { unique: true,  name: 'settings_key_unique' } },
   { col: 'emailTemplates', spec: { key: 1 },                     opts: { unique: true,  name: 'emailTemplates_key_unique' } },

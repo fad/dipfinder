@@ -4,6 +4,7 @@ import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
 import { sendNewsletterEmail, buildNewsletterEmailHtml } from './lib/email';
 import { NEWSLETTER_SMA_DEFAULT, buildStockResults } from './lib/newsletter-data';
+import { buildOpenerSummary } from './lib/personalOpener';
 import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
@@ -77,6 +78,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         continue;
       }
 
+      // Fetch last week's snapshot to power the personal opener.
+      // Query for the most recent snapshot older than 6 days so we always
+      // get the previous week's data, not Saturday's freshly-written one.
+      const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+      const prevSnapshot = await db.collection('weeklySnapshots').findOne(
+        { userId: user._id.toString(), weekOf: { $lt: sixDaysAgo } },
+        { sort: { weekOf: -1 } },
+      );
+      const previousStocks = prevSnapshot?.stocks ?? null;
+      const currentStocks = stockResults.map(s => ({ symbol: s.symbol, relativePrice: s.relativePrice }));
+      const openerSummary = buildOpenerSummary(currentStocks, previousStocks);
+
       const unsubToken = jwt.sign(
         { email: user.email, purpose: 'unsubscribe' },
         JWT_SECRET,
@@ -92,6 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           smaPeriod,
           unsubscribeUrl,
           chartOrientation,
+          openerSummary,
           db,
         });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -113,6 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         unsubscribeUrl,
         viewOnlineUrl,
         chartOrientation,
+        openerSummary,
         db,
       });
 

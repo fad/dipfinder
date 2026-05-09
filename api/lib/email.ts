@@ -114,7 +114,7 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
   </a>
 
   <div style="padding:28px 32px;">
-    <p style="color:#1e293b;margin:0 0 24px;line-height:1.6;font-size:0.9em;"><strong>Good morning, {{name}}</strong><br><span style="color:#475569;">Here are your watchlist stocks ranked by distance from their {{smaPeriod}}-day SMA.</span></p>
+    <p style="color:#1e293b;margin:0 0 24px;line-height:1.6;font-size:0.9em;"><strong>Good morning, {{name}}</strong><br><span style="color:#475569;">{{openerSummary}}</span></p>
 
     {{chartBlock}}
 
@@ -614,7 +614,7 @@ export function buildNewsletterHtml({
 // Uses the 'sunday-brief' DB template if available; falls back to buildNewsletterHtml.
 
 export async function buildNewsletterEmailHtml({
-  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', db,
+  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, db,
 }: {
   name: string;
   stocks: NewsletterStockRow[];
@@ -622,6 +622,7 @@ export async function buildNewsletterEmailHtml({
   unsubscribeUrl: string;
   viewOnlineUrl?: string;
   chartOrientation?: 'x' | 'y';
+  openerSummary?: string;
   db: any;
 }): Promise<{ html: string; subject: string }> {
   const dateLabel = new Date().toLocaleDateString('en-US', {
@@ -639,6 +640,8 @@ export async function buildNewsletterEmailHtml({
     : '';
 
   if (template) {
+    const resolvedOpener = openerSummary ||
+      `Here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.`;
     const html = renderTemplate(template.html, {
       name: name || 'there',
       dateLabel,
@@ -649,6 +652,7 @@ export async function buildNewsletterEmailHtml({
       newsBlock,
       viewOnlineBlock,
       unsubscribeUrl,
+      openerSummary: resolvedOpener,
     });
     const subject = renderTemplate(template.subject, { shortDate, dateLabel });
     return { html, subject };
@@ -669,6 +673,7 @@ export async function sendNewsletterEmail({
   unsubscribeUrl,
   viewOnlineUrl,
   chartOrientation = 'y',
+  openerSummary,
   db,
 }: {
   to: string;
@@ -678,9 +683,10 @@ export async function sendNewsletterEmail({
   unsubscribeUrl: string;
   viewOnlineUrl?: string;
   chartOrientation?: 'x' | 'y';
+  openerSummary?: string;
   db: any;
 }): Promise<boolean> {
-  const { html, subject } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, db });
+  const { html, subject } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, db });
   return sendEmail({ to, subject, html });
 }
 

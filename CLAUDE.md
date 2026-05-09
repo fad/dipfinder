@@ -47,6 +47,7 @@ api/                  ← Serverless functions (one file = one route, 9 total �
   newsletter-send.ts  ← Cron trigger + admin preview (Sunday 14:00 UTC)
   newsletter.ts       ← GET ?action=view (tokenized view-online) + ?action=unsubscribe
   newsletter-onboarding.ts ← Daily cron (10:00 UTC): sends welcome email to new brief subscribers
+  newsletter-snapshot.ts ← Weekly cron (Saturday 23:00 UTC): snapshots each user's watchlist SMA status into weeklySnapshots collection for opener delta computation
   admin.ts            ← Admin: list users, template management
   health-check.ts     ← System health check (MongoDB, Yahoo, Finnhub, Resend) + ping
 
@@ -76,6 +77,7 @@ Vercel cron (Sunday 14:00 UTC) → `newsletter-send.ts` → reads user watchlist
 | `fundamentals` | Finnhub fundamentals cache | 7d (logical) |
 | `companyNames` | Finnhub company name cache | 7d (logical) |
 | `emailTemplates` | Editable email templates — auto-seeded on first use | permanent |
+| `weeklySnapshots` | Per-user watchlist SMA snapshot (Saturday night) — powers opener delta logic | permanent (keep last 2 per user) |
 | `settings` | Key-value store: app config + cron last-run tracking | permanent |
 
 "Logical TTL" = checked at read time via `timestamp` field; documents are not auto-deleted (see Cache purge SOP below).
