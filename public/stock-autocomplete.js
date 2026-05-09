@@ -1251,7 +1251,9 @@ function initStockAutocomplete(inputElementId, options = {}) {
         const tickerMatches = TICKER_LIST.filter(item => item.ticker.startsWith(value));
         const nameMatches  = TICKER_LIST.filter(item => {
             if (item.ticker.startsWith(value)) return false;
-            return item.name.toUpperCase().split(/[\s\-&.,/()+]+/).some(w => w.startsWith(value));
+            const nameUpper = item.name.toUpperCase();
+            if (value.includes(' ')) return nameUpper.includes(value);
+            return nameUpper.split(/[\s\-&.,/()+]+/).some(w => w.startsWith(value));
         });
         const matches = [...tickerMatches, ...nameMatches].slice(0, config.maxSuggestions);
 
