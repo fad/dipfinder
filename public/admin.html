@@ -1128,8 +1128,6 @@
     async function loadTemplate() {
       const key = document.getElementById('tpl-select').value;
       if (!key) return;
-      // Always reset to HTML mode when switching templates
-      if (currentEditorMode === 'visual') setEditorMode('html');
       const token = localStorage.getItem('token');
       document.getElementById('tpl-status').textContent = 'Loading…';
       document.getElementById('tpl-status').style.color = '#94a3b8';
@@ -1141,7 +1139,14 @@
         document.getElementById('tpl-subject').value = data.subject || '';
         document.getElementById('tpl-html').value = data.html || '';
         document.getElementById('tpl-status').textContent = '';
-        updatePreview();
+        if (currentEditorMode === 'visual') {
+          // Reload wysiwyg iframe with new content — reset mode state so
+          // setEditorMode's early-return guard doesn't skip the reload
+          currentEditorMode = 'html';
+          setEditorMode('visual');
+        } else {
+          updatePreview();
+        }
       } catch (e) {
         document.getElementById('tpl-status').textContent = 'Error: ' + e.message;
         document.getElementById('tpl-status').style.color = '#f87171';
