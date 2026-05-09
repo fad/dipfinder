@@ -10,6 +10,7 @@ import {
   CACHE_EXPIRY_COMPANY,
   yahooFinance,
 } from '../lib/stocks';
+import { upsertTicker, markTickerFailed } from '../lib/tickers';
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 
@@ -353,7 +354,14 @@ async function handleStockPriceInternal(db: any, symbol: string) {
   const closes = quotes.map((q: any) => q.close);
   const timestamps = quotes.map((q: any) => Math.floor(new Date(q.date).getTime() / 1000));
 
-  if (quotes.length === 0) return null;
+  if (quotes.length === 0) {
+    await markTickerFailed(db, symbol);
+    return null;
+  }
+
+  // Learn the ticker from the Yahoo response
+  const companyName: string = (chartData?.meta as any)?.shortName || (chartData?.meta as any)?.longName || symbol;
+  await upsertTicker(db, symbol, companyName);
 
   // Build a shape compatible with what the screener expects
   const data = {

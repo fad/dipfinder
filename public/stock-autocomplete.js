@@ -1196,6 +1196,30 @@ const TICKER_LIST = [
     { ticker: "VTIP", name: "Vanguard Short-Term Inflation-Protected Securities ETF" }
 ];
 
+// Shared fetch promise — only one network request regardless of how many
+// autocomplete instances are on the page.
+let _learnedTickersPromise = null;
+const _TICKER_CACHE_KEY = 'dipfinder_tickers_v1';
+const _TICKER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 h
+
+function loadLearnedTickers() {
+    if (_learnedTickersPromise) return _learnedTickersPromise;
+    _learnedTickersPromise = (async () => {
+        try {
+            const cached = JSON.parse(localStorage.getItem(_TICKER_CACHE_KEY) || 'null');
+            if (cached && Date.now() - cached.ts < _TICKER_CACHE_TTL) return cached.tickers;
+            const res = await fetch('/api/tickers');
+            if (!res.ok) return [];
+            const { tickers } = await res.json();
+            localStorage.setItem(_TICKER_CACHE_KEY, JSON.stringify({ tickers, ts: Date.now() }));
+            return tickers;
+        } catch {
+            return [];
+        }
+    })();
+    return _learnedTickersPromise;
+}
+
 /**
  * Initialize auto-complete functionality for a stock ticker input field
  * @param {string} inputElementId - The ID of the input element to attach auto-complete to
@@ -1228,6 +1252,16 @@ function initStockAutocomplete(inputElementId, options = {}) {
     // Insert suggestion box after the input element
     inputElement.parentNode.insertBefore(suggestionBox, inputElement.nextSibling);
 
+    // Start with the static list; learned tickers are merged in once the
+    // fetch completes (usually well before the user starts typing).
+    let combinedList = TICKER_LIST;
+    loadLearnedTickers().then(learned => {
+        if (!learned || learned.length === 0) return;
+        const knownTickers = new Set(TICKER_LIST.map(t => t.ticker));
+        const newOnes = learned.filter(t => !knownTickers.has(t.ticker));
+        if (newOnes.length > 0) combinedList = [...TICKER_LIST, ...newOnes];
+    });
+
     // --- Event Handlers ---
     // We store references to handlers to properly remove them later
     const handlers = {};
@@ -1248,8 +1282,8 @@ function initStockAutocomplete(inputElementId, options = {}) {
             return;
         }
 
-        const tickerMatches = TICKER_LIST.filter(item => item.ticker.startsWith(value));
-        const nameMatches  = TICKER_LIST.filter(item => {
+        const tickerMatches = combinedList.filter(item => item.ticker.startsWith(value));
+        const nameMatches  = combinedList.filter(item => {
             if (item.ticker.startsWith(value)) return false;
             const nameUpper = item.name.toUpperCase();
             if (nameUpper.includes(value)) return true;
