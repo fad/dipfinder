@@ -303,7 +303,8 @@ async function handleSMATimeSeries(symbol: string, period: number, res: VercelRe
   }
 }
 
-// Internal helper — fetches/caches stock price in the Yahoo v8 wire format
+// Internal helper — fetches/caches stock price in the Yahoo v8 wire format.
+// Falls back to Finnhub /stock/candle if Yahoo returns nothing or throws.
 async function handleStockPriceInternal(db: any, symbol: string) {
   const cacheKey = `stock-${symbol}`;
   const collection = db.collection('stocks');
@@ -313,30 +314,24 @@ async function handleStockPriceInternal(db: any, symbol: string) {
     return cached.data;
   }
 
-  const period1 = new Date(Date.now() - 548 * 24 * 60 * 60 * 1000); // ~18 months
-  const chartData = await yahooFinance.chart(symbol, { period1, interval: '1d' });
-  const quotes: any[] = chartData?.quotes ?? [];
-  const closes = quotes.map((q: any) => q.close);
-  const timestamps = quotes.map((q: any) => Math.floor(new Date(q.date).getTime() / 1000));
+  // 1. Try Yahoo Finance
+  let data = await fetchFromYahoo(symbol);
 
-  if (quotes.length === 0) {
+  // 2. Fall back to Finnhub if Yahoo failed
+  if (!data) {
+    console.warn(`[stock-data] Yahoo returned no data for ${symbol} — trying Finnhub`);
+    data = await fetchFromFinnhub(symbol);
+    if (data) console.warn(`[stock-data] Finnhub fallback succeeded for ${symbol}`);
+  }
+
+  if (!data) {
     await markTickerFailed(db, symbol);
     return null;
   }
 
-  const companyName: string = (chartData?.meta as any)?.shortName || (chartData?.meta as any)?.longName || symbol;
+  const meta = data.chart.result[0].meta as any;
+  const companyName: string = meta?.shortName || meta?.longName || symbol;
   await upsertTicker(db, symbol, companyName);
-
-  const data = {
-    chart: {
-      result: [{
-        meta: chartData?.meta ?? {},
-        timestamp: timestamps,
-        indicators: { quote: [{ close: closes }] },
-      }],
-      error: null,
-    },
-  };
 
   await collection.updateOne(
     { cacheKey },
@@ -345,4 +340,51 @@ async function handleStockPriceInternal(db: any, symbol: string) {
   );
 
   return data;
+}
+
+async function fetchFromYahoo(symbol: string) {
+  try {
+    const period1 = new Date(Date.now() - 548 * 24 * 60 * 60 * 1000); // ~18 months
+    const chartData = await yahooFinance.chart(symbol, { period1, interval: '1d' });
+    const quotes: any[] = chartData?.quotes ?? [];
+    if (quotes.length === 0) return null;
+
+    return {
+      chart: {
+        result: [{
+          meta: chartData?.meta ?? {},
+          timestamp: quotes.map((q: any) => Math.floor(new Date(q.date).getTime() / 1000)),
+          indicators: { quote: [{ close: quotes.map((q: any) => q.close) }] },
+        }],
+        error: null,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFromFinnhub(symbol: string) {
+  try {
+    if (!FINNHUB_API_KEY) return null;
+    const from = Math.floor((Date.now() - 548 * 24 * 60 * 60 * 1000) / 1000);
+    const to   = Math.floor(Date.now() / 1000);
+    const url  = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
+    const { data: d } = await axios.get(url);
+
+    if (d.s !== 'ok' || !Array.isArray(d.c) || d.c.length === 0) return null;
+
+    return {
+      chart: {
+        result: [{
+          meta: { symbol: symbol.toUpperCase() },
+          timestamp: d.t as number[],
+          indicators: { quote: [{ close: d.c as number[] }] },
+        }],
+        error: null,
+      },
+    };
+  } catch {
+    return null;
+  }
 }
