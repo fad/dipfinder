@@ -120,8 +120,6 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
 
     {{watchlistTable}}
 
-    {{newsBlock}}
-
     <div style="margin-top:28px;text-align:center;">
       <a href="https://dipfinder.com/app" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9em;letter-spacing:0.01em;">Open Dip Finder &#x2197;</a>
     </div>
