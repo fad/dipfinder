@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
 import { calculateSma, CACHE_EXPIRY_STOCKS, yahooFinance } from './lib/stocks';
 import { verifyJWT } from './lib/auth';
-import { getActiveTickers } from './lib/tickers';
+import { getActiveTickers, upsertTicker } from './lib/tickers';
 
 const GUEST_STOCK_LIMIT = 5;
 const AUTH_STOCK_LIMIT = 10;
@@ -127,6 +127,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!dashboardStock) {
           throw new Error(`No chart data found for ${symbol}`);
         }
+
+        // Teach the autocomplete about this ticker
+        const db = await connectToDatabase();
+        const name = dashboardStock.companyName !== 'Unknown' ? dashboardStock.companyName : normalizedSymbol;
+        upsertTicker(db, normalizedSymbol, name).catch(() => {});
 
         const stockCollection = await getStockCollection();
         await stockCollection.updateOne(
