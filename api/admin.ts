@@ -80,6 +80,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleListTickers(req, res);
       case 'toggle-ticker':
         return await handleToggleTicker(req, res);
+      case 'toggle-subscription':
+        return await handleToggleSubscription(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -612,6 +614,26 @@ async function handleTogglePro(req: VercelRequest, res: VercelResponse) {
   );
   if (result.matchedCount === 0) return res.status(404).json({ error: 'User not found' });
   return res.status(200).json({ ok: true, isPro: !!isPro });
+}
+
+async function handleToggleSubscription(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { email, field, value } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email required' });
+  const allowed = ['newsletterSubscribed', 'sundayBriefSubscribed'];
+  if (!allowed.includes(field)) return res.status(400).json({ error: 'invalid field' });
+  const db = await connectToDatabase();
+  const update: Record<string, any> = { [field]: !!value };
+  if (field === 'sundayBriefSubscribed' && !!value) {
+    const existing = await db.collection('users').findOne({ email: email.toLowerCase() }, { projection: { sundayBriefSubscribedAt: 1 } });
+    if (!existing?.sundayBriefSubscribedAt) update.sundayBriefSubscribedAt = new Date();
+  }
+  const result = await db.collection('users').updateOne(
+    { email: email.toLowerCase() },
+    { $set: update }
+  );
+  if (result.matchedCount === 0) return res.status(404).json({ error: 'User not found' });
+  return res.status(200).json({ ok: true, field, value: !!value });
 }
 
 async function handleListTickers(_req: VercelRequest, res: VercelResponse) {

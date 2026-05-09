@@ -95,6 +95,12 @@
     .wysiwyg-toolbar button { background: none; border: none; color: #94a3b8; padding: 0.2rem 0.48rem; font-size: 0.78rem; cursor: pointer; border-radius: 4px; transition: all 0.1s; line-height: 1.4; }
     .wysiwyg-toolbar button:hover { background: #334155; color: #e2e8f0; }
     .wysiwyg-toolbar .tbar-sep { width: 1px; height: 14px; background: #334155; margin: 0 3px; flex-shrink: 0; }
+
+    /* Subscription toggle buttons */
+    .sub-toggle { border: none; border-radius: 4px; padding: 2px 10px; font-size: 0.7rem; font-weight: 700; cursor: pointer; transition: opacity 0.12s; }
+    .sub-toggle:hover { opacity: 0.8; }
+    .sub-on  { background: #0c2845; color: #7dd3fc; }
+    .sub-off { background: #1e293b; color: #475569; border: 1px solid #334155; }
   </style>
 </head>
 <body>
@@ -536,12 +542,8 @@
             <td>${u.isVerified
               ? '<span class="badge badge-green">Yes</span>'
               : '<span class="badge badge-gray">No</span>'}</td>
-            <td>${u.newsletterSubscribed
-              ? '<span class="badge badge-blue">Yes</span>'
-              : '<span class="badge badge-gray">No</span>'}</td>
-            <td>${u.sundayBriefSubscribed
-              ? '<span class="badge badge-blue">Yes</span>'
-              : '<span class="badge badge-gray">No</span>'}</td>
+            <td><button class="sub-toggle ${u.newsletterSubscribed ? 'sub-on' : 'sub-off'}" onclick="toggleSubscription('${u.email}', 'newsletterSubscribed', ${!!u.newsletterSubscribed})">${u.newsletterSubscribed ? 'On' : 'Off'}</button></td>
+            <td><button class="sub-toggle ${u.sundayBriefSubscribed ? 'sub-on' : 'sub-off'}" onclick="toggleSubscription('${u.email}', 'sundayBriefSubscribed', ${!!u.sundayBriefSubscribed})">${u.sundayBriefSubscribed ? 'On' : 'Off'}</button></td>
             <td>${u.totalLoginCount || 0}</td>
             <td>${fmt(u.lastLoginAt)}</td>
             <td title="${watchlistTip}">${watchlist.length ? watchlist.length : '<span style="color:#64748b">0</span>'}</td>
@@ -1487,6 +1489,25 @@
         const data = await res.json();
         if (!res.ok) { alert('Error: ' + (data.error || res.status)); return; }
         allUsers = allUsers.filter(u => u.email !== email);
+        renderTable();
+      } catch (e) {
+        alert('Network error: ' + e.message);
+      }
+    }
+
+    async function toggleSubscription(email, field, currentValue) {
+      const newVal = !currentValue;
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=toggle-subscription', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, field, value: newVal })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('Error: ' + (data.error || res.status)); return; }
+        const u = allUsers.find(u => u.email === email);
+        if (u) u[field] = newVal;
         renderTable();
       } catch (e) {
         alert('Network error: ' + e.message);
