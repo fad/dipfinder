@@ -353,26 +353,26 @@
               <div id="placeholders-popup" style="display:none; position:absolute; top:calc(100% + 6px); right:0; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.75rem 1rem; z-index:100; min-width:360px; box-shadow:0 8px 24px rgba(0,0,0,0.4);">
                 <p style="color:#94a3b8; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0.4rem;">Transactional emails</p>
                 <table style="border-collapse:collapse; font-size:0.75rem; width:100%; margin-bottom:0.75rem;">
-                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{name}}</td><td style="color:#94a3b8;">Recipient first name</td></tr>
-                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{email}}</td><td style="color:#94a3b8;">Recipient email address</td></tr>
-                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{resetUrl}}</td><td style="color:#94a3b8;">Password reset link</td></tr>
-                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{magicUrl}}</td><td style="color:#94a3b8;">Magic sign-in link</td></tr>
-                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{unsubscribeUrl}}</td><td style="color:#94a3b8;">Unsubscribe link</td></tr>
-                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{setPasswordBlock}}</td><td style="color:#94a3b8;">Set-password CTA block (onboarding)</td></tr>
-                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{watchlistChartBlock}}</td><td style="color:#94a3b8;">Watchlist chart image (onboarding)</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{name}}')">{{name}}</td><td style="color:#94a3b8;">Recipient first name</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{email}}')">{{email}}</td><td style="color:#94a3b8;">Recipient email address</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{resetUrl}}')">{{resetUrl}}</td><td style="color:#94a3b8;">Password reset link</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{magicUrl}}')">{{magicUrl}}</td><td style="color:#94a3b8;">Magic sign-in link</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{unsubscribeUrl}}')">{{unsubscribeUrl}}</td><td style="color:#94a3b8;">Unsubscribe link</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{setPasswordBlock}}')">{{setPasswordBlock}}</td><td style="color:#94a3b8;">Set-password CTA block (onboarding)</td></tr>
+                  <tr><td style="color:#38bdf8; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{watchlistChartBlock}}')">{{watchlistChartBlock}}</td><td style="color:#94a3b8;">Watchlist chart image (onboarding)</td></tr>
                 </table>
                 <p style="color:#a78bfa; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 0.4rem; border-top:1px solid #1e293b; padding-top:0.6rem;">Sunday Brief only</p>
                 <table style="border-collapse:collapse; font-size:0.75rem; width:100%;">
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{name}}</td><td style="color:#94a3b8;">Recipient first name</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{dateLabel}}</td><td style="color:#94a3b8;">Full date, e.g. "Sunday, May 4, 2025"</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{shortDate}}</td><td style="color:#94a3b8;">Short date for subject, e.g. "May 4"</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{smaPeriod}}</td><td style="color:#94a3b8;">User's SMA period, e.g. "50"</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{openerSummary}}</td><td style="color:#94a3b8;">Personalised one-liner: dip count, mixed week, or quiet</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{chartBlock}}</td><td style="color:#94a3b8;">Bar chart image of watchlist vs SMA</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{watchlistTable}}</td><td style="color:#94a3b8;">Ranked table of stocks with prices</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{newsBlock}}</td><td style="color:#94a3b8;">News cards per stock (empty if none)</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{viewOnlineBlock}}</td><td style="color:#94a3b8;">"View Online" link cell (empty for preview)</td></tr>
-                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap;">{{unsubscribeUrl}}</td><td style="color:#94a3b8;">Unsubscribe link URL</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{name}}')">{{name}}</td><td style="color:#94a3b8;">Recipient first name</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{dateLabel}}')">{{dateLabel}}</td><td style="color:#94a3b8;">Full date, e.g. "Sunday, May 4, 2025"</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{shortDate}}')">{{shortDate}}</td><td style="color:#94a3b8;">Short date for subject, e.g. "May 4"</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{smaPeriod}}')">{{smaPeriod}}</td><td style="color:#94a3b8;">User's SMA period, e.g. "50"</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{openerSummary}}')">{{openerSummary}}</td><td style="color:#94a3b8;">Personalised one-liner: dip count, mixed week, or quiet</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{chartBlock}}')">{{chartBlock}}</td><td style="color:#94a3b8;">Bar chart image of watchlist vs SMA</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{watchlistTable}}')">{{watchlistTable}}</td><td style="color:#94a3b8;">Ranked table of stocks with prices</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{newsBlock}}')">{{newsBlock}}</td><td style="color:#94a3b8;">News cards per stock (empty if none)</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{viewOnlineBlock}}')">{{viewOnlineBlock}}</td><td style="color:#94a3b8;">"View Online" link cell (empty for preview)</td></tr>
+                  <tr><td style="color:#a78bfa; font-family:monospace; padding:2px 8px 2px 0; white-space:nowrap; cursor:pointer;" onclick="insertPlaceholder('{{unsubscribeUrl}}')">{{unsubscribeUrl}}</td><td style="color:#94a3b8;">Unsubscribe link URL</td></tr>
                 </table>
               </div>
             </div>
@@ -997,6 +997,17 @@
       return document.getElementById('tpl-html').value;
     }
 
+    function insertPlaceholder(placeholder) {
+      const ta = document.getElementById('tpl-html');
+      if (!ta) return;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      ta.value = ta.value.slice(0, start) + placeholder + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + placeholder.length;
+      ta.focus();
+      schedulePreview();
+    }
+
     function schedulePreview() {
       clearTimeout(previewTimer);
       previewTimer = setTimeout(updatePreview, 350);
@@ -1084,7 +1095,7 @@
       window.open(url, '_blank');
     }
 
-    async function loadTemplateList() {
+    async function loadTemplateList(preserveKey) {
       const token = localStorage.getItem('token');
       try {
         const res = await fetch('/api/admin?action=list-templates', {
@@ -1095,6 +1106,7 @@
         const sel = document.getElementById('tpl-select');
         sel.innerHTML = tplKeys.map(t => `<option value="${t.key}">${t.name}${t.saved ? '' : ' (default)'}</option>`).join('');
         tplLoaded = true;
+        if (preserveKey) sel.value = preserveKey;
         if (tplKeys.length) loadTemplate();
       } catch (e) {
         document.getElementById('tpl-status').textContent = 'Error: ' + e.message;
@@ -1141,7 +1153,7 @@
         const data = await res.json();
         status.textContent = data.ok ? 'Saved.' : ('Error: ' + data.error);
         status.style.color = data.ok ? '#4ade80' : '#f87171';
-        if (data.ok) loadTemplateList().then(() => { document.getElementById('tpl-select').value = key; });
+        if (data.ok) loadTemplateList(key);
       } catch (e) {
         status.textContent = 'Network error: ' + e.message; status.style.color = '#f87171';
       }
