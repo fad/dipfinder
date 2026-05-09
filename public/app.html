@@ -62,11 +62,11 @@
             <div class="flex items-center gap-2">
                 <a href="/app" data-link class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
                     <i class="fas fa-chart-line text-xs"></i>
-                    Dashboard
+                    <span class="hidden sm:inline">Dashboard</span>
                 </a>
                 <a href="/screener" data-link class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900">
                     <i class="fas fa-search text-xs"></i>
-                    Screener
+                    <span class="hidden sm:inline">Screener</span>
                 </a>
                 <a href="/about" data-link class="hidden sm:inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900">
                     About
@@ -83,7 +83,8 @@
                 <div id="auth-button"
                     class="green-gradient-btn hidden cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition flex">
                     <i class="fas fa-user-plus text-sm"></i>
-                    Get Free Account
+                    <span class="sm:hidden">Sign up</span>
+                    <span class="hidden sm:inline">Get Free Account</span>
                 </div>
                 <!-- Profile dropdown - hidden initially -->
                 <div class="relative hidden" id="profile-dropdown">

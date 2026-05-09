@@ -401,3 +401,20 @@ html.dark-mode .ticker-name {
     .custom-select-trigger { padding: 6px 10px; font-size: 12px; }
     .custom-select-option  { padding: 8px 10px; font-size: 12px; }
 }
+
+/* ── Landing page hero grid ──────────────────────────────────────────────── */
+
+.hero-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: center;
+}
+
+/* Hide preview image on mobile — text first */
+#hero-preview-wrap { display: none; }
+
+@media (min-width: 768px) {
+    #hero-preview-wrap { display: block; }
+    .hero-content { grid-template-columns: 1fr 1fr; gap: 48px; }
+}
