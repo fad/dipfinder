@@ -62,7 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const stocks = stockResults.map(s => ({ symbol: s.symbol, relativePrice: s.relativePrice }));
 
-        await db.collection('weeklySnapshots').updateOne(
+        const col = db.collection('weeklySnapshots');
+        await col.updateOne(
           { userId: user._id.toString(), weekOf },
           {
             $set:         { stocks, updatedAt: new Date() },
@@ -70,6 +71,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
           { upsert: true },
         );
+
+        // Keep only the 2 most recent snapshots per user — delete the rest
+        const keep = await col
+          .find({ userId: user._id.toString() })
+          .sort({ weekOf: -1 })
+          .limit(2)
+          .project({ _id: 1 })
+          .toArray();
+        if (keep.length === 2) {
+          const keepIds = keep.map((d: any) => d._id);
+          await col.deleteMany({ userId: user._id.toString(), _id: { $nin: keepIds } });
+        }
+
         saved++;
       } catch (err) {
         console.error(`Snapshot failed for ${user.email}:`, err);

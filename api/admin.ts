@@ -479,6 +479,15 @@ const CRON_DEFS = [
     vercelSchedule: 'Daily at 10:00 UTC',
     defaultSchedule: { enabled: true, hour: 10 },
   },
+  {
+    id: 'newsletter-snapshot',
+    name: 'Weekly Snapshot',
+    description: 'Snapshots each subscriber\'s watchlist SMA status. Powers the personalised opener in Sunday Brief. Runs Saturday night before the Sunday send.',
+    endpoint: '/api/newsletter-snapshot',
+    method: 'POST',
+    vercelSchedule: 'Saturdays at 23:00 UTC',
+    defaultSchedule: { enabled: true, dayOfWeek: 6, hour: 23 },
+  },
 ] as const;
 
 async function handleGetCrons(_req: VercelRequest, res: VercelResponse) {
