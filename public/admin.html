@@ -998,14 +998,26 @@
     }
 
     function insertPlaceholder(placeholder) {
-      const ta = document.getElementById('tpl-html');
-      if (!ta) return;
-      const start = ta.selectionStart;
-      const end = ta.selectionEnd;
-      ta.value = ta.value.slice(0, start) + placeholder + ta.value.slice(end);
-      ta.selectionStart = ta.selectionEnd = start + placeholder.length;
-      ta.focus();
-      schedulePreview();
+      if (currentEditorMode === 'visual' && wysiwygReady) {
+        const frame = document.getElementById('tpl-wysiwyg-frame');
+        if (frame.contentDocument) {
+          frame.contentWindow.focus();
+          frame.contentDocument.execCommand('insertText', false, placeholder);
+          schedulePreview();
+        }
+      } else {
+        const ta = document.getElementById('tpl-html');
+        if (!ta) return;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        ta.value = ta.value.slice(0, start) + placeholder + ta.value.slice(end);
+        ta.selectionStart = ta.selectionEnd = start + placeholder.length;
+        ta.focus();
+        schedulePreview();
+      }
+      // Close the popup after insertion
+      const popup = document.getElementById('placeholders-popup');
+      if (popup) popup.style.display = 'none';
     }
 
     function schedulePreview() {
