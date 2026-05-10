@@ -130,7 +130,11 @@ window.initializeProfile = function() {
                     } else {
                         document.getElementById('profile-member-since').textContent = '-';
                     }
-                    initTimezoneSelect(data.timezone || null);
+                    const tzSel = document.getElementById('timezone-select');
+                    if (tzSel && data.timezone) {
+                        const match = TIMEZONES.find(t => t.value === data.timezone);
+                        tzSel.value = match ? data.timezone : 'auto';
+                    }
                 } else {
                     console.error('Profile API error:', data);
                     document.getElementById('profile-member-since').textContent = 'Error loading date';
@@ -400,6 +404,7 @@ window.initializeProfile = function() {
 
     // Initial setup for the profile page
     setupTabSwitching();
+    initTimezoneSelect(null);
     loadProfileInfo();
     setupPasswordChange();
     setupEmailChange();
