@@ -489,6 +489,9 @@ function buildChartBlock(stocks: NewsletterStockRow[], orientation: 'x' | 'y', s
   return `
 <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:24px;">
   <img src="${chartUrl}" width="556" height="${h}" alt="Watchlist dip chart" style="display:block;">
+  <div style="padding:8px 14px;border-top:1px solid #f1f5f9;background:#f8fafc;">
+    <span style="font-size:0.7em;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">% vs ${smaPeriod}-day SMA - negative = below SMA (dipping)</span>
+  </div>
 </div>`;
 }
 
@@ -525,7 +528,7 @@ function buildWatchlistTableHtml(stocks: NewsletterStockRow[], smaPeriod: number
 </div>`;
 }
 
-function buildNewsBlockHtml(stocks: NewsletterStockRow[]): string {
+function buildNewsBlockHtml(stocks: NewsletterStockRow[], smaPeriod: number): string {
   const newsCards = stocks.filter(s => s.topNews?.length).map(s => {
     const items = (s.topNews || []).map(n => `
       <a href="${n.url}" style="display:block;text-decoration:none;padding:10px 0;border-bottom:1px solid #f1f5f9;">
@@ -541,7 +544,7 @@ function buildNewsBlockHtml(stocks: NewsletterStockRow[]): string {
   <div style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
     <a href="${href}" style="font-weight:800;color:#1e293b;font-size:0.95em;margin-right:8px;text-decoration:none;">${s.symbol}</a>
     <a href="${href}" style="color:#64748b;font-size:0.8em;text-decoration:none;">${s.companyName}</a>
-    <span style="float:right;font-weight:700;color:${dipColor};font-size:0.85em;">${sign}${pct}%</span>
+    <span style="float:right;font-weight:700;color:${dipColor};font-size:0.85em;">${sign}${pct}% vs ${smaPeriod}d SMA</span>
   </div>
   <div style="padding:0 16px;">${items}</div>
 </div>`;
@@ -573,7 +576,7 @@ export function buildNewsletterHtml({
   });
   const chartBlock = buildChartBlock(stocks, chartOrientation as 'x' | 'y', smaPeriod);
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
-  const newsSection = buildNewsBlockHtml(stocks);
+  const newsSection = buildNewsBlockHtml(stocks, smaPeriod);
 
   return `
 <div style="font-family:system-ui,-apple-system,Arial,sans-serif; max-width:620px; margin:0 auto; background:#f8fafc;">
@@ -634,7 +637,7 @@ export async function buildNewsletterEmailHtml({
 
   const chartBlock = buildChartBlock(stocks, chartOrientation, smaPeriod);
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
-  const newsBlock = buildNewsBlockHtml(stocks);
+  const newsBlock = buildNewsBlockHtml(stocks, smaPeriod);
   const viewOnlineBlock = viewOnlineUrl
     ? `<span style="display:table-cell;text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`
     : '';
