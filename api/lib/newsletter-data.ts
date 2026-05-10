@@ -44,7 +44,7 @@ export async function fetchNewsForSymbol(symbol: string, db: any): Promise<NewsI
     const news: NewsItem[] = response.data || [];
     await col.updateOne(
       { cacheKey },
-      { $set: { cacheKey, data: { news }, timestamp: Date.now() } },
+      { $set: { cacheKey, data: { news }, timestamp: new Date() } },
       { upsert: true }
     );
     return news.slice(0, 2);
@@ -81,7 +81,7 @@ export async function fetchStockData(symbol: string, db: any): Promise<Dashboard
 
   await col.updateOne(
     { cacheKey },
-    { $set: { cacheKey, data, timestamp: Date.now() } },
+    { $set: { cacheKey, data, timestamp: new Date() } },
     { upsert: true }
   );
 

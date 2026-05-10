@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase } from './lib/mongodb';
-import { sendPasswordChangeNotification, sendPasswordResetEmail, sendMagicLinkEmail, sendOnboardingEmail } from './lib/email';
+import { sendPasswordChangeNotification, sendPasswordResetEmail, sendMagicLinkEmail, sendOnboardingEmail, sendAccountExistsEmail } from './lib/email';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -188,7 +188,9 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
 
   const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
   if (existingUser) {
-    return res.status(409).json({ error: 'User already exists' });
+    // Don't reveal whether the email is registered - send a notice instead
+    sendAccountExistsEmail(email.toLowerCase()).catch(() => {});
+    return res.status(200).json({ message: 'If this email is not yet registered, check your inbox to complete sign-up.' });
   }
 
   // Use localStorage watchlist if provided; otherwise fall back to admin initial stocks
@@ -216,7 +218,6 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     password: hashedPassword,
     name: name || email.split('@')[0],
     createdDate: new Date(),
-    isVerified: false,
     termsAccepted: true,
     termsAcceptedDate: new Date(),
     newsletterSubscribed: Boolean(newsletterSubscribed),
@@ -528,7 +529,6 @@ async function handleGetProfile(req: VercelRequest, res: VercelResponse) {
       email: user.email,
       name: user.name,
       createdDate: user.createdDate,
-      isVerified: user.isVerified,
       newsletterSubscribed: user.newsletterSubscribed || false,
       sundayBriefSubscribed: user.sundayBriefSubscribed || false
     });
@@ -869,7 +869,6 @@ async function handleNewsletterSubscribe(req: VercelRequest, res: VercelResponse
     password: hashedPassword,
     name,
     createdDate: new Date(),
-    isVerified: false,
     termsAccepted: true,
     termsAcceptedDate: new Date(),
     newsletterSubscribed: true,
@@ -934,7 +933,7 @@ async function handleSetInitialPassword(req: VercelRequest, res: VercelResponse)
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   await db.collection('users').updateOne(
     { email: decoded.email },
-    { $set: { password: hashedPassword, isVerified: true, passwordSetAt: new Date() } }
+    { $set: { password: hashedPassword, passwordSetAt: new Date() } }
   );
 
   const authToken = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });

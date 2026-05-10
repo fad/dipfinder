@@ -178,7 +178,7 @@ async function handleFundamentals(db: any, symbol: string, res: VercelResponse) 
 
   await collection.updateOne(
     { cacheKey },
-    { $set: { cacheKey, data: fundamentalData, timestamp: Date.now() } },
+    { $set: { cacheKey, data: fundamentalData, timestamp: new Date() } },
     { upsert: true }
   );
 
@@ -201,7 +201,7 @@ async function handleNews(db: any, symbol: string, res: VercelResponse) {
 
   await collection.updateOne(
     { cacheKey },
-    { $set: { cacheKey, data: result, timestamp: Date.now() } },
+    { $set: { cacheKey, data: result, timestamp: new Date() } },
     { upsert: true }
   );
 
@@ -225,7 +225,7 @@ async function handleCompanyName(db: any, symbol: string, res: VercelResponse) {
 
   await collection.updateOne(
     { cacheKey },
-    { $set: { cacheKey, data: result, timestamp: Date.now() } },
+    { $set: { cacheKey, data: result, timestamp: new Date() } },
     { upsert: true }
   );
 
@@ -291,7 +291,7 @@ async function handleSMATimeSeries(symbol: string, period: number, res: VercelRe
     const responseData = { values: smaData };
     await collection.updateOne(
       { cacheKey },
-      { $set: { cacheKey, data: responseData, timestamp: Date.now() } },
+      { $set: { cacheKey, data: responseData, timestamp: new Date() } },
       { upsert: true }
     );
 
@@ -335,7 +335,7 @@ async function handleStockPriceInternal(db: any, symbol: string) {
 
   await collection.updateOne(
     { cacheKey },
-    { $set: { cacheKey, data, timestamp: Date.now() } },
+    { $set: { cacheKey, data, timestamp: new Date() } },
     { upsert: true }
   );
 

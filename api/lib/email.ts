@@ -306,6 +306,25 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
 }
 
 /**
+ * Sent when someone tries to register with an email that already has an account.
+ * Avoids leaking account existence in the registration API response.
+ */
+export async function sendAccountExistsEmail(email: string): Promise<boolean> {
+  const baseUrl = process.env.FRONTEND_URL || SITE_URL;
+  const loginUrl = `${baseUrl}/app`;
+  const resetUrl = `${baseUrl}/forgot-password.html`;
+  const html = buildEmailHtml(`
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Someone tried to create a Dip Finder account using your email address (<strong>${escapeHtml(email)}</strong>).</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 24px;">You already have an account - no action is needed. If this was you and you were trying to log in, you can do so here:</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Log In</a>
+</div>
+<p style="font-family:Arial,sans-serif;font-size:14px;color:#6B7280;line-height:1.75;margin:0;">Forgot your password? <a href="${resetUrl}" style="color:#2563EB;">Reset it here</a>. If you did not attempt to register, you can safely ignore this email.</p>
+`);
+  return sendEmail({ to: email, subject: 'Someone tried to register with your email - Dip Finder', html });
+}
+
+/**
  * Send welcome email to new users
  */
 export async function sendWelcomeEmail(email: string, name: string): Promise<boolean> {

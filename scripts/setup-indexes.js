@@ -88,24 +88,30 @@ async function run() {
   }
 
   // ── TTL indexes ─────────────────────────────────────────────────────────────
-  // Note: MongoDB TTL only works when the indexed field is a BSON Date.
-  // This app stores `timestamp` as Date.now() (number, ms). TTL indexes on
-  // numeric fields are silently ignored by MongoDB. Two options:
-  //
-  //   A) Migrate timestamp fields to Date objects (requires code change)
-  //   B) Use the health-check cron to purge stale docs (no code change needed)
-  //
-  // Option B is already documented in CLAUDE.md. Skipping TTL index creation
-  // here until timestamps are migrated to Date type.
-  //
+  // timestamp fields are now stored as BSON Date (new Date()), so MongoDB TTL
+  // indexes work correctly. Existing numeric-timestamp docs are harmless —
+  // they expire via app-level TTL checks and are naturally replaced over time.
   console.log('\n── TTL indexes ─────────────────────────────────────');
-  console.log('  ⚠  Skipped: timestamp fields are stored as numbers (ms),');
-  console.log('     not BSON Date. MongoDB TTL requires Date type.');
-  console.log('     See CLAUDE.md → Cache purge options for alternatives.');
-  console.log('\n  Planned TTLs (for reference):');
-  for (const [col, secs] of Object.entries(TTL_SECONDS)) {
-    const human = secs >= 86400 ? `${secs/86400}d` : `${secs/3600}h`;
-    console.log(`    ${col.padEnd(18)} ${human}`);
+  const TTL_INDEX_DEFS = [
+    { col: 'stocks',          expireAfterSeconds: TTL_SECONDS.stocks },
+    { col: 'dashboardStocks', expireAfterSeconds: TTL_SECONDS.dashboardStocks },
+    { col: 'smaTimeseries',   expireAfterSeconds: TTL_SECONDS.smaTimeseries },
+    { col: 'news',            expireAfterSeconds: TTL_SECONDS.news },
+    { col: 'fundamentals',    expireAfterSeconds: TTL_SECONDS.fundamentals },
+    { col: 'companyNames',    expireAfterSeconds: TTL_SECONDS.companyNames },
+  ];
+  for (const { col, expireAfterSeconds } of TTL_INDEX_DEFS) {
+    try {
+      await db.collection(col).createIndex({ timestamp: 1 }, { expireAfterSeconds, name: `${col}_timestamp_ttl` });
+      const human = expireAfterSeconds >= 86400 ? `${expireAfterSeconds/86400}d` : `${expireAfterSeconds/3600}h`;
+      console.log(`  ✓  ${col}.timestamp TTL (${human})`);
+    } catch (err) {
+      if (err.code === 85 || err.code === 86 || err.codeName === 'IndexOptionsConflict') {
+        console.log(`  –  ${col}.timestamp TTL (already exists)`);
+      } else {
+        console.error(`  ✗  ${col}.timestamp TTL: ${err.message}`);
+      }
+    }
   }
 
   await client.close();

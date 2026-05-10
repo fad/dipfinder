@@ -136,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const stockCollection = await getStockCollection();
         await stockCollection.updateOne(
           { cacheKey: stockCacheKey },
-          { $set: { cacheKey: stockCacheKey, data: dashboardStock, timestamp: Date.now() } },
+          { $set: { cacheKey: stockCacheKey, data: dashboardStock, timestamp: new Date() } },
           { upsert: true }
         );
         memoryCache[stockCacheKey] = { data: dashboardStock, timestamp: Date.now() };

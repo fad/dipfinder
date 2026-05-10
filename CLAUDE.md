@@ -250,10 +250,7 @@ Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 
 Cache collections (`stocks`, `dashboardStocks`, `smaTimeseries`, `news`, `fundamentals`, `companyNames`) use logical TTL — stale docs are ignored at read time but never deleted. Over time they accumulate.
 
-**Options:**
-- **Atlas scheduled trigger** (recommended): In Atlas → Triggers → Scheduled, run a JS function nightly that deletes docs where `timestamp < Date.now() - TTL_MS` for each collection.
-- **Purge via admin panel**: Add a "Purge stale cache" button to the admin UI that calls a new endpoint.
-- **Migrate timestamps to Date**: Change `timestamp: Date.now()` → `timestamp: new Date()` everywhere, then add TTL indexes via `npm run setup-indexes` (TTL section currently skipped for this reason).
+**Implemented:** All cache writes now use `timestamp: new Date()` (BSON Date). TTL indexes are defined in `setup-indexes.js` and must be created via `npm run setup-indexes`. App-level TTL checks (`Date.now() - doc.timestamp`) still work for both Date and legacy numeric timestamps during transition.
 
 **Planned TTLs:** stocks/dashboard/SMA = 2h, news = 6h, fundamentals/companyNames = 7d.
 
@@ -293,7 +290,7 @@ To debug a failed send: check that the user doc has `sundayBriefSubscribed: true
 
 **Screener canvas race condition.** Always use `destroyScreenerChart()` helper (not inline `.destroy()`) and the `currentLoadId` pattern when loading stock data asynchronously. See `screener.js` for the established pattern.
 
-**MongoDB `timestamp` fields are stored as numbers (ms epoch), not BSON Date.** This means native MongoDB TTL indexes do not work on them — MongoDB TTL requires a Date-typed field. Cache expiry is currently checked at read time in application code. To enable Atlas auto-expiry, either migrate `timestamp` fields to `new Date()` or use a periodic purge cron. See Cache purge SOP.
+**MongoDB `timestamp` fields in cache collections are stored as BSON Date** (migrated from numeric ms epoch). MongoDB TTL indexes are defined in `setup-indexes.js` — run `npm run setup-indexes` to apply them. App-level TTL checks still read these fields correctly via JS arithmetic coercion.
 
 ## What "done" looks like
 
