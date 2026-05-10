@@ -338,8 +338,21 @@ const AuthManager = (function() {
             const data = await res.json();
 
             if (res.ok) {
-                showAuthSuccess(data.msg || "Registration successful! Please log in.");
-                setTimeout(() => showLoginForm(), 1200);
+                if (data.token) {
+                    // New account created — sign in immediately
+                    localStorage.setItem("token", data.token);
+                    const userData = data.user || { email: email, name: email.split('@')[0] };
+                    localStorage.setItem("lastAuthState", JSON.stringify({ isAuthenticated: true, user: userData }));
+                    showAuthSuccess("Welcome! Your account has been created.");
+                    setTimeout(() => {
+                        closeAuthModal();
+                        showLoggedInUI(userData);
+                        restoreWatchlistFromDb();
+                    }, 800);
+                } else {
+                    // Existing email — notify but don't reveal account existence
+                    showAuthSuccess(data.message || "If this email is not yet registered, check your inbox to complete sign-up.");
+                }
             } else {
                 showAuthError(data.error || data.msg || "Registration failed. Please try again.");
             }
