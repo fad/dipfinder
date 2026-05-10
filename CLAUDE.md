@@ -32,7 +32,7 @@ public/               ← Frontend SPA
   styles/input.css    ← Tailwind source ← EDIT THIS
   styles/styles.css   ← Generated output ← DO NOT EDIT
 
-api/                  ← Serverless functions (one file = one route, 9 total — Hobby plan limit is 12)
+api/                  ← Serverless functions (one file = one route, 11 total — Hobby plan limit is 12)
   lib/
     mongodb.ts        ← Singleton DB connection (globalThis caching)
     auth.ts           ← bcrypt + JWT helpers
@@ -44,12 +44,13 @@ api/                  ← Serverless functions (one file = one route, 9 total �
   watchlist.ts        ← GET/POST watchlist (also saves smaPeriod, chartOrientation)
   batch-stocks.ts     ← POST: multi-stock SMA fetch for dashboard; GET ?action=tickers for autocomplete
   stock-data.ts       ← All per-stock data: price+SMA (Yahoo→Finnhub fallback), news, fundamentals
-  newsletter-send.ts  ← Cron trigger + admin preview (Sunday 14:00 UTC)
+  newsletter-send.ts  ← 3 cron triggers (Sat 23:00, Sun 07:00, Sun 14:00 UTC) + admin preview
   newsletter.ts       ← GET ?action=view (tokenized view-online) + ?action=unsubscribe
   newsletter-onboarding.ts ← Daily cron (10:00 UTC): sends welcome email to new brief subscribers
   newsletter-snapshot.ts ← Weekly cron (Saturday 23:00 UTC): snapshots each user's watchlist SMA status into weeklySnapshots collection for opener delta computation
-  admin.ts            ← Admin: list users, template management
+  admin.ts            ← Admin: list users, template management, cron triggers
   health-check.ts     ← System health check (MongoDB, Yahoo, Finnhub, Resend) + ping
+  morning-report.ts   ← Daily cron (07:00 UTC): emails admin a summary of user counts, subscriber totals, cron last-run statuses
 
 scripts/
   setup-indexes.js    ← One-time MongoDB index creation (run once per environment)
@@ -62,7 +63,7 @@ scripts/
 `stock-data.ts` → check MongoDB `stocks` cache → miss: try Yahoo Finance → fail: try Finnhub `/stock/candle` → fail: `markTickerFailed()` + 404. On success: `upsertTicker()` (self-learning autocomplete) + cache result.
 
 **Data flow — newsletter:**
-Vercel cron (Sunday 14:00 UTC) → `newsletter-send.ts` → reads user watchlist from `users` → `buildStockResults()` (Yahoo Finance + Finnhub, cached in MongoDB) → `buildNewsletterEmailHtml()` (checks DB for `sunday-brief` template, falls back to hardcoded) → Resend API. View-online link points to `/newsletter/:token` → `newsletter.ts?action=view`.
+3 Vercel crons (Sat 23:00, Sun 07:00, Sun 14:00 UTC) → `newsletter-send.ts` → for each `sundayBriefSubscribed` user, checks `isTimeToSend(user.timezone)` (Sunday 6-10am in user's local time) and `lastNewsletterSentAt` (skip if sent within 7 days) → `buildStockResults()` (Yahoo Finance + Finnhub, cached in MongoDB) → `buildNewsletterEmailHtml()` (checks DB for `sunday-brief` template, falls back to hardcoded) → Resend API. View-online link points to `/newsletter/:token` → `newsletter.ts?action=view`.
 
 **MongoDB collections:**
 
@@ -70,31 +71,35 @@ Vercel cron (Sunday 14:00 UTC) → `newsletter-send.ts` → reads user watchlist
 |---|---|---|
 | `users` | Auth, watchlist, preferences, subscription flags | permanent |
 | `tickers` | Self-learning autocomplete — upserted on every successful stock fetch | permanent |
-| `stocks` | Yahoo/Finnhub price+OHLC cache | 2h (logical) |
-| `dashboardStocks` | Batch dashboard price/SMA cache | 2h (logical) |
-| `smaTimeseries` | SMA chart series cache | 2h (logical) |
-| `news` | Finnhub news cache | 6h (logical) |
-| `fundamentals` | Finnhub fundamentals cache | 7d (logical) |
-| `companyNames` | Finnhub company name cache | 7d (logical) |
+| `stocks` | Yahoo/Finnhub price+OHLC cache | 2h (MongoDB TTL index) |
+| `dashboardStocks` | Batch dashboard price/SMA cache | 2h (MongoDB TTL index) |
+| `smaTimeseries` | SMA chart series cache | 2h (MongoDB TTL index) |
+| `news` | Finnhub news cache | 6h (MongoDB TTL index) |
+| `fundamentals` | Finnhub fundamentals cache | 7d (MongoDB TTL index) |
+| `companyNames` | Finnhub company name cache | 7d (MongoDB TTL index) |
 | `emailTemplates` | Editable email templates — auto-seeded on first use | permanent |
 | `weeklySnapshots` | Per-user watchlist SMA snapshot (Saturday night) — powers opener delta logic | permanent (keep last 2 per user) |
 | `settings` | Key-value store: app config + cron last-run tracking | permanent |
 
-"Logical TTL" = checked at read time via `timestamp` field; documents are not auto-deleted (see Cache purge SOP below).
+TTL indexes are live on Atlas — MongoDB auto-deletes expired docs. App-level TTL checks at read time provide an additional fast-path guard.
 
 **`users` document shape:**
 ```
-email, passwordHash, name
+email, password (bcrypt hash), name
+createdDate: date
+timezone: string (IANA, e.g. 'America/New_York') ← controls Sunday Brief delivery window
 watchlist: string[]
 smaPeriod: number
 chartOrientation: 'x'|'y'
 newsletterSubscribed: bool
 sundayBriefSubscribed: bool
+sundayBriefSubscribedAt: date
 onboardingEmailSentAt: date
+lastNewsletterSentAt: date  ← prevents double-send across cron windows
 isPro: bool
 namedWatchlists, activeWatchlistId   ← pro features
-loginAttempts, lockedUntil           ← brute-force lockout
-createdAt
+failedLoginAttempts, accountLockedUntil  ← brute-force lockout
+termsAccepted: bool, termsAcceptedDate: date
 ```
 
 **`tickers` document shape:**
@@ -208,7 +213,7 @@ Body copy style: `font-size:15px; color:#374151; line-height:1.75`
 CTA buttons: `background: linear-gradient(135deg,#2563EB,#4F46E5); color:#FFFFFF; padding:14px 32px; border-radius:8px; font-weight:700`  
 Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 
-**Template variable substitution**: use `{{varName}}` placeholders in HTML (e.g. `{{name}}`, `{{resetUrl}}`, `{{magicUrl}}`). `renderTemplate(html, vars)` replaces them at send time.
+**Template variable substitution**: use `{{varName}}` placeholders in HTML (e.g. `{{name}}`, `{{resetUrl}}`, `{{magicUrl}}`). `renderTemplate(html, vars)` replaces them at send time. **All user-supplied values (name, email) must be wrapped in `escapeHtml()` before being passed to `renderTemplate()` or interpolated into HTML strings.** Pre-built HTML blocks (chart images, table HTML) must NOT be escaped.
 
 **DB-backed templates**: templates are stored in the MongoDB `emailTemplates` collection (key, name, subject, html, updatedAt). `getEmailTemplate(db, key)` auto-seeds the default if no DB record exists. Admin can edit all templates in the "Email Templates" tab of the admin panel. When updating the visual theme, update `buildEmailHtml` in `email.ts` AND delete the affected DB docs so they re-seed with the new shell next time (or resave via admin panel).
 
@@ -225,13 +230,13 @@ Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 
 ### Debugging a failed newsletter send
 
-1. Check Vercel function logs for the Sunday 14:00 UTC invocation of `newsletter-send`.
-2. Confirm `ADMIN_EMAIL` env var is set and matches a `users` doc with `newsletterSubscribed: true` and a non-empty `watchlist`.
-3. Confirm `EMAIL_NOREPLY_API_KEY` is valid — check Resend dashboard for bounces/errors.
-4. Check `CRON_SECRET` matches what Vercel sends as the `Authorization: Bearer` header.
-5. Try admin preview endpoint (`?preview=true`) to isolate whether the issue is data or sending.
-6. If preview HTML renders but send fails: Resend API issue.
-7. If preview returns 404/empty: user doc in MongoDB doesn't match criteria (wrong email, not subscribed, empty watchlist).
+1. Check Vercel function logs for the Sat 23:00, Sun 07:00, or Sun 14:00 UTC invocations of `newsletter-send`.
+2. Confirm `EMAIL_NOREPLY_API_KEY` is valid — check Resend dashboard for bounces/errors.
+3. Check `CRON_SECRET` matches what Vercel sends as the `Authorization: Bearer` header.
+4. Try admin preview endpoint (`?preview=true`) to isolate whether the issue is data or sending.
+5. If preview HTML renders but send fails: Resend API issue.
+6. If preview returns 404/empty: admin user doc doesn't match criteria (not subscribed, empty watchlist).
+7. If a subscriber isn't getting mail: check `sundayBriefSubscribed: true`, non-empty `watchlist`, correct `timezone`, and `lastNewsletterSentAt` (if set within the last 7 days they'll be skipped).
 
 ### Rolling back a bad deploy
 
@@ -248,11 +253,11 @@ Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 
 ### Cache purge SOP
 
-Cache collections (`stocks`, `dashboardStocks`, `smaTimeseries`, `news`, `fundamentals`, `companyNames`) use logical TTL — stale docs are ignored at read time but never deleted. Over time they accumulate.
+Cache collections (`stocks`, `dashboardStocks`, `smaTimeseries`, `news`, `fundamentals`, `companyNames`) use `timestamp: new Date()` (BSON Date) on every write. MongoDB TTL indexes on the live Atlas cluster auto-delete expired documents. App-level TTL checks at read time provide a fast-path guard so warm-cache reads never see stale data even before MongoDB's background reaper runs.
 
-**Implemented:** All cache writes now use `timestamp: new Date()` (BSON Date). TTL indexes are defined in `setup-indexes.js` and must be created via `npm run setup-indexes`. App-level TTL checks (`Date.now() - doc.timestamp`) still work for both Date and legacy numeric timestamps during transition.
+**Active TTLs:** stocks/dashboard/SMA = 2h, news = 6h, fundamentals/companyNames = 7d.
 
-**Planned TTLs:** stocks/dashboard/SMA = 2h, news = 6h, fundamentals/companyNames = 7d.
+To force a manual cache clear (e.g. bad data stuck in cache): use Admin panel → "Clear Stock Cache", or delete documents directly in Atlas.
 
 ### MongoDB indexes
 
@@ -264,9 +269,15 @@ Safe to re-run — existing indexes are skipped. Covers: `users.email` (unique),
 
 ### Newsletter send — all subscribers
 
-`newsletter-send.ts` queries `{ sundayBriefSubscribed: true }` for live sends. Preview (`?preview=true`) always uses the admin user so it works regardless of subscription status. A 300ms delay is added between sends to respect Resend's free-plan rate limit (100 emails/day, 3,000/month).
+`newsletter-send.ts` queries `{ sundayBriefSubscribed: true }` for live sends. Each user is then filtered by `isTimeToSend(user.timezone)` — Sunday 6-10am in their local timezone — and `lastNewsletterSentAt` (skip if already sent this week). Three cron windows cover the globe:
 
-To debug a failed send: check that the user doc has `sundayBriefSubscribed: true` and a non-empty `watchlist`. Preview endpoint (`?preview=true`) isolates whether the issue is data or delivery.
+| Cron (UTC) | Regions reached |
+|---|---|
+| Saturday 23:00 | Asia/Pacific (UTC+8 to +11) |
+| Sunday 07:00 | Europe/Africa (UTC+0 to +3), UTC fallback |
+| Sunday 14:00 | Americas (UTC-8 to -4) |
+
+Users without a stored timezone default to UTC (Sunday 07:00 window). Preview (`?preview=true`) always uses the admin user regardless of timezone/subscription. A 300ms delay between sends respects Resend's free-plan rate limit (100 emails/day, 3,000/month).
 
 ## Gotchas
 
@@ -290,7 +301,7 @@ To debug a failed send: check that the user doc has `sundayBriefSubscribed: true
 
 **Screener canvas race condition.** Always use `destroyScreenerChart()` helper (not inline `.destroy()`) and the `currentLoadId` pattern when loading stock data asynchronously. See `screener.js` for the established pattern.
 
-**MongoDB `timestamp` fields in cache collections are stored as BSON Date** (migrated from numeric ms epoch). MongoDB TTL indexes are defined in `setup-indexes.js` — run `npm run setup-indexes` to apply them. App-level TTL checks still read these fields correctly via JS arithmetic coercion.
+**MongoDB `timestamp` fields in cache collections are stored as BSON Date.** TTL indexes are live on Atlas — run `npm run setup-indexes` if provisioning a new environment. App-level TTL checks coerce Date to ms via arithmetic, so both layers work correctly.
 
 ## What "done" looks like
 
