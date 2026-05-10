@@ -16,7 +16,8 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
 
 // Returns true when the user's local time is Sunday 7-9am.
 // Accepts a ±1h window around 8am to absorb cron timing imprecision.
-// Falls back to UTC if the timezone string is missing or invalid.
+// Users without a stored timezone default to UTC, so they are included
+// in the Sunday 07:00 UTC cron window.
 function isTimeToSend(timezone: string | undefined): boolean {
   const tz = timezone || 'UTC';
   try {
