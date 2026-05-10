@@ -406,34 +406,26 @@ window.initializeProfile = function() {
     setupEmailPreferences();
     loadEmailPreferences();
 
+    // Only zones that land in the 6-10am window on one of the 3 Sunday crons:
+    //   Sat 23:00 UTC → Asia/Pacific  (UTC+8 = 7am, UTC+9 = 8am, UTC+10/+11 = 9/10am)
+    //   Sun 07:00 UTC → Europe/Africa (UTC+0 = 7am, UTC+1 = 8am, UTC+2 = 9am, UTC+3 = 10am)
+    //   Sun 14:00 UTC → Americas      (UTC-8 = 6am, UTC-7 = 7am, UTC-6 = 8am, UTC-5 = 9am, UTC-4 = 10am)
     const TIMEZONES = [
         { value: 'auto',                 label: 'Auto-detect from browser' },
-        { value: 'Pacific/Midway',       label: 'UTC-11 - Midway Island' },
-        { value: 'Pacific/Honolulu',     label: 'UTC-10 - Hawaii' },
-        { value: 'America/Anchorage',    label: 'UTC-9  - Alaska' },
-        { value: 'America/Los_Angeles',  label: 'UTC-8  - Pacific Time' },
-        { value: 'America/Denver',       label: 'UTC-7  - Mountain Time' },
-        { value: 'America/Phoenix',      label: 'UTC-7  - Arizona (no DST)' },
-        { value: 'America/Chicago',      label: 'UTC-6  - Central Time' },
-        { value: 'America/New_York',     label: 'UTC-5  - Eastern Time' },
-        { value: 'America/Halifax',      label: 'UTC-4  - Atlantic Time' },
-        { value: 'America/Sao_Paulo',    label: 'UTC-3  - Sao Paulo' },
-        { value: 'Atlantic/Azores',      label: 'UTC-1  - Azores' },
-        { value: 'UTC',                  label: 'UTC+0  - UTC' },
-        { value: 'Europe/London',        label: 'UTC+0/+1 - London' },
-        { value: 'Europe/Paris',         label: 'UTC+1/+2 - Paris, Berlin, Rome' },
-        { value: 'Europe/Athens',        label: 'UTC+2/+3 - Athens, Helsinki' },
-        { value: 'Europe/Moscow',        label: 'UTC+3  - Moscow' },
-        { value: 'Asia/Dubai',           label: 'UTC+4  - Dubai' },
-        { value: 'Asia/Karachi',         label: 'UTC+5  - Karachi' },
-        { value: 'Asia/Kolkata',         label: 'UTC+5:30 - Mumbai, Kolkata' },
-        { value: 'Asia/Dhaka',           label: 'UTC+6  - Dhaka' },
-        { value: 'Asia/Bangkok',         label: 'UTC+7  - Bangkok, Jakarta' },
-        { value: 'Asia/Singapore',       label: 'UTC+8  - Singapore, Hong Kong' },
-        { value: 'Asia/Shanghai',        label: 'UTC+8  - Beijing, Shanghai' },
-        { value: 'Asia/Tokyo',           label: 'UTC+9  - Tokyo, Seoul' },
-        { value: 'Australia/Sydney',     label: 'UTC+10/+11 - Sydney' },
-        { value: 'Pacific/Auckland',     label: 'UTC+12/+13 - Auckland' },
+        { value: 'America/Los_Angeles',  label: 'Pacific Time (US)' },
+        { value: 'America/Denver',       label: 'Mountain Time (US)' },
+        { value: 'America/Phoenix',      label: 'Arizona (no DST)' },
+        { value: 'America/Chicago',      label: 'Central Time (US)' },
+        { value: 'America/New_York',     label: 'Eastern Time (US)' },
+        { value: 'UTC',                  label: 'UTC' },
+        { value: 'Europe/London',        label: 'London' },
+        { value: 'Europe/Paris',         label: 'Paris, Berlin, Rome' },
+        { value: 'Europe/Athens',        label: 'Athens, Helsinki' },
+        { value: 'Europe/Moscow',        label: 'Moscow' },
+        { value: 'Asia/Singapore',       label: 'Singapore, Hong Kong' },
+        { value: 'Asia/Shanghai',        label: 'Beijing, Shanghai' },
+        { value: 'Asia/Tokyo',           label: 'Tokyo, Seoul' },
+        { value: 'Australia/Sydney',     label: 'Sydney' },
     ];
 
     function initTimezoneSelect(currentTz) {

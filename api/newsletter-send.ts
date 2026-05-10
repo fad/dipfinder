@@ -29,7 +29,9 @@ function isTimeToSend(timezone: string | undefined): boolean {
     }).formatToParts(new Date());
     const weekday = parts.find(p => p.type === 'weekday')?.value;
     const hour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '-1', 10);
-    return weekday === 'Sun' && hour >= 7 && hour <= 9;
+    // 6-10am window: wider than ±1h to handle DST shifts at window edges
+    // (e.g. America/New_York is UTC-4 in summer → 10am at the 14:00 UTC cron)
+    return weekday === 'Sun' && hour >= 6 && hour <= 10;
   } catch {
     const now = new Date();
     return now.getUTCDay() === 0 && now.getUTCHours() >= 7 && now.getUTCHours() <= 9;
