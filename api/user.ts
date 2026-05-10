@@ -164,7 +164,7 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email: rawEmail, password, name: rawName, captchaToken, termsAccepted, newsletterSubscribed, sundayBriefSubscribed: rawSundayBriefReg, watchlist: rawWatchlist } = req.body;
+  const { email: rawEmail, password, name: rawName, captchaToken, termsAccepted, newsletterSubscribed, sundayBriefSubscribed: rawSundayBriefReg, watchlist: rawWatchlist, timezone: rawTimezone } = req.body;
 
   const email = sanitizeInput(rawEmail || '');
   const name = sanitizeInput(rawName || '');
@@ -213,11 +213,21 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  // Validate IANA timezone string from browser
+  let timezone: string | undefined;
+  if (rawTimezone && typeof rawTimezone === 'string') {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: rawTimezone });
+      timezone = rawTimezone;
+    } catch { /* invalid timezone — omit */ }
+  }
+
   const newUser = {
     email: email.toLowerCase(),
     password: hashedPassword,
     name: name || email.split('@')[0],
     createdDate: new Date(),
+    timezone,
     termsAccepted: true,
     termsAcceptedDate: new Date(),
     newsletterSubscribed: Boolean(newsletterSubscribed),
@@ -529,6 +539,7 @@ async function handleGetProfile(req: VercelRequest, res: VercelResponse) {
       email: user.email,
       name: user.name,
       createdDate: user.createdDate,
+      timezone: user.timezone || null,
       newsletterSubscribed: user.newsletterSubscribed || false,
       sundayBriefSubscribed: user.sundayBriefSubscribed || false
     });
@@ -552,7 +563,7 @@ async function handleUpdateProfile(req: VercelRequest, res: VercelResponse) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const { name, currentPassword, newPassword } = req.body;
+    const { name, currentPassword, newPassword, timezone: rawTz } = req.body;
 
     const db = await connectToDatabase();
     const usersCollection = db.collection('users');
@@ -566,6 +577,13 @@ async function handleUpdateProfile(req: VercelRequest, res: VercelResponse) {
 
     if (name && name !== user.name) {
       updateData.name = name;
+    }
+
+    if (rawTz && typeof rawTz === 'string') {
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: rawTz });
+        updateData.timezone = rawTz;
+      } catch { /* invalid timezone — ignore */ }
     }
 
     if (newPassword) {

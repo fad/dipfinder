@@ -331,7 +331,8 @@ const AuthManager = (function() {
                     termsAccepted,
                     newsletterSubscribed,
                     sundayBriefSubscribed,
-                    watchlist: localWatchlist
+                    watchlist: localWatchlist,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 }),
             });
             const data = await res.json();

@@ -5,7 +5,7 @@ import { verifyJWT } from './lib/auth';
 import { sendNewsletterEmail, buildNewsletterEmailHtml } from './lib/email';
 import { NEWSLETTER_SMA_DEFAULT, buildStockResults } from './lib/newsletter-data';
 import { buildOpenerSummary } from './lib/personalOpener';
-import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
+import { recordCronRun } from './lib/cron-schedule';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -13,6 +13,27 @@ const JWT_SECRET = process.env.JWT_SECRET as string;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
 const CRON_SECRET = process.env.CRON_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
+
+// Returns true when the user's local time is Sunday 7-9am.
+// Accepts a ±1h window around 8am to absorb cron timing imprecision.
+// Falls back to UTC if the timezone string is missing or invalid.
+function isTimeToSend(timezone: string | undefined): boolean {
+  const tz = timezone || 'UTC';
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      weekday: 'short',
+      hour: 'numeric',
+      hour12: false,
+    }).formatToParts(new Date());
+    const weekday = parts.find(p => p.type === 'weekday')?.value;
+    const hour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '-1', 10);
+    return weekday === 'Sun' && hour >= 7 && hour <= 9;
+  } catch {
+    const now = new Date();
+    return now.getUTCDay() === 0 && now.getUTCHours() >= 7 && now.getUTCHours() <= 9;
+  }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST' && req.method !== 'GET') {
@@ -48,13 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const db = await connectToDatabase();
 
-    if (!isPreview) {
-      const run = await shouldCronRun(db, 'newsletter-send', { enabled: true, dayOfWeek: 0, hour: 14 }, isCronInvocation);
-      if (!run) return res.status(200).json({ skipped: true, reason: 'outside scheduled window' });
-    }
-
-    // Preview: use admin user so it always works regardless of subscription status.
-    // Live send: all users with Sunday Brief opted in and a non-empty watchlist.
+    // Preview: use admin user regardless of subscription or timezone.
+    // Live send: all sundayBriefSubscribed users — filtered per-user by timezone below.
     const query = isPreview
       ? { email: ADMIN_EMAIL }
       : { sundayBriefSubscribed: true };
@@ -63,6 +79,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let sent = 0, failed = 0, skipped = 0;
 
     for (const user of users) {
+      // Timezone check: only send when it's Sunday 7-9am in the user's local time.
+      // Each of the 3 weekly cron windows covers a different region; lastNewsletterSentAt
+      // prevents double-sends if a user's timezone falls near a window boundary.
+      if (!isPreview) {
+        if (!isTimeToSend(user.timezone)) {
+          skipped++;
+          continue;
+        }
+        // Skip if already sent this week
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        if (user.lastNewsletterSentAt && new Date(user.lastNewsletterSentAt) > sevenDaysAgo) {
+          skipped++;
+          continue;
+        }
+      }
+
       const watchlist: string[] = user.watchlist || [];
       if (watchlist.length === 0) {
         skipped++;
@@ -131,11 +163,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         db,
       });
 
-      if (ok) sent++;
-      else failed++;
+      if (ok) {
+        sent++;
+        // Record send time so subsequent cron windows skip this user this week
+        await db.collection('users').updateOne(
+          { _id: user._id },
+          { $set: { lastNewsletterSentAt: new Date() } }
+        );
+      } else {
+        failed++;
+      }
 
       // Pace sends to stay within Resend rate limits (100/day free plan)
-      if (!isPreview) await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 300));
     }
 
     if (isPreview) {

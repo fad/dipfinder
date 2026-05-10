@@ -3,6 +3,14 @@
     "crons": [
         {
             "path": "/api/newsletter-send",
+            "schedule": "0 23 * * 6"
+        },
+        {
+            "path": "/api/newsletter-send",
+            "schedule": "0 7 * * 0"
+        },
+        {
+            "path": "/api/newsletter-send",
             "schedule": "0 14 * * 0"
         },
         {

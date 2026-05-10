@@ -130,6 +130,8 @@ window.initializeProfile = function() {
                     } else {
                         document.getElementById('profile-member-since').textContent = '-';
                     }
+                    const tzEl = document.getElementById('profile-timezone');
+                    if (tzEl) tzEl.textContent = data.timezone || 'Not set';
                 } else {
                     console.error('Profile API error:', data);
                     document.getElementById('profile-member-since').textContent = 'Error loading date';
@@ -404,6 +406,30 @@ window.initializeProfile = function() {
     setupEmailChange();
     setupEmailPreferences();
     loadEmailPreferences();
+
+    // Detect browser timezone and save to profile
+    window.detectAndSaveTimezone = async function() {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const btn = document.getElementById('detect-timezone-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+        try {
+            const token = window.AuthManager?.token;
+            const res = await fetch(`${BASE_URL}/api/user?action=update-profile`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ timezone: tz }),
+            });
+            if (res.ok) {
+                const tzEl = document.getElementById('profile-timezone');
+                if (tzEl) tzEl.textContent = tz;
+                if (btn) { btn.textContent = 'Saved'; setTimeout(() => { btn.textContent = 'Update'; btn.disabled = false; }, 1500); }
+            } else {
+                if (btn) { btn.textContent = 'Error'; setTimeout(() => { btn.textContent = 'Update'; btn.disabled = false; }, 1500); }
+            }
+        } catch {
+            if (btn) { btn.textContent = 'Error'; setTimeout(() => { btn.textContent = 'Update'; btn.disabled = false; }, 1500); }
+        }
+    };
 
     // Cleanup function
     window.destroyProfile = function() {
