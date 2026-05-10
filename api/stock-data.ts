@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (!FINNHUB_API_KEY) {
-    return res.status(500).json({ error: 'Missing Finnhub API key' });
+    return res.status(503).json({ error: 'Service temporarily unavailable' });
   }
 
   try {

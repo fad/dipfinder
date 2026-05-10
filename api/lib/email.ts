@@ -293,7 +293,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
   } catch { /* fall through to hardcoded */ }
 
   const html = buildEmailHtml(`
-<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">We received a request to reset the password for your Dip Finder account (<strong>${email}</strong>).</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">We received a request to reset the password for your Dip Finder account (<strong>${escapeHtml(email)}</strong>).</p>
 <div style="text-align:center;margin:28px 0;">
   <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Reset Password</a>
 </div>
