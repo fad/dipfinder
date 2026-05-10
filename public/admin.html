@@ -303,6 +303,7 @@
               <th onclick="sortBy('createdDate')">Joined <span class="sort-arrow" id="arrow-createdDate">↕</span></th>
               <th onclick="sortBy('newsletterSubscribed')">Notifications <span class="sort-arrow" id="arrow-newsletterSubscribed">↕</span></th>
               <th onclick="sortBy('sundayBriefSubscribed')">Sunday Brief <span class="sort-arrow" id="arrow-sundayBriefSubscribed">↕</span></th>
+              <th onclick="sortBy('timezone')">Timezone <span class="sort-arrow" id="arrow-timezone">↕</span></th>
               <th onclick="sortBy('totalLoginCount')">Logins <span class="sort-arrow" id="arrow-totalLoginCount">↕</span></th>
               <th onclick="sortBy('lastLoginAt')">Last Login <span class="sort-arrow" id="arrow-lastLoginAt">↕</span></th>
               <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
@@ -515,7 +516,7 @@
       });
 
       document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
-      ['name','email','createdDate','newsletterSubscribed','sundayBriefSubscribed','totalLoginCount','lastLoginAt','watchlist','isPro'].forEach(k => {
+      ['name','email','createdDate','newsletterSubscribed','sundayBriefSubscribed','timezone','totalLoginCount','lastLoginAt','watchlist','isPro'].forEach(k => {
         const el = document.getElementById('arrow-' + k);
         if (!el) return;
         if (k === sortKey) {
@@ -533,7 +534,7 @@
 
       const tbody = document.getElementById('user-rows');
       if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="no-data">No users found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="no-data">No users found</td></tr>';
       } else {
         tbody.innerHTML = pageUsers.map(u => {
           const watchlist = (u.watchlist || []);
@@ -545,6 +546,7 @@
             <td>${fmt(u.createdDate)}</td>
             <td><button class="sub-toggle ${u.newsletterSubscribed ? 'sub-on' : 'sub-off'}" onclick="toggleSubscription('${u.email}', 'newsletterSubscribed', ${!!u.newsletterSubscribed})">${u.newsletterSubscribed ? 'On' : 'Off'}</button></td>
             <td><button class="sub-toggle ${u.sundayBriefSubscribed ? 'sub-on' : 'sub-off'}" onclick="toggleSubscription('${u.email}', 'sundayBriefSubscribed', ${!!u.sundayBriefSubscribed})">${u.sundayBriefSubscribed ? 'On' : 'Off'}</button></td>
+            <td style="font-size:0.75rem;color:#94a3b8;">${u.timezone || '<span style="color:#475569">—</span>'}</td>
             <td>${u.totalLoginCount || 0}</td>
             <td>${fmt(u.lastLoginAt)}</td>
             <td title="${watchlistTip}">${watchlist.length ? watchlist.length : '<span style="color:#64748b">0</span>'}</td>
