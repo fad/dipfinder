@@ -133,7 +133,7 @@ window.initializeProfile = function() {
                     const tzSel = document.getElementById('timezone-select');
                     if (tzSel && data.timezone) {
                         const match = TIMEZONES.find(t => t.value === data.timezone);
-                        tzSel.value = match ? data.timezone : 'auto';
+                        if (match) tzSel.value = data.timezone;
                     }
                 } else {
                     console.error('Profile API error:', data);
@@ -407,7 +407,6 @@ window.initializeProfile = function() {
     //   Sun 07:00 UTC → Europe/Africa (UTC+0 = 7am, UTC+1 = 8am, UTC+2 = 9am, UTC+3 = 10am)
     //   Sun 14:00 UTC → Americas      (UTC-8 = 6am, UTC-7 = 7am, UTC-6 = 8am, UTC-5 = 9am, UTC-4 = 10am)
     const TIMEZONES = [
-        { value: 'auto',                 label: 'Auto-detect from browser' },
         { value: 'America/Los_Angeles',  label: 'Pacific Time (US)' },
         { value: 'America/Denver',       label: 'Mountain Time (US)' },
         { value: 'America/Phoenix',      label: 'Arizona (no DST)' },
@@ -439,9 +438,9 @@ window.initializeProfile = function() {
         sel.innerHTML = TIMEZONES.map(tz =>
             `<option value="${tz.value}">${tz.label}</option>`
         ).join('');
-        // Select the matching option, or 'auto' if not in the list
+        // Select the matching option, or first entry if not in the list
         const match = currentTz && TIMEZONES.find(t => t.value === currentTz);
-        sel.value = match ? currentTz : 'auto';
+        sel.value = match ? currentTz : TIMEZONES[0].value;
     }
 
     window.saveTimezone = async function() {
@@ -450,9 +449,7 @@ window.initializeProfile = function() {
         const msg = document.getElementById('timezone-save-msg');
         if (!sel) return;
 
-        let tz = sel.value === 'auto'
-            ? Intl.DateTimeFormat().resolvedOptions().timeZone
-            : sel.value;
+        let tz = sel.value;
 
         if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
         try {
@@ -463,11 +460,6 @@ window.initializeProfile = function() {
                 body: JSON.stringify({ timezone: tz }),
             });
             if (res.ok) {
-                // Update select to show the saved value if auto-detected
-                if (sel.value === 'auto') {
-                    const match = TIMEZONES.find(t => t.value === tz);
-                    if (match) sel.value = tz;
-                }
                 if (msg) { msg.textContent = `Saved: ${tz}`; msg.classList.remove('hidden'); }
                 if (btn) { btn.textContent = 'Saved'; setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false; if (msg) msg.classList.add('hidden'); }, 2000); }
             } else {
