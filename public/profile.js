@@ -130,8 +130,7 @@ window.initializeProfile = function() {
                     } else {
                         document.getElementById('profile-member-since').textContent = '-';
                     }
-                    const tzEl = document.getElementById('profile-timezone');
-                    if (tzEl) tzEl.textContent = data.timezone || 'Not set';
+                    initTimezoneSelect(data.timezone || null);
                 } else {
                     console.error('Profile API error:', data);
                     document.getElementById('profile-member-since').textContent = 'Error loading date';
@@ -407,10 +406,57 @@ window.initializeProfile = function() {
     setupEmailPreferences();
     loadEmailPreferences();
 
-    // Detect browser timezone and save to profile
-    window.detectAndSaveTimezone = async function() {
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const btn = document.getElementById('detect-timezone-btn');
+    const TIMEZONES = [
+        { value: 'auto',                 label: 'Auto-detect from browser' },
+        { value: 'Pacific/Midway',       label: 'UTC-11 - Midway Island' },
+        { value: 'Pacific/Honolulu',     label: 'UTC-10 - Hawaii' },
+        { value: 'America/Anchorage',    label: 'UTC-9  - Alaska' },
+        { value: 'America/Los_Angeles',  label: 'UTC-8  - Pacific Time' },
+        { value: 'America/Denver',       label: 'UTC-7  - Mountain Time' },
+        { value: 'America/Phoenix',      label: 'UTC-7  - Arizona (no DST)' },
+        { value: 'America/Chicago',      label: 'UTC-6  - Central Time' },
+        { value: 'America/New_York',     label: 'UTC-5  - Eastern Time' },
+        { value: 'America/Halifax',      label: 'UTC-4  - Atlantic Time' },
+        { value: 'America/Sao_Paulo',    label: 'UTC-3  - Sao Paulo' },
+        { value: 'Atlantic/Azores',      label: 'UTC-1  - Azores' },
+        { value: 'UTC',                  label: 'UTC+0  - UTC' },
+        { value: 'Europe/London',        label: 'UTC+0/+1 - London' },
+        { value: 'Europe/Paris',         label: 'UTC+1/+2 - Paris, Berlin, Rome' },
+        { value: 'Europe/Athens',        label: 'UTC+2/+3 - Athens, Helsinki' },
+        { value: 'Europe/Moscow',        label: 'UTC+3  - Moscow' },
+        { value: 'Asia/Dubai',           label: 'UTC+4  - Dubai' },
+        { value: 'Asia/Karachi',         label: 'UTC+5  - Karachi' },
+        { value: 'Asia/Kolkata',         label: 'UTC+5:30 - Mumbai, Kolkata' },
+        { value: 'Asia/Dhaka',           label: 'UTC+6  - Dhaka' },
+        { value: 'Asia/Bangkok',         label: 'UTC+7  - Bangkok, Jakarta' },
+        { value: 'Asia/Singapore',       label: 'UTC+8  - Singapore, Hong Kong' },
+        { value: 'Asia/Shanghai',        label: 'UTC+8  - Beijing, Shanghai' },
+        { value: 'Asia/Tokyo',           label: 'UTC+9  - Tokyo, Seoul' },
+        { value: 'Australia/Sydney',     label: 'UTC+10/+11 - Sydney' },
+        { value: 'Pacific/Auckland',     label: 'UTC+12/+13 - Auckland' },
+    ];
+
+    function initTimezoneSelect(currentTz) {
+        const sel = document.getElementById('timezone-select');
+        if (!sel) return;
+        sel.innerHTML = TIMEZONES.map(tz =>
+            `<option value="${tz.value}">${tz.label}</option>`
+        ).join('');
+        // Select the matching option, or 'auto' if not in the list
+        const match = currentTz && TIMEZONES.find(t => t.value === currentTz);
+        sel.value = match ? currentTz : 'auto';
+    }
+
+    window.saveTimezone = async function() {
+        const sel = document.getElementById('timezone-select');
+        const btn = document.getElementById('save-timezone-btn');
+        const msg = document.getElementById('timezone-save-msg');
+        if (!sel) return;
+
+        let tz = sel.value === 'auto'
+            ? Intl.DateTimeFormat().resolvedOptions().timeZone
+            : sel.value;
+
         if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
         try {
             const token = window.AuthManager?.token;
@@ -420,14 +466,20 @@ window.initializeProfile = function() {
                 body: JSON.stringify({ timezone: tz }),
             });
             if (res.ok) {
-                const tzEl = document.getElementById('profile-timezone');
-                if (tzEl) tzEl.textContent = tz;
-                if (btn) { btn.textContent = 'Saved'; setTimeout(() => { btn.textContent = 'Update'; btn.disabled = false; }, 1500); }
+                // Update select to show the saved value if auto-detected
+                if (sel.value === 'auto') {
+                    const match = TIMEZONES.find(t => t.value === tz);
+                    if (match) sel.value = tz;
+                }
+                if (msg) { msg.textContent = `Saved: ${tz}`; msg.classList.remove('hidden'); }
+                if (btn) { btn.textContent = 'Saved'; setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false; if (msg) msg.classList.add('hidden'); }, 2000); }
             } else {
-                if (btn) { btn.textContent = 'Error'; setTimeout(() => { btn.textContent = 'Update'; btn.disabled = false; }, 1500); }
+                if (msg) { msg.textContent = 'Save failed - please try again.'; msg.classList.remove('hidden'); }
+                if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
             }
         } catch {
-            if (btn) { btn.textContent = 'Error'; setTimeout(() => { btn.textContent = 'Update'; btn.disabled = false; }, 1500); }
+            if (msg) { msg.textContent = 'Save failed - please try again.'; msg.classList.remove('hidden'); }
+            if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
         }
     };
 
