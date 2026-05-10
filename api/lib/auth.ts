@@ -13,11 +13,6 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
-export function generateJWT(payload: object): string {
-  // Set expiry to 4 hours
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '4h' });
-}
-
 export function verifyJWT(token: string): any {
   return jwt.verify(token, JWT_SECRET);
 }

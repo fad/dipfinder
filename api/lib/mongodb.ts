@@ -19,18 +19,10 @@ let cachedDb = globalThis._mongoDb;
 export async function connectToDatabase(): Promise<Db> {
   if (!uri || !dbName) throw new Error('Missing MongoDB connection env vars');
 
-  // Verify cached connection is still alive before reusing
+  // Return cached connection — the driver handles connection monitoring and
+  // automatic reconnection internally, so an explicit ping is unnecessary overhead.
   if (cachedClient && cachedDb) {
-    try {
-      await cachedDb.command({ ping: 1 });
-      return cachedDb;
-    } catch {
-      // Connection dropped — reset and reconnect below
-      cachedClient = undefined;
-      cachedDb = undefined;
-      globalThis._mongoClient = undefined;
-      globalThis._mongoDb = undefined;
-    }
+    return cachedDb;
   }
 
   try {
