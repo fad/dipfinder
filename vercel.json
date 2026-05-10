@@ -16,6 +16,10 @@
         {
             "path": "/api/newsletter-snapshot",
             "schedule": "0 23 * * 6"
+        },
+        {
+            "path": "/api/morning-report",
+            "schedule": "0 7 * * *"
         }
     ],
     "headers": [

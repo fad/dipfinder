@@ -488,6 +488,15 @@ const CRON_DEFS = [
     vercelSchedule: 'Saturdays at 23:00 UTC',
     defaultSchedule: { enabled: true, dayOfWeek: 6, hour: 23 },
   },
+  {
+    id: 'morning-report',
+    name: 'Morning Report',
+    description: 'Sends a daily admin summary email with user counts, subscriber totals, and cron last-run statuses.',
+    endpoint: '/api/morning-report',
+    method: 'POST',
+    vercelSchedule: 'Daily at 07:00 UTC',
+    defaultSchedule: { enabled: true, hour: 7 },
+  },
 ] as const;
 
 async function handleGetCrons(_req: VercelRequest, res: VercelResponse) {
