@@ -402,15 +402,6 @@ window.initializeProfile = function() {
         return hasUppercase && hasLowercase && hasNumber;
     }
 
-    // Initial setup for the profile page
-    setupTabSwitching();
-    initTimezoneSelect(null);
-    loadProfileInfo();
-    setupPasswordChange();
-    setupEmailChange();
-    setupEmailPreferences();
-    loadEmailPreferences();
-
     // Only zones that land in the 6-10am window on one of the 3 Sunday crons:
     //   Sat 23:00 UTC → Asia/Pacific  (UTC+8 = 7am, UTC+9 = 8am, UTC+10/+11 = 9/10am)
     //   Sun 07:00 UTC → Europe/Africa (UTC+0 = 7am, UTC+1 = 8am, UTC+2 = 9am, UTC+3 = 10am)
@@ -432,6 +423,15 @@ window.initializeProfile = function() {
         { value: 'Asia/Tokyo',           label: 'Tokyo, Seoul' },
         { value: 'Australia/Sydney',     label: 'Sydney' },
     ];
+
+    // Initial setup for the profile page
+    setupTabSwitching();
+    initTimezoneSelect(null);
+    loadProfileInfo();
+    setupPasswordChange();
+    setupEmailChange();
+    setupEmailPreferences();
+    loadEmailPreferences();
 
     function initTimezoneSelect(currentTz) {
         const sel = document.getElementById('timezone-select');
