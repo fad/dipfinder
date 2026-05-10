@@ -261,6 +261,9 @@ async function handleForgotPassword(req: VercelRequest, res: VercelResponse) {
   const db = await connectToDatabase();
   const usersCollection = db.collection('users');
 
+  // Run cleanup here too so stale markers don't accumulate between reset attempts
+  await cleanupStaleTokenMarkers();
+
   const user = await usersCollection.findOne({ email: email.toLowerCase() });
   if (!user) {
     return res.status(200).json({ message: 'If the email exists, a reset link has been sent' });
@@ -1082,6 +1085,18 @@ async function checkAccountLockout(user: any): Promise<{
 
   if (user.accountLockedUntil && new Date(user.accountLockedUntil) > now) {
     return { isLocked: true, unlockTime: new Date(user.accountLockedUntil), attemptsCount: user.failedLoginAttempts?.length || 0 };
+  }
+
+  // If a lockout just expired, clear the stale attempt history so the user gets a fresh
+  // window. Without this, the attempts that triggered the original lockout would still
+  // fall inside the 15-minute window and cause immediate re-locking.
+  if (user.accountLockedUntil && new Date(user.accountLockedUntil) <= now) {
+    const db = await connectToDatabase();
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(user._id) },
+      { $unset: { failedLoginAttempts: 1, accountLockedUntil: 1 } } as any
+    );
+    return { isLocked: false, attemptsCount: 0 };
   }
 
   const failedAttempts = user.failedLoginAttempts || [];

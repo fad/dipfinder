@@ -45,7 +45,19 @@ export function buildEmailHtml(bodyHtml: string, footerHtml?: string): string {
 </body></html>`;
 }
 
-// Replace {{varName}} placeholders with values from vars map
+// Escape user-supplied text before injecting into HTML templates
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Replace {{varName}} placeholders with values from vars map.
+// Values that contain user-supplied text must be escaped with escapeHtml() before being passed in.
+// Values that are pre-built HTML blocks must NOT be escaped.
 export function renderTemplate(html: string, vars: Record<string, string>): string {
   return html.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
 }
@@ -275,7 +287,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
     const db = await connectToDatabase();
     const template = await getEmailTemplate(db, 'password-reset');
     if (template) {
-      const html = renderTemplate(template.html, { email, resetUrl });
+      const html = renderTemplate(template.html, { email: escapeHtml(email), resetUrl });
       return sendEmail({ to: email, subject: template.subject, html });
     }
   } catch { /* fall through to hardcoded */ }
@@ -418,7 +430,7 @@ export async function sendOnboardingEmail(
       ? 'Welcome to Dip Finder - claim your free upgrade'
       : template.subject;
 
-    const html = renderTemplate(template.html, { name: name || 'there', setPasswordBlock, watchlistChartBlock });
+    const html = renderTemplate(template.html, { name: escapeHtml(name || 'there'), setPasswordBlock, watchlistChartBlock });
     return sendEmail({ to: toEmail, subject, html });
   } catch (err) {
     console.error('sendOnboardingEmail error:', err);
@@ -646,7 +658,7 @@ export async function buildNewsletterEmailHtml({
     const resolvedOpener = openerSummary ||
       `Here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.`;
     const html = renderTemplate(template.html, {
-      name: name || 'there',
+      name: escapeHtml(name || 'there'),
       dateLabel,
       shortDate,
       smaPeriod: String(smaPeriod),
