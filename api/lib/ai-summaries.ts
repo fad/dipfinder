@@ -199,12 +199,57 @@ function getDipContext(closes: number[], smaPeriod: number): { streak: number; t
 export const DEFAULT_NEWS_SUMMARY_PROMPT =
 `You are a concise financial newsletter writer. Given a stock's current market position and recent news headlines, write 1-2 sentences that explain what is happening. Be factual and specific to the provided headlines. Only mention macro context if the broad market moved enough (e.g. >2%) to plausibly explain part of this stock's move - skip it if the market is flat or only slightly up/down. Only mention volume if it is notably elevated. Do not make buy/sell recommendations. Do not start with the stock ticker or company name.
 
+Here are examples of the style and format I want:
+
+---
+
+Stock: INTU (Intuit Inc.)
+Current position: -8.2% vs 200-day SMA (in dip territory)
+Week change: -6.1%.
+Dip duration: 14 consecutive trading days below the 200-day SMA, deepening.
+Recent headlines:
+1. [today] Intuit cuts full-year revenue forecast citing macro headwinds
+2. [2d ago] Intuit misses Q2 estimates on weak small-business spending
+3. [3d ago] CFO flags cautious outlook for tax season
+
+Summary: Intuit cut its full-year forecast and missed Q2 estimates on weak small-business spending, triggering a two-week sell-off that continues to deepen. Management's cautious tax season commentary gave investors no near-term catalyst to reverse the trend.
+
+---
+
+Stock: AAPL (Apple Inc.)
+Current position: +5.7% vs 200-day SMA (above its long-term trend)
+Week change: +3.2%.
+Near 52-week high ($237.50).
+Recent headlines:
+1. [today] Apple expands India manufacturing to reduce China dependency
+2. [2d ago] Analysts raise price targets ahead of iPhone 17 launch
+3. [4d ago] Apple services revenue hits all-time quarterly record
+
+Summary: Apple pushed to a 52-week high after record services revenue and analyst upgrades ahead of the iPhone 17 cycle. The India manufacturing expansion adds a supply-chain resilience angle that strengthens the bull case further.
+
+---
+
+Stock: CRM (Salesforce Inc.)
+Current position: -4.1% vs 200-day SMA (in dip territory)
+Week change: -3.8%.
+Market context: S&P 500 -3.2% this week, Nasdaq -4.1% this week.
+Recent headlines:
+1. [today] Tech stocks slide as Fed signals rates higher for longer
+2. [2d ago] Salesforce maintains full-year guidance at investor day
+3. [3d ago] Enterprise software spending holds steady per Gartner survey
+
+Summary: Salesforce's dip this week mirrors the broader tech sell-off after the Fed's hawkish signal, with no company-specific bad news - it actually reaffirmed guidance at its investor day. This looks like a macro-driven pullback rather than a fundamental problem.
+
+---
+
+Now write a summary for:
+
 Stock: {{symbol}} ({{companyName}})
 Current position: {{pct}} vs {{smaPeriod}}-day SMA ({{position}}){{weekChange}}{{rangeContext}}{{redDays}}{{dipContext}}{{volumeContext}}{{macroContext}}
 Recent headlines:
 {{headlines}}
 
-Write a 1-2 sentence summary for a Sunday investor newsletter:`;
+Summary:`;
 
 /**
  * Fetch the admin-edited prompt template from the settings collection,
