@@ -11,13 +11,23 @@ const SITE_URL = 'https://dipfinder.com';
 // ── Themed email wrapper ──────────────────────────────────────────────────────
 // All transactional emails share this branded shell.
 // bodyHtml: the main content area; footerHtml: overrides the default footer.
-export function buildEmailHtml(bodyHtml: string, footerHtml?: string): string {
+/**
+ * Build the hidden preheader element that email clients show as inbox preview text.
+ * Padded with non-breaking spaces so clients don't bleed body text into the snippet.
+ */
+function buildPreheader(text: string): string {
+  const padding = '&nbsp;&zwnj;'.repeat(120);
+  return `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${escapeHtml(text)}${padding}</div>`;
+}
+
+export function buildEmailHtml(bodyHtml: string, footerHtml?: string, previewText?: string): string {
   const baseUrl = process.env.FRONTEND_URL || SITE_URL;
   const footer = footerHtml ?? `<p style="margin:0 0 4px;">Dip Finder &bull; <a href="${baseUrl}" style="color:#94A3B8;text-decoration:none;">dipfinder.com</a></p><p style="margin:0;">Please do not reply to this email.</p>`;
+  const preheader = previewText ? buildPreheader(previewText) : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#F1F5F9;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Arial,Helvetica,sans-serif;">${preheader}
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px;">
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
@@ -511,6 +521,23 @@ function generateBarChartUrl(stocks: NewsletterStockRow[], orientation: 'x' | 'y
   return `https://quickchart.io/chart?w=556&h=${h}&bkg=%23ffffff&c=${encodeURIComponent(JSON.stringify(cfg))}`;
 }
 
+/**
+ * Build a short personalized preview text for the newsletter.
+ * Shows the top 2 dipping stocks, e.g. "INTU -8.2%, CRM -4.1% - 2 stocks dipping this week"
+ */
+function buildNewsletterPreviewText(stocks: NewsletterStockRow[]): string {
+  const dipping = stocks.filter(s => s.relativePrice < 0);
+  if (!dipping.length) {
+    const top = stocks[0];
+    return top
+      ? `${top.symbol} ${top.relativePrice > 0 ? '+' : ''}${(top.relativePrice * 100).toFixed(1)}% vs SMA - your weekly dip report`
+      : 'Your weekly Dip Finder report is ready';
+  }
+  const top2 = dipping.slice(0, 2).map(s => `${s.symbol} ${(s.relativePrice * 100).toFixed(1)}%`).join(', ');
+  const count = dipping.length;
+  return `${top2} - ${count} stock${count !== 1 ? 's' : ''} dipping in your watchlist this week`;
+}
+
 // ── Newsletter block builders ─────────────────────────────────────────────────
 
 function buildChartBlock(stocks: NewsletterStockRow[], orientation: 'x' | 'y', smaPeriod: number): string {
@@ -654,6 +681,71 @@ export function buildNewsletterHtml({
 </div>`;
 }
 
+/**
+ * Build a readable plain-text version of the newsletter.
+ * Used as the multipart text/plain body so email clients and spam filters
+ * see structured content rather than stripped HTML.
+ */
+function buildNewsletterPlainText({
+  stocks,
+  smaPeriod,
+  unsubscribeUrl,
+  aiSummaries,
+}: {
+  stocks: NewsletterStockRow[];
+  smaPeriod: number;
+  unsubscribeUrl: string;
+  aiSummaries?: Record<string, string>;
+}): string {
+  const baseUrl = process.env.FRONTEND_URL || SITE_URL;
+  const dateLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+
+  const lines: string[] = [];
+
+  lines.push(`DIP FINDER - ${dateLabel}`);
+  lines.push('='.repeat(50));
+  lines.push('');
+
+  // Watchlist table
+  lines.push('WATCHLIST');
+  lines.push('-'.repeat(30));
+  for (const s of stocks) {
+    const sign = s.relativePrice > 0 ? '+' : '';
+    const pct = `${sign}${(s.relativePrice * 100).toFixed(1)}%`;
+    lines.push(`${s.symbol} (${s.companyName})`);
+    lines.push(`  Price: $${s.currentPrice.toFixed(2)}  |  ${smaPeriod}d SMA: $${s.sma.toFixed(2)}  |  vs SMA: ${pct}`);
+    lines.push(`  ${baseUrl}/screener?stock=${s.symbol}`);
+    lines.push('');
+  }
+
+  // News section
+  const withNews = stocks.filter(s => aiSummaries?.[s.symbol] || s.topNews?.length);
+  if (withNews.length) {
+    lines.push('THIS WEEK\'S NEWS');
+    lines.push('-'.repeat(30));
+    for (const s of withNews) {
+      const sign = s.relativePrice > 0 ? '+' : '';
+      const pct = `${sign}${(s.relativePrice * 100).toFixed(1)}%`;
+      lines.push(`${s.symbol} - ${s.companyName} (${pct} vs ${smaPeriod}d SMA)`);
+      const summary = aiSummaries?.[s.symbol];
+      if (summary) lines.push(summary);
+      for (const n of (s.topNews || [])) {
+        lines.push(`  - ${n.headline} (${n.source})`);
+        if (n.url) lines.push(`    ${n.url}`);
+      }
+      lines.push('');
+    }
+  }
+
+  lines.push('-'.repeat(50));
+  lines.push(`Open Dip Finder: ${baseUrl}/app`);
+  lines.push(`Unsubscribe: ${unsubscribeUrl}`);
+
+  return lines.join('\n');
+}
+
 // ── Template-driven newsletter builder ───────────────────────────────────────
 // Uses the 'sunday-brief' DB template if available; falls back to buildNewsletterHtml.
 
@@ -669,7 +761,7 @@ export async function buildNewsletterEmailHtml({
   openerSummary?: string;
   aiSummaries?: Record<string, string>;
   db: any;
-}): Promise<{ html: string; subject: string }> {
+}): Promise<{ html: string; subject: string; text: string }> {
   const dateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
@@ -684,10 +776,14 @@ export async function buildNewsletterEmailHtml({
     ? `<span style="display:table-cell;text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`
     : '';
 
+  const previewText = buildNewsletterPreviewText(stocks);
+  const plainText = buildNewsletterPlainText({ stocks, smaPeriod, unsubscribeUrl, aiSummaries });
+  const preheader = buildPreheader(previewText);
+
   if (template) {
     const resolvedOpener = openerSummary ||
       `Here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.`;
-    const html = renderTemplate(template.html, {
+    let html = renderTemplate(template.html, {
       name: escapeHtml(name || 'there'),
       dateLabel,
       shortDate,
@@ -699,12 +795,15 @@ export async function buildNewsletterEmailHtml({
       unsubscribeUrl,
       openerSummary: resolvedOpener,
     });
+    // Inject hidden preheader right after <body> so email clients show it as inbox preview text
+    html = html.replace(/<body[^>]*>/, match => match + preheader);
     const subject = renderTemplate(template.subject, { shortDate, dateLabel });
-    return { html, subject };
+    return { html, subject, text: plainText };
   }
 
-  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, aiSummaries });
-  return { html, subject: `Your Weekly Dip Report - ${shortDate}` };
+  // Fallback template is a fragment (no <body>); prepend preheader div
+  const html = preheader + buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, aiSummaries });
+  return { html, subject: `Your Weekly Dip Report - ${shortDate}`, text: plainText };
 }
 
 /**
@@ -733,8 +832,8 @@ export async function sendNewsletterEmail({
   aiSummaries?: Record<string, string>;
   db: any;
 }): Promise<boolean> {
-  const { html, subject } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, db });
-  return sendEmail({ to, subject, html });
+  const { html, subject, text } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, db });
+  return sendEmail({ to, subject, html, text });
 }
 
 /**
