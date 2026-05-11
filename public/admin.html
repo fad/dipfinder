@@ -1661,7 +1661,16 @@
           headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ force }),
         });
-        const data = await res.json();
+        let data;
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          statusEl.textContent = `Server error (${res.status}) - check Vercel function logs. Response: ${text.slice(0, 120)}`;
+          statusEl.style.color = '#f87171';
+          return;
+        }
         if (!res.ok) {
           statusEl.textContent = 'Error: ' + (data.error || res.status);
           statusEl.style.color = '#f87171';
@@ -1671,7 +1680,7 @@
           await loadAiSummaries();
         }
       } catch (e) {
-        statusEl.textContent = 'Network error: ' + e.message;
+        statusEl.textContent = 'Request failed: ' + e.message;
         statusEl.style.color = '#f87171';
       } finally {
         genBtn.disabled = false;

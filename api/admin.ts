@@ -721,7 +721,7 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(503).json({ error: 'ANTHROPIC_API_KEY is not set' });
+    return res.status(503).json({ error: 'ANTHROPIC_API_KEY is not set in environment' });
   }
 
   // force=true regenerates summaries that already exist this week (resets reviewed/approved)
@@ -745,43 +745,62 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
   }
 
   if (symbolSmaPeriod.size === 0) {
-    return res.status(200).json({ generated: 0, skipped: 0, errors: 0, total: 0, message: 'No subscribers with watchlists found' });
+    return res.status(200).json({ generated: 0, skipped: 0, errors: 0, total: 0 });
   }
 
   // weekOf = today at midnight UTC (matches the snapshot convention)
   const now = new Date();
   const weekOf = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const summaryCol = db.collection('aiSummaries');
-  let generated = 0, skipped = 0, errors = 0;
 
-  for (const [symbol, smaPeriod] of symbolSmaPeriod) {
-    try {
-      if (!force) {
-        const existing = await summaryCol.findOne({ symbol, weekOf });
-        if (existing) { skipped++; continue; }
+  // Step 1: fetch stock + news data in parallel (all cached after snapshot ran)
+  type SymbolPayload = {
+    symbol: string;
+    smaPeriod: number;
+    companyName: string;
+    headlines: string[];
+    relativePrice: number;
+  };
+
+  const payloads = (await Promise.all(
+    Array.from(symbolSmaPeriod.entries()).map(async ([symbol, smaPeriod]) => {
+      try {
+        // Skip if a summary already exists this week (unless force)
+        if (!force) {
+          const existing = await summaryCol.findOne({ symbol, weekOf: { $gte: sevenDaysAgo } });
+          if (existing) return null;
+        }
+        const [stockData, news] = await Promise.all([
+          fetchStockData(symbol, db),
+          fetchNewsForSymbol(symbol, db),
+        ]);
+        const headlines = (news as any[]).map(n => n.headline);
+        if (!headlines.length || stockData.closes.length < smaPeriod) return null;
+        const sma = calculateSma(stockData.closes, smaPeriod);
+        return { symbol, smaPeriod, companyName: stockData.companyName, headlines, relativePrice: stockData.currentPrice / sma - 1 } as SymbolPayload;
+      } catch {
+        return null;
       }
+    })
+  )).filter((p): p is SymbolPayload => p !== null);
 
-      const stockData = await fetchStockData(symbol, db);
-      const news = await fetchNewsForSymbol(symbol, db);
-      const headlines = news.map((n: any) => n.headline);
+  const skipped = symbolSmaPeriod.size - payloads.length;
 
-      if (!headlines.length) { skipped++; continue; }
-      if (stockData.closes.length < smaPeriod) { skipped++; continue; }
-
-      const sma = calculateSma(stockData.closes, smaPeriod);
-      const relativePrice = stockData.currentPrice / sma - 1;
-
-      const summary = await generateAiSummary(symbol, stockData.companyName, headlines, relativePrice, smaPeriod);
-      if (!summary) { skipped++; continue; }
-
-      await upsertAiSummary(db, symbol, stockData.companyName, headlines, summary, weekOf);
+  // Step 2: run Claude calls in parallel (Haiku is fast; all calls independent)
+  let generated = 0, errors = 0;
+  await Promise.all(payloads.map(async ({ symbol, smaPeriod, companyName, headlines, relativePrice }) => {
+    try {
+      const summary = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod);
+      if (!summary) return;
+      await upsertAiSummary(db, symbol, companyName, headlines, summary, weekOf);
       generated++;
     } catch (err) {
-      console.error(`generate-ai-summaries: failed for ${symbol}:`, err);
+      console.error(`generate-ai-summaries: Claude call failed for ${symbol}:`, err);
       errors++;
     }
-  }
+  }));
 
   return res.status(200).json({ generated, skipped, errors, total: symbolSmaPeriod.size });
 }
