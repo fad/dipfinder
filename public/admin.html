@@ -309,6 +309,7 @@
               <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
               <th onclick="sortBy('isPro')">Pro <span class="sort-arrow" id="arrow-isPro">↕</span></th>
               <th></th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="user-rows"></tbody>
@@ -534,7 +535,7 @@
 
       const tbody = document.getElementById('user-rows');
       if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="no-data">No users found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="no-data">No users found</td></tr>';
       } else {
         tbody.innerHTML = pageUsers.map(u => {
           const watchlist = (u.watchlist || []);
@@ -557,6 +558,7 @@
               <button class="btn" style="padding:0.2rem 0.55rem;font-size:0.7rem;background:${u.isPro ? '#450a0a' : '#0c2845'};color:${u.isPro ? '#fca5a5' : '#7dd3fc'};" onclick="togglePro('${u.email}', ${!!u.isPro})">${u.isPro ? 'Revoke Pro' : 'Grant Pro'}</button>
             </td>
             <td><button class="btn btn-red" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="deleteUser('${u.email}')">Delete</button></td>
+            <td>${watchlist.length ? `<button class="btn" style="padding:0.25rem 0.6rem;font-size:0.7rem;background:#1e293b;color:#7dd3fc;border:1px solid #334155;" onclick="previewBriefForUser('${u.email}')">Brief ↗</button>` : ''}</td>
           </tr>`;
         }).join('');
       }
@@ -720,6 +722,22 @@
         out.style.color = '#f87171';
       } finally {
         btn.disabled = false;
+      }
+    }
+
+    async function previewBriefForUser(email) {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/newsletter-send?preview=true&previewEmail=' + encodeURIComponent(email), {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const html = await res.text();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } catch (e) {
+        alert('Preview failed: ' + e.message);
       }
     }
 

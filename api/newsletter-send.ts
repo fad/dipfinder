@@ -69,13 +69,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const isPreview = req.query.preview === 'true';
   const isCronInvocation = !!req.headers['x-vercel-cron'];
 
+  // Admin can preview any user's brief by passing ?previewEmail=<email>.
+  // Only honoured for admin JWT auth (not cron secret) to prevent enumeration.
+  let previewEmail = ADMIN_EMAIL;
+  if (isPreview && req.query.previewEmail) {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    // Confirm this is an admin JWT, not the cron secret
+    if (token && token !== CRON_SECRET) {
+      previewEmail = (req.query.previewEmail as string).toLowerCase();
+    }
+  }
+
   try {
     const db = await connectToDatabase();
 
-    // Preview: use admin user regardless of subscription or timezone.
+    // Preview: use the target user (admin by default, or any user if previewEmail specified).
     // Live send: all sundayBriefSubscribed users — filtered per-user by timezone below.
     const query = isPreview
-      ? { email: ADMIN_EMAIL }
+      ? { email: previewEmail }
       : { sundayBriefSubscribed: true };
     const users = await db.collection('users').find(query).toArray();
 
