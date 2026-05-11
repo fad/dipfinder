@@ -380,7 +380,7 @@ export function buildOnYourRadarBlock(candidates: RadarCandidate[], isPro: boole
 
   const cards = candidates.map(c => {
     const smaSign = c.relativePrice > 0 ? '+' : '';
-    const smaPct = `${smaSign}${(c.relativePrice * 100).toFixed(1)}%`;
+    const smaPct = `${smaSign}${(c.relativePrice * 100).toFixed(1)}% vs 50d SMA`;
     const weekSign = c.weeklyChange > 0 ? '+' : '';
     const weekPct = `${weekSign}${(c.weeklyChange * 100).toFixed(1)}%`;
     const { bg, color } = getBadgeColors(c.relativePrice * 100);
