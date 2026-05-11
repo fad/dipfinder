@@ -195,7 +195,9 @@ export async function saveEmailTemplate(db: any, key: string, subject: string, h
 
 // Return a list of all known template keys + names (for admin UI)
 export function listTemplateKeys(): { key: string; name: string }[] {
-  return Object.entries(DEFAULT_TEMPLATES).map(([key, def]) => ({ key, name: def.name }));
+  return Object.entries(DEFAULT_TEMPLATES)
+    .map(([key, def]) => ({ key, name: def.name }))
+    .sort((a, b) => (a.key === 'sunday-brief' ? -1 : b.key === 'sunday-brief' ? 1 : 0));
 }
 
 export interface EmailOptions {
