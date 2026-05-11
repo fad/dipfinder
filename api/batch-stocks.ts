@@ -119,8 +119,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
-        // 290 calendar days ≈ 200 trading days (accounts for weekends + holidays)
-        const period1 = new Date(Date.now() - 290 * 24 * 60 * 60 * 1000);
+        // 365 calendar days ≈ 250 trading days — gives comfortable headroom above the
+        // 200-day SMA requirement after subtracting weekends (~104) and US holidays (~10).
+        const period1 = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
         const chartData = await yahooFinance.chart(normalizedSymbol, { period1, interval: '1d' });
         dashboardStock = getCachedDashboardStock(chartData);
 
