@@ -138,8 +138,6 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
   <div style="padding:28px 32px;">
     <p style="color:#1e293b;margin:0 0 16px;line-height:1.6;font-size:0.9em;"><strong>Good morning, {{name}}</strong><br><span style="color:#475569;">{{openerSummary}}</span></p>
 
-    {{tierCounts}}
-
     {{chartBlock}}
 
     {{watchlistTable}}
@@ -813,12 +811,20 @@ export async function buildNewsletterEmailHtml({
   if (template) {
     const resolvedOpener = openerSummary ||
       `Here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.`;
-    let html = renderTemplate(template.html, {
+    // WYSIWYG editors HTML-encode { as &#123;, causing {{tierCounts}} typed in the editor to
+    // never match renderTemplate's regex. Inject tierCounts directly before {{chartBlock}}
+    // instead, and strip any broken placeholder the user may have added via the editor.
+    let templateHtml = template.html
+      .replace(/\{\{tierCounts\}\}/g, '')             // typed in HTML source mode
+      .replace(/&#123;&#123;tierCounts&#125;&#125;/g, ''); // typed in WYSIWYG mode
+    if (tierCounts) {
+      templateHtml = templateHtml.replace('{{chartBlock}}', `${tierCounts}{{chartBlock}}`);
+    }
+    let html = renderTemplate(templateHtml, {
       name: escapeHtml(name || 'there'),
       dateLabel,
       shortDate,
       smaPeriod: String(smaPeriod),
-      tierCounts,
       chartBlock,
       watchlistTable,
       newsBlock,
