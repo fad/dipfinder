@@ -815,7 +815,12 @@ export async function buildNewsletterEmailHtml({
   if (template) {
     const resolvedOpener = openerSummary ||
       `Here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.`;
-    let html = renderTemplate(template.html, {
+    // Back-compat: templates saved before {{tierCounts}} existed won't have the placeholder.
+    // Inject it right after {{openerSummary}} so stored templates pick it up automatically.
+    const templateHtml = template.html.includes('{{tierCounts}}')
+      ? template.html
+      : template.html.replace('{{openerSummary}}', '{{openerSummary}}\n\n    {{tierCounts}}');
+    let html = renderTemplate(templateHtml, {
       name: escapeHtml(name || 'there'),
       dateLabel,
       shortDate,
