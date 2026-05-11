@@ -1,7 +1,7 @@
 {
     "version": 2,
     "functions": {
-        "api/newsletter-snapshot.ts": { "maxDuration": 300 }
+        "api/newsletter-snapshot.ts": { "maxDuration": 60 }
     },
     "crons": [
         {
