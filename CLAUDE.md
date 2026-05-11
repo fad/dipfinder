@@ -386,7 +386,7 @@ Minimum score to appear: 2.0. Only tickers that "moved" this week qualify (`|wee
 
 **Ticker tags live separately from the `tickers` collection.** `tickers` is the self-learning autocomplete store (seeded by successful fetches). `ticker_tags` is the curated Radar scoring store (seeded manually from `data/ticker-tags-seed.json`). Do not confuse them.
 
-**newsletter-snapshot.ts has `maxDuration: 300` in vercel.json.** Required because the 431-ticker universe sweep takes ~30-70 seconds depending on Yahoo Finance response times.
+**newsletter-snapshot.ts has `maxDuration: 60` in vercel.json.** The Hobby plan caps at 60s — do not set higher or deploys will fail silently. The 431-ticker universe sweep targets ~30-50s; if Yahoo Finance is slow it may time out.
 
 **`styles/styles.css` is generated.** Always edit `public/styles/input.css`. Running `npm run build:css` overwrites `styles/styles.css` entirely.
 
