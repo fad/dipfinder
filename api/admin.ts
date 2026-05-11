@@ -82,6 +82,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleToggleTicker(req, res);
       case 'toggle-subscription':
         return await handleToggleSubscription(req, res);
+      case 'list-ai-summaries':
+        return await handleListAiSummaries(req, res);
+      case 'update-ai-summary':
+        return await handleUpdateAiSummary(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -677,4 +681,34 @@ async function handleToggleTicker(req: VercelRequest, res: VercelResponse) {
   );
   if (result.matchedCount === 0) return res.status(404).json({ error: 'Ticker not found' });
   return res.status(200).json({ ok: true, ticker: ticker.toUpperCase(), active: !!active });
+}
+
+async function handleListAiSummaries(_req: VercelRequest, res: VercelResponse) {
+  const db = await connectToDatabase();
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const summaries = await db.collection('aiSummaries')
+    .find({ weekOf: { $gte: sevenDaysAgo } })
+    .project({ symbol: 1, companyName: 1, summary: 1, headlines: 1, reviewed: 1, approved: 1, editedSummary: 1, weekOf: 1, createdAt: 1 })
+    .sort({ approved: 1, reviewed: 1, symbol: 1 })
+    .toArray();
+  return res.status(200).json({ summaries, total: summaries.length });
+}
+
+async function handleUpdateAiSummary(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { symbol, weekOf, reviewed, approved, editedSummary } = req.body || {};
+  if (!symbol || !weekOf) return res.status(400).json({ error: 'symbol and weekOf required' });
+
+  const db = await connectToDatabase();
+  const update: Record<string, any> = { reviewed: !!reviewed, approved: !!approved, updatedAt: new Date() };
+  if (typeof editedSummary === 'string') {
+    update.editedSummary = editedSummary.trim() || undefined;
+  }
+
+  const result = await db.collection('aiSummaries').updateOne(
+    { symbol: symbol.toUpperCase(), weekOf: new Date(weekOf) },
+    { $set: update },
+  );
+  if (result.matchedCount === 0) return res.status(404).json({ error: 'Summary not found' });
+  return res.status(200).json({ ok: true });
 }

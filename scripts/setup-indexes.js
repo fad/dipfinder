@@ -43,6 +43,10 @@ const QUERY_INDEXES = [
   { col: 'weeklySnapshots', spec: { userId: 1, weekOf: -1 },     opts: { name: 'weeklySnapshots_userId_weekOf' } },
   { col: 'weeklySnapshots', spec: { userId: 1, weekOf: 1 },      opts: { unique: true,  name: 'weeklySnapshots_userId_weekOf_unique' } },
 
+  // AI summaries — one per symbol per week, keyed for fast admin review lookups
+  { col: 'aiSummaries',     spec: { symbol: 1, weekOf: 1 },      opts: { unique: true,  name: 'aiSummaries_symbol_weekOf_unique' } },
+  { col: 'aiSummaries',     spec: { reviewed: 1, approved: 1, weekOf: -1 }, opts: { name: 'aiSummaries_reviewed_approved_weekOf' } },
+
   // key-value stores
   { col: 'settings',       spec: { key: 1 },                     opts: { unique: true,  name: 'settings_key_unique' } },
   { col: 'emailTemplates', spec: { key: 1 },                     opts: { unique: true,  name: 'emailTemplates_key_unique' } },

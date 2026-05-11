@@ -559,12 +559,20 @@ function buildWatchlistTableHtml(stocks: NewsletterStockRow[], smaPeriod: number
 </div>`;
 }
 
-function buildNewsBlockHtml(stocks: NewsletterStockRow[], smaPeriod: number): string {
-  const newsCards = stocks.filter(s => s.topNews?.length).map(s => {
+function buildNewsBlockHtml(
+  stocks: NewsletterStockRow[],
+  smaPeriod: number,
+  aiSummaries?: Record<string, string>,
+): string {
+  const newsCards = stocks.filter(s => s.topNews?.length || aiSummaries?.[s.symbol]).map(s => {
+    const aiSummary = aiSummaries?.[s.symbol];
+    const summaryBlock = aiSummary
+      ? `<p style="margin:12px 0 6px;color:#374151;font-size:0.875em;line-height:1.6;">${escapeHtml(aiSummary)}</p>`
+      : '';
     const items = (s.topNews || []).map(n => `
-      <a href="${n.url}" style="display:block;text-decoration:none;padding:10px 0;border-bottom:1px solid #f1f5f9;">
-        <span style="font-size:0.78em;font-weight:600;color:#2563eb;text-transform:uppercase;letter-spacing:0.05em;">${n.source}</span>
-        <p style="margin:3px 0 0;color:#1e293b;font-size:0.875em;line-height:1.4;">${n.headline}</p>
+      <a href="${n.url}" style="display:block;text-decoration:none;padding:8px 0;border-top:1px solid #f1f5f9;">
+        <span style="font-size:0.78em;font-weight:600;color:#2563eb;text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(n.source)}</span>
+        <p style="margin:3px 0 0;color:#1e293b;font-size:0.875em;line-height:1.4;">${escapeHtml(n.headline)}</p>
       </a>`).join('');
     const pct = (s.relativePrice * 100).toFixed(1);
     const { color: dipColor } = getBadgeColors(s.relativePrice * 100);
@@ -577,7 +585,7 @@ function buildNewsBlockHtml(stocks: NewsletterStockRow[], smaPeriod: number): st
     <a href="${href}" style="color:#64748b;font-size:0.8em;text-decoration:none;">${s.companyName}</a>
     <span style="float:right;font-weight:700;color:${dipColor};font-size:0.85em;">${sign}${pct}% vs ${smaPeriod}d SMA</span>
   </div>
-  <div style="padding:0 16px;">${items}</div>
+  <div style="padding:0 16px;">${summaryBlock}${items}</div>
 </div>`;
   }).join('');
   if (!newsCards) return '';
@@ -594,6 +602,7 @@ export function buildNewsletterHtml({
   unsubscribeUrl,
   viewOnlineUrl,
   chartOrientation = 'y',
+  aiSummaries,
 }: {
   name: string;
   stocks: NewsletterStockRow[];
@@ -601,13 +610,14 @@ export function buildNewsletterHtml({
   unsubscribeUrl: string;
   viewOnlineUrl?: string;
   chartOrientation?: 'x' | 'y';
+  aiSummaries?: Record<string, string>;
 }): string {
   const dateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
   const chartBlock = buildChartBlock(stocks, chartOrientation as 'x' | 'y', smaPeriod);
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
-  const newsSection = buildNewsBlockHtml(stocks, smaPeriod);
+  const newsSection = buildNewsBlockHtml(stocks, smaPeriod, aiSummaries);
 
   return `
 <div style="font-family:system-ui,-apple-system,Arial,sans-serif; max-width:620px; margin:0 auto; background:#f8fafc;">
@@ -648,7 +658,7 @@ export function buildNewsletterHtml({
 // Uses the 'sunday-brief' DB template if available; falls back to buildNewsletterHtml.
 
 export async function buildNewsletterEmailHtml({
-  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, db,
+  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, aiSummaries, db,
 }: {
   name: string;
   stocks: NewsletterStockRow[];
@@ -657,6 +667,7 @@ export async function buildNewsletterEmailHtml({
   viewOnlineUrl?: string;
   chartOrientation?: 'x' | 'y';
   openerSummary?: string;
+  aiSummaries?: Record<string, string>;
   db: any;
 }): Promise<{ html: string; subject: string }> {
   const dateLabel = new Date().toLocaleDateString('en-US', {
@@ -668,7 +679,7 @@ export async function buildNewsletterEmailHtml({
 
   const chartBlock = buildChartBlock(stocks, chartOrientation, smaPeriod);
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
-  const newsBlock = buildNewsBlockHtml(stocks, smaPeriod);
+  const newsBlock = buildNewsBlockHtml(stocks, smaPeriod, aiSummaries);
   const viewOnlineBlock = viewOnlineUrl
     ? `<span style="display:table-cell;text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`
     : '';
@@ -692,7 +703,7 @@ export async function buildNewsletterEmailHtml({
     return { html, subject };
   }
 
-  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation });
+  const html = buildNewsletterHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, aiSummaries });
   return { html, subject: `Your Weekly Dip Report - ${shortDate}` };
 }
 
@@ -708,6 +719,7 @@ export async function sendNewsletterEmail({
   viewOnlineUrl,
   chartOrientation = 'y',
   openerSummary,
+  aiSummaries,
   db,
 }: {
   to: string;
@@ -718,9 +730,10 @@ export async function sendNewsletterEmail({
   viewOnlineUrl?: string;
   chartOrientation?: 'x' | 'y';
   openerSummary?: string;
+  aiSummaries?: Record<string, string>;
   db: any;
 }): Promise<boolean> {
-  const { html, subject } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, db });
+  const { html, subject } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, db });
   return sendEmail({ to, subject, html });
 }
 

@@ -161,6 +161,7 @@
       <div class="tab" onclick="switchTab('tickers')">Tickers</div>
       <div class="tab" onclick="switchTab('settings')">Settings</div>
       <div class="tab" onclick="switchTab('crons')">Crons</div>
+      <div class="tab" onclick="switchTab('ai-summaries')">AI Summaries</div>
     </div>
 
     <!-- Dashboard tab -->
@@ -407,6 +408,25 @@
       </div>
     </div>
 
+    <!-- AI Summaries tab -->
+    <div id="tab-ai-summaries" class="tab-panel">
+      <div style="max-width:820px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem; gap:1rem; flex-wrap:wrap;">
+          <div>
+            <p style="color:#e2e8f0; font-size:0.9rem; font-weight:700; margin:0 0 0.25rem;">AI News Summaries</p>
+            <p style="color:#64748b; font-size:0.78rem; margin:0; line-height:1.5;">Generated Saturday night by Claude Haiku from Finnhub headlines. Approve before Sunday send - unapproved stocks show raw headlines only.</p>
+          </div>
+          <div style="display:flex; gap:0.5rem; flex-shrink:0;">
+            <button class="btn btn-sky" onclick="loadAiSummaries()" style="padding:0.4rem 1rem; font-size:0.8rem;">Refresh</button>
+            <button class="btn" onclick="approveAllPending()" style="background:#14532d; color:#86efac; padding:0.4rem 1rem; font-size:0.8rem;">Approve All Pending</button>
+          </div>
+        </div>
+        <div id="ai-summaries-list" style="display:flex; flex-direction:column; gap:0.75rem;">
+          <p style="color:#64748b; font-size:0.8rem;">Loading...</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings tab -->
     <div id="tab-settings" class="tab-panel">
       <div style="max-width:520px; display:flex; flex-direction:column; gap:1rem;">
@@ -473,6 +493,7 @@
       if (name === 'settings') loadSettings();
       if (name === 'crons') loadCrons();
       if (name === 'tickers' && tickersData.length === 0) loadTickers();
+      if (name === 'ai-summaries') loadAiSummaries();
     }
 
     function fmt(dateStr) {
@@ -1613,6 +1634,136 @@
     }
 
     load();
+
+    // ── AI Summaries ──────────────────────────────────────────────────────────
+
+    let aiSummariesData = [];
+
+    async function loadAiSummaries() {
+      const token = localStorage.getItem('token');
+      const el = document.getElementById('ai-summaries-list');
+      el.innerHTML = '<p style="color:#64748b;font-size:0.8rem;">Loading...</p>';
+      try {
+        const res = await fetch('/api/admin?action=list-ai-summaries', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        if (!res.ok) { el.innerHTML = '<p style="color:#f87171;">Error: ' + (data.error || res.status) + '</p>'; return; }
+        aiSummariesData = data.summaries || [];
+        renderAiSummaries();
+      } catch (e) {
+        el.innerHTML = '<p style="color:#f87171;">Network error: ' + e.message + '</p>';
+      }
+    }
+
+    function renderAiSummaries() {
+      const el = document.getElementById('ai-summaries-list');
+      if (!aiSummariesData.length) {
+        el.innerHTML = '<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.5rem;color:#64748b;font-size:0.85rem;">No AI summaries found for the current week. They are generated during the Saturday snapshot cron. Make sure ANTHROPIC_API_KEY is set.</div>';
+        return;
+      }
+      el.innerHTML = aiSummariesData.map((s, idx) => {
+        const statusBadge = s.reviewed
+          ? (s.approved
+              ? '<span style="background:#14532d;color:#86efac;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Approved</span>'
+              : '<span style="background:#450a0a;color:#fca5a5;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Rejected</span>')
+          : '<span style="background:#1e293b;color:#94a3b8;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid #475569;">Pending review</span>';
+        const displayText = s.editedSummary || s.summary;
+        const headlines = (s.headlines || []).map(h => `<li style="margin:2px 0;">${h}</li>`).join('');
+        return `
+<div id="ai-card-${idx}" style="background:#1e293b;border:1px solid #334155;border-radius:10px;overflow:hidden;">
+  <div style="padding:0.75rem 1rem;background:#0f172a;border-bottom:1px solid #334155;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+    <span style="font-weight:800;color:#e2e8f0;font-size:0.9rem;">${s.symbol}</span>
+    <span style="color:#64748b;font-size:0.8rem;">${s.companyName || ''}</span>
+    ${statusBadge}
+    <div style="margin-left:auto;display:flex;gap:0.5rem;">
+      <button onclick="approveAiSummary(${idx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Approve</button>
+      <button onclick="editAiSummary(${idx})" style="background:#1e3a5f;color:#7dd3fc;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Edit</button>
+      <button onclick="rejectAiSummary(${idx})" style="background:#450a0a;color:#fca5a5;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Reject</button>
+    </div>
+  </div>
+  <div style="padding:0.85rem 1rem;">
+    <div id="ai-summary-display-${idx}">
+      <p style="color:#e2e8f0;font-size:0.875rem;line-height:1.6;margin:0 0 0.75rem;">${displayText}</p>
+      <details style="cursor:pointer;">
+        <summary style="color:#64748b;font-size:0.75rem;font-weight:600;">Source headlines</summary>
+        <ul style="color:#64748b;font-size:0.75rem;line-height:1.7;margin:0.4rem 0 0;padding-left:1.25rem;">${headlines}</ul>
+      </details>
+    </div>
+    <div id="ai-summary-edit-${idx}" style="display:none;">
+      <textarea id="ai-summary-textarea-${idx}" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;font-family:inherit;line-height:1.6;box-sizing:border-box;resize:vertical;" rows="3">${displayText}</textarea>
+      <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+        <button onclick="saveEditedAiSummary(${idx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.78rem;font-weight:700;cursor:pointer;">Save &amp; Approve</button>
+        <button onclick="cancelEditAiSummary(${idx})" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.78rem;cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+      }).join('');
+    }
+
+    async function updateAiSummary(idx, reviewed, approved, editedSummary) {
+      const token = localStorage.getItem('token');
+      const s = aiSummariesData[idx];
+      const body = { symbol: s.symbol, weekOf: s.weekOf, reviewed, approved };
+      if (editedSummary !== undefined) body.editedSummary = editedSummary;
+      const res = await fetch('/api/admin?action=update-ai-summary', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { const d = await res.json(); alert('Error: ' + (d.error || res.status)); return false; }
+      return true;
+    }
+
+    async function approveAiSummary(idx) {
+      if (!await updateAiSummary(idx, true, true, undefined)) return;
+      aiSummariesData[idx].reviewed = true;
+      aiSummariesData[idx].approved = true;
+      renderAiSummaries();
+    }
+
+    async function rejectAiSummary(idx) {
+      if (!await updateAiSummary(idx, true, false, undefined)) return;
+      aiSummariesData[idx].reviewed = true;
+      aiSummariesData[idx].approved = false;
+      renderAiSummaries();
+    }
+
+    function editAiSummary(idx) {
+      document.getElementById('ai-summary-display-' + idx).style.display = 'none';
+      document.getElementById('ai-summary-edit-' + idx).style.display = 'block';
+    }
+
+    function cancelEditAiSummary(idx) {
+      document.getElementById('ai-summary-display-' + idx).style.display = 'block';
+      document.getElementById('ai-summary-edit-' + idx).style.display = 'none';
+    }
+
+    async function saveEditedAiSummary(idx) {
+      const edited = document.getElementById('ai-summary-textarea-' + idx).value.trim();
+      if (!edited) { alert('Summary cannot be empty.'); return; }
+      if (!await updateAiSummary(idx, true, true, edited)) return;
+      aiSummariesData[idx].reviewed = true;
+      aiSummariesData[idx].approved = true;
+      aiSummariesData[idx].editedSummary = edited;
+      renderAiSummaries();
+    }
+
+    async function approveAllPending() {
+      const pending = aiSummariesData
+        .map((s, idx) => ({ s, idx }))
+        .filter(({ s }) => !s.reviewed);
+      if (!pending.length) { alert('No pending summaries to approve.'); return; }
+      if (!confirm(`Approve all ${pending.length} pending summaries?`)) return;
+      for (const { s, idx } of pending) {
+        await updateAiSummary(idx, true, true, undefined);
+        s.reviewed = true;
+        s.approved = true;
+      }
+      renderAiSummaries();
+    }
+
   </script>
 </body>
 </html>
