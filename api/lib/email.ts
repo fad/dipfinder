@@ -163,10 +163,12 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
     </div>
   </div>
 
-  <div style="padding:16px 32px;background:#1e293b;text-align:center;">
-    <p style="color:#64748b;font-size:0.73em;margin:0;line-height:1.7;">
-      You're receiving this because you subscribed to the Dip Finder Sunday Brief.<br>
-      <a href="{{unsubscribeUrl}}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
+  <div style="padding:16px 32px 24px;text-align:center;border-top:1px solid #e2e8f0;">
+    <p style="color:#94a3b8;font-size:0.72em;margin:0 0 4px;line-height:1.8;">
+      You're receiving this because you subscribed to the Dip Finder Sunday Brief &bull; {{dateLabel}}<br>
+      <a href="{{unsubscribeUrl}}" style="color:#64748b;text-decoration:underline;">Unsubscribe</a>
+      &nbsp;&bull;&nbsp;<a href="https://dipfinder.com/privacy" style="color:#64748b;text-decoration:none;">Privacy</a>
+      &nbsp;&bull;&nbsp;<a href="https://dipfinder.com" style="color:#64748b;text-decoration:none;">dipfinder.com</a>
     </p>
   </div>
 
