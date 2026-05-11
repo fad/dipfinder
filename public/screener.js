@@ -160,6 +160,28 @@ window.initializeScreener = function(params) {
         return data.news || [];
     }
 
+    async function fetchAiSummary(stock) {
+        try {
+            const res = await fetch(stockDataUrl(stock, { action: 'ai-summary' }));
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data.summary || null;
+        } catch {
+            return null;
+        }
+    }
+
+    function renderAiSummary(summary) {
+        const el = document.getElementById('ai-summary-container');
+        if (!el) return;
+        if (!summary) { el.innerHTML = ''; return; }
+        el.innerHTML = `
+            <div class="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-400">AI Summary</p>
+                <p class="text-sm leading-relaxed text-gray-700">${summary.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+            </div>`;
+    }
+
     function computePERange(timeseries, eps, currentPE) {
         if (!eps || eps <= 0) return null;
         const result = timeseries?.chart?.result?.[0];
@@ -786,11 +808,12 @@ window.initializeScreener = function(params) {
         const loadId = ++currentLoadId;
 
         try {
-            const [fundamentals, timeseries, smaData, news] = await Promise.all([
+            const [fundamentals, timeseries, smaData, news, aiSummary] = await Promise.all([
                 fetchFundamentals(stock),
                 fetchStockTimeseries(stock),
                 fetchSMATimeSeries(stock, 200),
-                fetchNews(stock)
+                fetchNews(stock),
+                fetchAiSummary(stock),
             ]);
 
             // Discard if a newer loadStockData call was made while we were awaiting
@@ -799,6 +822,7 @@ window.initializeScreener = function(params) {
             // Render all sections
             renderFundamentals(fundamentals, timeseries);
             renderChart(timeseries, smaData);
+            renderAiSummary(aiSummary);
             renderNews(news);
             
             // Save the state after everything is rendered

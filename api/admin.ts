@@ -695,10 +695,14 @@ async function handleListAiSummaries(_req: VercelRequest, res: VercelResponse) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const summaries = await db.collection('aiSummaries')
     .find({ weekOf: { $gte: sevenDaysAgo } })
-    .project({ symbol: 1, companyName: 1, summary: 1, headlines: 1, reviewed: 1, approved: 1, editedSummary: 1, weekOf: 1, createdAt: 1 })
+    .project({ symbol: 1, companyName: 1, summary: 1, headlines: 1, reviewed: 1, approved: 1, editedSummary: 1, weekOf: 1, createdAt: 1, inputTokens: 1, outputTokens: 1 })
     .sort({ approved: 1, reviewed: 1, symbol: 1 })
     .toArray();
-  return res.status(200).json({ summaries, total: summaries.length });
+  const totalInputTokens: number = summaries.reduce((sum: number, s: any) => sum + (s.inputTokens || 0), 0);
+  const totalOutputTokens: number = summaries.reduce((sum: number, s: any) => sum + (s.outputTokens || 0), 0);
+  const { estimateCost } = await import('./lib/ai-summaries');
+  const estimatedCost = estimateCost(totalInputTokens, totalOutputTokens);
+  return res.status(200).json({ summaries, total: summaries.length, totalInputTokens, totalOutputTokens, estimatedCost });
 }
 
 async function handleUpdateAiSummary(req: VercelRequest, res: VercelResponse) {
@@ -758,6 +762,17 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
 
   const summaryCol = db.collection('aiSummaries');
 
+  // Fetch macro context (SPY/QQQ weekly %) once for the whole batch
+  const macro: { spyWeekly?: number; qqqWeekly?: number } = {};
+  try {
+    const spy = await fetchStockData('SPY', db);
+    if (spy.closes.length >= 6) macro.spyWeekly = spy.closes[spy.closes.length - 1] / spy.closes[spy.closes.length - 6] - 1;
+  } catch { /* best-effort */ }
+  try {
+    const qqq = await fetchStockData('QQQ', db);
+    if (qqq.closes.length >= 6) macro.qqqWeekly = qqq.closes[qqq.closes.length - 1] / qqq.closes[qqq.closes.length - 6] - 1;
+  } catch { /* best-effort */ }
+
   // Step 1: fetch stock + news data in parallel (all cached after snapshot ran)
   type SymbolPayload = {
     symbol: string;
@@ -765,24 +780,28 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
     companyName: string;
     headlines: string[];
     relativePrice: number;
+    closes: number[];
   };
 
   const payloads = (await Promise.all(
     Array.from(symbolSmaPeriod.entries()).map(async ([symbol, smaPeriod]) => {
       try {
-        // Skip if a summary already exists this week (unless force)
         if (!force) {
           const existing = await summaryCol.findOne({ symbol, weekOf: { $gte: sevenDaysAgo } });
           if (existing) return null;
         }
         const [stockData, news] = await Promise.all([
           fetchStockData(symbol, db),
-          fetchNewsForSymbol(symbol, db),
+          fetchNewsForSymbol(symbol, db, 5),
         ]);
         const headlines = (news as any[]).map(n => n.headline);
         if (!headlines.length || stockData.closes.length < smaPeriod) return null;
         const sma = calculateSma(stockData.closes, smaPeriod);
-        return { symbol, smaPeriod, companyName: stockData.companyName, headlines, relativePrice: stockData.currentPrice / sma - 1 } as SymbolPayload;
+        return {
+          symbol, smaPeriod, companyName: stockData.companyName,
+          headlines, closes: stockData.closes,
+          relativePrice: stockData.currentPrice / sma - 1,
+        } as SymbolPayload;
       } catch {
         return null;
       }
@@ -791,21 +810,28 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
 
   const skipped = symbolSmaPeriod.size - payloads.length;
 
-  // Step 2: run Claude calls in parallel (Haiku is fast; all calls independent)
-  let generated = 0, errors = 0;
-  await Promise.all(payloads.map(async ({ symbol, smaPeriod, companyName, headlines, relativePrice }) => {
+  // Step 2: run Claude calls in parallel with macro + dip-duration context
+  let generated = 0, errors = 0, totalInputTokens = 0, totalOutputTokens = 0;
+  await Promise.all(payloads.map(async ({ symbol, smaPeriod, companyName, headlines, relativePrice, closes }) => {
     try {
-      const summary = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod);
-      if (!summary) return;
-      await upsertAiSummary(db, symbol, companyName, headlines, summary, weekOf);
+      const result = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod, { closes, macro });
+      if (!result.summary) return;
+      await upsertAiSummary(db, symbol, companyName, headlines, result, weekOf);
       generated++;
+      totalInputTokens += result.inputTokens;
+      totalOutputTokens += result.outputTokens;
     } catch (err) {
       console.error(`generate-ai-summaries: Claude call failed for ${symbol}:`, err);
       errors++;
     }
   }));
 
-  return res.status(200).json({ generated, skipped, errors, total: symbolSmaPeriod.size });
+  const { estimateCost } = await import('./lib/ai-summaries');
+  return res.status(200).json({
+    generated, skipped, errors, total: symbolSmaPeriod.size,
+    totalInputTokens, totalOutputTokens,
+    estimatedCost: estimateCost(totalInputTokens, totalOutputTokens),
+  });
 }
 
 async function handleTestAi(res: VercelResponse) {

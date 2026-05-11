@@ -11,6 +11,7 @@ import {
   yahooFinance,
 } from './lib/stocks';
 import { upsertTicker, markTickerFailed } from './lib/tickers';
+import { getApprovedSummaryForSymbol } from './lib/ai-summaries';
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 
@@ -54,6 +55,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleSMA(db, symbol, period, res);
       case 'sma-timeseries':
         return await handleSMATimeSeries(symbol, period, res);
+      case 'ai-summary':
+        return await handleAiSummary(db, symbol as string, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -387,4 +390,11 @@ async function fetchFromFinnhub(symbol: string) {
   } catch {
     return null;
   }
+}
+
+
+async function handleAiSummary(db: any, symbol: string, res: VercelResponse) {
+  const summary = await getApprovedSummaryForSymbol(db, symbol);
+  res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+  return res.status(200).json({ summary });
 }

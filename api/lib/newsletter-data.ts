@@ -23,13 +23,13 @@ export type StockResult = {
   topNews: NewsItem[];
 };
 
-export async function fetchNewsForSymbol(symbol: string, db: any): Promise<NewsItem[]> {
+export async function fetchNewsForSymbol(symbol: string, db: any, limit = 2): Promise<NewsItem[]> {
   const cacheKey = `news-${symbol.toUpperCase()}`;
   const col = db.collection('news');
   const doc = await col.findOne({ cacheKey });
 
   if (doc && Date.now() - doc.timestamp < CACHE_EXPIRY_NEWS) {
-    return (doc.data?.news || []).slice(0, 2);
+    return (doc.data?.news || []).slice(0, limit);
   }
 
   if (!FINNHUB_API_KEY) return [];
@@ -47,7 +47,7 @@ export async function fetchNewsForSymbol(symbol: string, db: any): Promise<NewsI
       { $set: { cacheKey, data: { news }, timestamp: new Date() } },
       { upsert: true }
     );
-    return news.slice(0, 2);
+    return news.slice(0, limit);
   } catch {
     return [];
   }

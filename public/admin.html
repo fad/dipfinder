@@ -1712,7 +1712,10 @@
           statusEl.textContent = 'Error: ' + (data.error || res.status);
           statusEl.style.color = '#f87171';
         } else {
-          statusEl.textContent = `Done - ${data.generated} generated, ${data.skipped} skipped, ${data.errors} errors (${data.total} total symbols).`;
+          const costStr = data.estimatedCost > 0
+            ? ` - $${data.estimatedCost < 0.001 ? (data.estimatedCost * 100).toFixed(3) + '¢' : data.estimatedCost.toFixed(4)}`
+            : '';
+          statusEl.textContent = `Done - ${data.generated} generated, ${data.skipped} skipped, ${data.errors} errors (${data.total} total)${costStr}`;
           statusEl.style.color = '#86efac';
           await loadAiSummaries();
         }
@@ -1736,11 +1739,23 @@
         const data = await res.json();
         if (!res.ok) { el.innerHTML = '<p style="color:#f87171;">Error: ' + (data.error || res.status) + '</p>'; return; }
         aiSummariesData = data.summaries || [];
+        // Show token cost summary
+        const costEl = document.getElementById('ai-generate-status');
+        if (data.total > 0 && (data.totalInputTokens || 0) > 0) {
+          const costStr = data.estimatedCost < 0.01
+            ? `$${(data.estimatedCost * 100).toFixed(3)}¢`
+            : `$${data.estimatedCost.toFixed(4)}`;
+          costEl.textContent = `This week: ${data.totalInputTokens.toLocaleString()} input + ${data.totalOutputTokens.toLocaleString()} output tokens - estimated cost ${costStr}`;
+          costEl.style.display = 'block';
+          costEl.style.color = '#94a3b8';
+        }
         renderAiSummaries();
       } catch (e) {
         el.innerHTML = '<p style="color:#f87171;">Network error: ' + e.message + '</p>';
       }
     }
+
+    let focusedAiIdx = 0;
 
     function renderAiSummaries() {
       const el = document.getElementById('ai-summaries-list');
@@ -1754,25 +1769,29 @@
               ? '<span style="background:#14532d;color:#86efac;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Approved</span>'
               : '<span style="background:#450a0a;color:#fca5a5;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Rejected</span>')
           : '<span style="background:#1e293b;color:#94a3b8;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid #475569;">Pending review</span>';
+        const editedBadge = s.editedSummary
+          ? '<span style="background:#312e81;color:#a5b4fc;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Edited</span>'
+          : '';
         const displayText = s.editedSummary || s.summary;
         const headlines = (s.headlines || []).map(h => `<li style="margin:2px 0;">${h}</li>`).join('');
+        const isFocused = idx === focusedAiIdx;
         return `
-<div id="ai-card-${idx}" style="background:#1e293b;border:1px solid #334155;border-radius:10px;overflow:hidden;">
+<div id="ai-card-${idx}" data-idx="${idx}" style="background:#1e293b;border:1px solid ${isFocused ? '#38bdf8' : '#334155'};border-radius:10px;overflow:hidden;cursor:pointer;" onclick="setAiFocus(${idx})">
   <div style="padding:0.75rem 1rem;background:#0f172a;border-bottom:1px solid #334155;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
     <span style="font-weight:800;color:#e2e8f0;font-size:0.9rem;">${s.symbol}</span>
     <span style="color:#64748b;font-size:0.8rem;">${s.companyName || ''}</span>
-    ${statusBadge}
+    ${statusBadge}${editedBadge}
     <div style="margin-left:auto;display:flex;gap:0.5rem;">
-      <button onclick="approveAiSummary(${idx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Approve</button>
-      <button onclick="editAiSummary(${idx})" style="background:#1e3a5f;color:#7dd3fc;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Edit</button>
-      <button onclick="rejectAiSummary(${idx})" style="background:#450a0a;color:#fca5a5;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Reject</button>
+      <button onclick="event.stopPropagation();approveAiSummary(${idx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="A">Approve</button>
+      <button onclick="event.stopPropagation();editAiSummary(${idx})" style="background:#1e3a5f;color:#7dd3fc;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="E">Edit</button>
+      <button onclick="event.stopPropagation();rejectAiSummary(${idx})" style="background:#450a0a;color:#fca5a5;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="R">Reject</button>
     </div>
   </div>
   <div style="padding:0.85rem 1rem;">
     <div id="ai-summary-display-${idx}">
       <p style="color:#e2e8f0;font-size:0.875rem;line-height:1.6;margin:0 0 0.75rem;">${displayText}</p>
       <details style="cursor:pointer;">
-        <summary style="color:#64748b;font-size:0.75rem;font-weight:600;">Source headlines</summary>
+        <summary style="color:#64748b;font-size:0.75rem;font-weight:600;">Source headlines (${(s.headlines||[]).length})</summary>
         <ul style="color:#64748b;font-size:0.75rem;line-height:1.7;margin:0.4rem 0 0;padding-left:1.25rem;">${headlines}</ul>
       </details>
     </div>
@@ -1786,7 +1805,40 @@
   </div>
 </div>`;
       }).join('');
+
+      // Keyboard hint
+      const hint = document.createElement('p');
+      hint.style.cssText = 'color:#475569;font-size:0.72rem;margin:0.75rem 0 0;text-align:center;';
+      hint.textContent = 'Keyboard: A = approve  R = reject  E = edit  J/↓ = next  K/↑ = prev';
+      el.appendChild(hint);
     }
+
+    function setAiFocus(idx) {
+      focusedAiIdx = idx;
+      renderAiSummaries();
+      document.getElementById('ai-card-' + idx)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (document.getElementById('tab-ai-summaries')?.classList.contains('active') && !aiSummariesData.length) return;
+      if (!document.getElementById('tab-ai-summaries')?.classList.contains('active')) return;
+      // Don't fire when typing in a textarea or input
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAiFocus(Math.min(focusedAiIdx + 1, aiSummariesData.length - 1));
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAiFocus(Math.max(focusedAiIdx - 1, 0));
+      } else if (e.key === 'a' || e.key === 'A') {
+        approveAiSummary(focusedAiIdx);
+      } else if (e.key === 'r' || e.key === 'R') {
+        rejectAiSummary(focusedAiIdx);
+      } else if (e.key === 'e' || e.key === 'E') {
+        editAiSummary(focusedAiIdx);
+      }
+    });
 
     async function updateAiSummary(idx, reviewed, approved, editedSummary) {
       const token = localStorage.getItem('token');

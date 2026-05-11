@@ -1,17 +1,37 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
-import { buildStockResults, NEWSLETTER_SMA_DEFAULT } from './lib/newsletter-data';
+import { buildStockResults, NEWSLETTER_SMA_DEFAULT, fetchStockData } from './lib/newsletter-data';
 import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
-import { generateAiSummary, upsertAiSummary } from './lib/ai-summaries';
+import { generateAiSummary, upsertAiSummary, estimateCost, type MacroContext } from './lib/ai-summaries';
+import { sendEmail, buildEmailHtml } from './lib/email';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
 const CRON_SECRET = process.env.CRON_SECRET;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
 
 /** Midnight UTC for today — used as the weeklySnapshots.weekOf key. */
 function todayUtc(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/** Fetch SPY and QQQ weekly % change from cached stock data. */
+async function fetchMacroContext(db: any): Promise<MacroContext> {
+  const macro: MacroContext = {};
+  try {
+    const spy = await fetchStockData('SPY', db);
+    if (spy.closes.length >= 6) {
+      macro.spyWeekly = spy.closes[spy.closes.length - 1] / spy.closes[spy.closes.length - 6] - 1;
+    }
+  } catch { /* best-effort */ }
+  try {
+    const qqq = await fetchStockData('QQQ', db);
+    if (qqq.closes.length >= 6) {
+      macro.qqqWeekly = qqq.closes[qqq.closes.length - 1] / qqq.closes[qqq.closes.length - 6] - 1;
+    }
+  } catch { /* best-effort */ }
+  return macro;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -56,7 +76,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let saved = 0, failed = 0;
 
     // Collect unique symbol data across all users for AI summary generation
-    const symbolData = new Map<string, { companyName: string; headlines: string[]; relativePrice: number; smaPeriod: number }>();
+    type SymbolMeta = { companyName: string; headlines: string[]; relativePrice: number; smaPeriod: number; closes: number[] };
+    const symbolData = new Map<string, SymbolMeta>();
 
     for (const user of users) {
       try {
@@ -64,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const stockResults = await buildStockResults(user.watchlist, db, smaPeriod);
         if (stockResults.length === 0) continue;
 
-        // Collect symbol data for AI summaries (first user's SMA period wins for each symbol)
+        // Collect symbol data for AI summaries (first user's SMA period wins per symbol)
         for (const s of stockResults) {
           if (!symbolData.has(s.symbol)) {
             symbolData.set(s.symbol, {
@@ -72,6 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               headlines: (s.topNews || []).map(n => n.headline),
               relativePrice: s.relativePrice,
               smaPeriod,
+              closes: [],  // filled below
             });
           }
         }
@@ -88,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { upsert: true },
         );
 
-        // Keep only the 2 most recent snapshots per user — delete the rest
+        // Keep only the 2 most recent snapshots per user
         const keep = await col
           .find({ userId: user._id.toString() })
           .sort({ weekOf: -1 })
@@ -107,37 +129,81 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Generate AI summaries for unique symbols that don't already have one this week.
-    // Runs after the snapshot loop so the news cache is warm. Skips symbols with no
-    // headlines or no ANTHROPIC_API_KEY. Individual failures are logged but don't abort.
+    // Fetch closes for each symbol (for dip duration context) and up to 5 headlines
+    if (symbolData.size > 0) {
+      await Promise.all(Array.from(symbolData.entries()).map(async ([symbol, meta]) => {
+        try {
+          const stockData = await fetchStockData(symbol, db);
+          meta.closes = stockData.closes;
+          // Freshen headlines with up to 5 items (cache is already warm from buildStockResults)
+          const { fetchNewsForSymbol } = await import('./lib/newsletter-data');
+          const news = await fetchNewsForSymbol(symbol, db, 5);
+          if (news.length > meta.headlines.length) meta.headlines = news.map(n => n.headline);
+        } catch { /* best-effort */ }
+      }));
+    }
+
+    // Generate AI summaries for unique symbols not yet summarized this week
+    let aiGenerated = 0, aiSkipped = 0, totalInputTokens = 0, totalOutputTokens = 0;
+
     if (process.env.ANTHROPIC_API_KEY && symbolData.size > 0) {
       const summaryCol = db.collection('aiSummaries');
-      let aiGenerated = 0, aiSkipped = 0;
-      for (const [symbol, data] of symbolData) {
-        try {
-          // Skip if this week's summary already exists (admin may have already reviewed it)
-          const existing = await summaryCol.findOne({ symbol, weekOf });
-          if (existing) { aiSkipped++; continue; }
-          if (!data.headlines.length) { aiSkipped++; continue; }
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-          const summary = await generateAiSummary(
-            symbol, data.companyName, data.headlines, data.relativePrice, data.smaPeriod,
+      // Fetch macro context once
+      const macro = await fetchMacroContext(db);
+
+      await Promise.all(Array.from(symbolData.entries()).map(async ([symbol, meta]) => {
+        try {
+          const existing = await summaryCol.findOne({ symbol, weekOf: { $gte: sevenDaysAgo } });
+          if (existing) { aiSkipped++; return; }
+          if (!meta.headlines.length) { aiSkipped++; return; }
+
+          const result = await generateAiSummary(
+            symbol, meta.companyName, meta.headlines, meta.relativePrice, meta.smaPeriod,
+            { closes: meta.closes, macro },
           );
-          if (summary) {
-            await upsertAiSummary(db, symbol, data.companyName, data.headlines, summary, weekOf);
-            aiGenerated++;
-          } else {
-            aiSkipped++;
-          }
+          if (!result.summary) { aiSkipped++; return; }
+
+          await upsertAiSummary(db, symbol, meta.companyName, meta.headlines, result, weekOf);
+          aiGenerated++;
+          totalInputTokens += result.inputTokens;
+          totalOutputTokens += result.outputTokens;
         } catch (err) {
           console.error(`AI summary failed for ${symbol}:`, err);
           aiSkipped++;
         }
+      }));
+
+      console.log(`AI summaries: ${aiGenerated} generated, ${aiSkipped} skipped, ${totalInputTokens + totalOutputTokens} total tokens`);
+
+      // Notify admin that summaries are ready for review
+      if (aiGenerated > 0 && ADMIN_EMAIL) {
+        const cost = estimateCost(totalInputTokens, totalOutputTokens);
+        const symbolList = Array.from(symbolData.keys())
+          .filter(sym => !['SPY', 'QQQ'].includes(sym))
+          .map(sym => `<li style="margin:2px 0;">${sym}</li>`)
+          .join('');
+        const body = `
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">
+  <strong>${aiGenerated} AI news summaries</strong> are ready for your review before Sunday's newsletter send.
+</p>
+<ul style="font-family:Arial,sans-serif;font-size:14px;color:#374151;line-height:1.8;margin:0 0 20px;padding-left:1.25rem;">${symbolList}</ul>
+<div style="text-align:center;margin:24px 0;">
+  <a href="${FRONTEND_URL}/admin" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Review in Admin Panel &rarr;</a>
+</div>
+<p style="font-family:Arial,sans-serif;font-size:12px;color:#94a3b8;margin:0;">
+  Estimated cost this run: $${cost.toFixed(4)} &bull; ${totalInputTokens} input + ${totalOutputTokens} output tokens (Claude Haiku)
+</p>`;
+        await sendEmail({
+          to: ADMIN_EMAIL,
+          subject: `${aiGenerated} AI summaries ready for review - Dip Finder`,
+          html: buildEmailHtml(body),
+        });
       }
-      console.log(`AI summaries: ${aiGenerated} generated, ${aiSkipped} skipped`);
     }
 
-    const result = { saved, failed, weekOf };
+    const result = { saved, failed, weekOf, aiGenerated, aiSkipped, totalInputTokens, totalOutputTokens };
     await recordCronRun(db, 'newsletter-snapshot', result, !isCronInvocation);
     return res.status(200).json(result);
   } catch (error) {
