@@ -398,6 +398,7 @@ function showAddError(msg) {
 //   opts.type: 'success' | 'error' | 'info'  (default 'success')
 //   opts.html: true to treat msg as HTML (for upgrade links)
 //   opts.duration: ms before auto-dismiss (default 5000)
+// Returns a dismiss() function so callers can close the toast early.
 function showToast(msg, opts = {}) {
     const { type = 'success', html = false, duration = 5000 } = opts;
     const colors = {
@@ -412,12 +413,15 @@ function showToast(msg, opts = {}) {
     if (html) toast.innerHTML = msg; else toast.textContent = msg;
     document.body.appendChild(toast);
 
+    let timer;
     const remove = () => {
+        clearTimeout(timer);
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
     };
     toast.addEventListener('click', remove);
-    setTimeout(remove, duration);
+    timer = setTimeout(remove, duration);
+    return remove; // caller can dismiss early
 }
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
@@ -1625,15 +1629,16 @@ window.initializeDipfinder = function() {
 
         if (source) console.log('[radar-cta] add:', rawTicker, 'source:', source);
 
+        // Show "Adding…" immediately so the user gets feedback before the 2s wait.
+        const dismissPending = showToast(`Adding ${rawTicker} to your watchlist…`, { type: 'info', duration: 10000 });
+
         function doAdd() {
             const token = localStorage.getItem('token');
 
             // Not logged in — prompt sign-in
             if (!token) {
-                showToast(
-                    `Sign in to add ${rawTicker} to your watchlist.`,
-                    { type: 'info', duration: 6000 }
-                );
+                dismissPending();
+                showToast(`Sign in to add ${rawTicker} to your watchlist.`, { type: 'info', duration: 6000 });
                 const modal = document.getElementById('auth-modal');
                 if (modal) modal.classList.remove('hidden');
                 return;
@@ -1641,6 +1646,7 @@ window.initializeDipfinder = function() {
 
             // Already in watchlist
             if (stocks.includes(rawTicker)) {
+                dismissPending();
                 showToast(`${rawTicker} is already in your watchlist.`, { type: 'info' });
                 return;
             }
@@ -1648,6 +1654,7 @@ window.initializeDipfinder = function() {
             // At tier limit
             const limit = getCurrentStockLimit();
             if (stocks.length >= limit) {
+                dismissPending();
                 if (!window.IS_PRO) {
                     showToast(
                         `Watchlist full (${limit} stocks). Pro members track up to 50. <a href="/app?upgrade=1" style="color:#1d4ed8;font-weight:700;text-decoration:underline;">Upgrade &#x2192;</a>`,
@@ -1659,7 +1666,28 @@ window.initializeDipfinder = function() {
                 return;
             }
 
-            // Happy path: inject ticker into input and trigger add
+            // Happy path: watch for the new row to appear, then confirm + highlight it.
+            const tbody = document.querySelector('#stocks-table tbody');
+            if (tbody) {
+                const observer = new MutationObserver(() => {
+                    const newRow = tbody.querySelector(`tr[data-stock="${rawTicker}"]`);
+                    if (!newRow) return;
+                    observer.disconnect();
+                    dismissPending();
+                    showToast(`${rawTicker} added to your watchlist.`, { type: 'success' });
+                    // Highlight the new row briefly
+                    newRow.style.transition = 'background 0.4s';
+                    newRow.style.background = '#eff6ff';
+                    setTimeout(() => { newRow.style.background = ''; }, 1800);
+                    // Scroll it into view
+                    newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
+                observer.observe(tbody, { childList: true });
+                // Safety: disconnect after 8s if add never completes (e.g. bad ticker)
+                setTimeout(() => { observer.disconnect(); dismissPending(); }, 8000);
+            }
+
+            // Inject ticker into input and trigger existing add flow
             const input = document.getElementById('new-stock');
             if (input) input.value = rawTicker;
             $('#add-stock').click();
