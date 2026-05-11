@@ -581,12 +581,13 @@ function buildTierCountsBlock(stocks: NewsletterStockRow[]): string {
 }
 
 function buildWeekAheadBlock(earnings: EarningsItem[]): string {
-  const header = `<h2 style="margin:14px 0 2px;font-size:0.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;text-align:left;">The week ahead</h2>`;
-  const card = (inner: string) =>
-    `<div style="margin-top:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:4px 16px 14px;text-align:left;">${header}${inner}</div>`;
+  // Exact same card + h2 pattern as buildNewsSummariesBlock
+  const header = `<h2 style="margin:14px 0 2px;font-size:0.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">The week ahead</h2>`;
+  const wrap = (inner: string) =>
+    `<div style="margin-top:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:4px 16px 2px;">${header}${inner}</div>`;
 
   if (!earnings.length) {
-    return card(`<p style="margin:8px 0 0;font-size:0.875em;color:#64748b;line-height:1.65;">No earnings on your watchlist this week.</p>`);
+    return wrap(`<div style="padding:12px 0;border-top:1px solid #f1f5f9;"><p style="margin:0;font-size:0.875em;color:#64748b;line-height:1.65;">No earnings on your watchlist this week.</p></div>`);
   }
 
   const capped = earnings.slice(0, 5);
@@ -596,24 +597,14 @@ function buildWeekAheadBlock(earnings: EarningsItem[]): string {
     const day = earningsDayName(e.date);
     const timing = earningsTiming(e.hour);
     const timingStr = timing ? ` ${timing}` : '';
-    return `<tr>
-  <td style="padding:6px 12px 6px 0;font-size:0.875em;color:#1e293b;font-weight:700;white-space:nowrap;vertical-align:top;">${escapeHtml(e.symbol)}</td>
-  <td style="padding:6px 0;font-size:0.875em;color:#374151;vertical-align:top;">${day}${timingStr}</td>
-</tr>`;
-  }).join('');
+    return `<div style="padding:10px 0;border-top:1px solid #f1f5f9;"><table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;"><tr><td style="font-size:0.875em;font-weight:700;color:#1e293b;white-space:nowrap;padding-right:14px;width:1%;">${escapeHtml(e.symbol)}</td><td style="font-size:0.875em;color:#374151;">${day}${timingStr}</td></tr></table></div>`;
+  });
 
-  const moreRow = overflow > 0
-    ? `<tr><td colspan="2" style="padding:4px 0 0;font-size:0.8em;color:#94a3b8;">+ ${overflow} more</td></tr>`
-    : '';
+  if (overflow > 0) {
+    rows.push(`<div style="padding:8px 0;border-top:1px solid #f1f5f9;"><p style="margin:0;font-size:0.8em;color:#94a3b8;">+ ${overflow} more</p></div>`);
+  }
 
-  const body = `
-<p style="margin:8px 0 6px;font-size:0.8em;color:#64748b;font-style:italic;">Earnings on your watchlist:</p>
-<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-  ${rows}
-  ${moreRow}
-</table>`;
-
-  return card(body);
+  return wrap(rows.join(''));
 }
 
 function earningsDayName(dateStr: string): string {
