@@ -1,5 +1,8 @@
 {
     "version": 2,
+    "functions": {
+        "api/newsletter-snapshot.ts": { "maxDuration": 300 }
+    },
     "crons": [
         {
             "path": "/api/newsletter-send",

@@ -53,6 +53,15 @@ const QUERY_INDEXES = [
   // macro recaps — one per ISO week, keyed for fast lookup at send time
   { col: 'weeklyMacroRecaps', spec: { weekKey: 1 },              opts: { unique: true,  name: 'weeklyMacroRecaps_weekKey_unique' } },
 
+  // ticker tags — static tag data used for radar scoring
+  { col: 'ticker_tags',        spec: { ticker: 1 },              opts: { unique: true,  name: 'ticker_tags_ticker_unique' } },
+
+  // radar universe — weekly price snapshot for all tagged tickers
+  { col: 'weekly_radar_universe', spec: { weekKey: 1, ticker: 1 }, opts: { unique: true, name: 'weekly_radar_universe_weekKey_ticker_unique' } },
+
+  // radar suggestions — per-user, per-week recommendation list
+  { col: 'weekly_radar_suggestions', spec: { userId: 1, weekKey: 1 }, opts: { unique: true, name: 'weekly_radar_suggestions_userId_weekKey_unique' } },
+
   // key-value stores
   { col: 'settings',       spec: { key: 1 },                     opts: { unique: true,  name: 'settings_key_unique' } },
   { col: 'emailTemplates', spec: { key: 1 },                     opts: { unique: true,  name: 'emailTemplates_key_unique' } },

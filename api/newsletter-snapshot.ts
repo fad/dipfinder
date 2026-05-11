@@ -6,6 +6,15 @@ import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
 import { generateAiSummary, upsertAiSummary, estimateCost, getAiPromptTemplate, deduplicateNewsItems, type MacroContext } from './lib/ai-summaries';
 import { sendEmail, buildEmailHtml } from './lib/email';
 import { generateMacroRecap } from './lib/macro-recap';
+import {
+  fetchUniverseBatch,
+  storeRadarUniverse,
+  storeRadarSuggestions,
+  getRadarSuggestions,
+  loadTagMap,
+  type RadarUniverseEntry,
+} from './lib/radar';
+import { getISOWeekKey } from './lib/macro-recap';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -219,7 +228,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('Macro recap generation failed (non-fatal):', err);
     }
 
-    const result = { saved, failed, weekOf, aiGenerated, aiSkipped, totalInputTokens, totalOutputTokens };
+    // ── On Your Radar universe sweep ──────────────────────────────────────────
+    // Fetches weekly price data for all tagged tickers and computes per-user
+    // radar suggestions. Stored in weekly_radar_universe + weekly_radar_suggestions.
+    let radarTickers = 0, radarErrors = 0;
+    try {
+      const tagMap = await loadTagMap(db);
+      const weekKey = getISOWeekKey(new Date());
+
+      if (tagMap.size > 0) {
+        const allTickers = Array.from(tagMap.keys());
+
+        // Fetch price data in 15-concurrent batches
+        const rawEntries = await fetchUniverseBatch(allTickers, db);
+
+        // Attach metadata from tagMap and store universe
+        const universeEntries: (RadarUniverseEntry & { name: string; sector: string; industry: string })[] =
+          rawEntries.map(e => {
+            const tag = tagMap.get(e.ticker)!;
+            return {
+              ticker: e.ticker,
+              name: tag.name,
+              sector: tag.sector,
+              industry: tag.industry,
+              relativePrice: (e as any).relativePrice ?? null,
+              weeklyChange: (e as any).weeklyChange ?? null,
+            };
+          });
+
+        await storeRadarUniverse(db, weekKey, universeEntries);
+        radarTickers = universeEntries.length;
+
+        // Build a lookup for fast hasMoved / entry access
+        const universeMap = new Map(universeEntries.map(e => [e.ticker, e]));
+        const universe = Array.from(universeMap.values());
+
+        // Per-user radar suggestions
+        for (const user of users) {
+          try {
+            const watchlist: string[] = user.watchlist || [];
+            if (!watchlist.length) continue;
+            const isPro = !!user.isPro;
+            const suggestions = getRadarSuggestions(watchlist, tagMap, universe, isPro);
+            await storeRadarSuggestions(db, user._id.toString(), weekKey, suggestions);
+          } catch (err) {
+            console.error(`Radar suggestions failed for ${user.email}:`, err);
+            radarErrors++;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Radar universe sweep failed (non-fatal):', err);
+    }
+
+    const result = { saved, failed, weekOf, aiGenerated, aiSkipped, totalInputTokens, totalOutputTokens, radarTickers, radarErrors };
     await recordCronRun(db, 'newsletter-snapshot', result, !isCronInvocation);
     return res.status(200).json(result);
   } catch (error) {

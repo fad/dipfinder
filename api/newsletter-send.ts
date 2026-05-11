@@ -5,6 +5,7 @@ import { verifyJWT } from './lib/auth';
 import { sendNewsletterEmail, buildNewsletterEmailHtml } from './lib/email';
 import { NEWSLETTER_SMA_DEFAULT, buildStockResults, fetchAllWeekEarnings, filterEarningsByWatchlist } from './lib/newsletter-data';
 import { fetchCurrentWeekMacroRecap } from './lib/macro-recap';
+import { fetchRadarSuggestions } from './lib/radar';
 import { buildOpenerSummary } from './lib/personalOpener';
 import { recordCronRun } from './lib/cron-schedule';
 import { getApprovedSummaries } from './lib/ai-summaries';
@@ -157,6 +158,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
       const unsubscribeUrl = `${FRONTEND_URL}/api/newsletter-unsubscribe?token=${unsubToken}`;
 
+      // Fetch this user's pre-computed radar suggestions (best-effort)
+      const radarSuggestions = await fetchRadarSuggestions(db, user._id.toString());
+      const isPro = !!user.isPro;
+
       if (isPreview) {
         // Admin preview — no view-online link
         const { html } = await buildNewsletterEmailHtml({
@@ -169,6 +174,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           aiSummaries,
           weeklyEarnings,
           weekInMacroText,
+          radarSuggestions,
+          isPro,
           db,
         });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -194,6 +201,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         aiSummaries,
         weeklyEarnings,
         weekInMacroText,
+        radarSuggestions,
+        isPro,
         db,
       });
 

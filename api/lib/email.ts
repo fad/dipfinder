@@ -4,6 +4,7 @@
 import { connectToDatabase } from './mongodb';
 import { buildStockResults, type EarningsItem } from './newsletter-data';
 import { fetchCurrentWeekMacroRecap } from './macro-recap';
+import { buildOnYourRadarBlock, type RadarCandidate } from './radar';
 
 const RESEND_API_KEY = process.env.EMAIL_NOREPLY_API_KEY;
 const FROM_EMAIL = 'noreply@dipfinder.com';
@@ -154,6 +155,8 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
     {{weekAhead}}
 
     {{weekInMacro}}
+
+    {{onYourRadar}}
 
     <div style="margin-top:28px;text-align:center;">
       <a href="https://dipfinder.com/app" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9em;letter-spacing:0.01em;">Open Dip Finder &#x2197;</a>
@@ -872,7 +875,7 @@ function buildNewsletterPlainText({
 // Uses the 'sunday-brief' DB template if available; falls back to buildNewsletterHtml.
 
 export async function buildNewsletterEmailHtml({
-  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, aiSummaries, weeklyEarnings, weekInMacroText, db,
+  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, aiSummaries, weeklyEarnings, weekInMacroText, radarSuggestions, isPro, db,
 }: {
   name: string;
   stocks: NewsletterStockRow[];
@@ -884,6 +887,8 @@ export async function buildNewsletterEmailHtml({
   aiSummaries?: Record<string, string>;
   weeklyEarnings?: EarningsItem[];
   weekInMacroText?: string;
+  radarSuggestions?: RadarCandidate[];
+  isPro?: boolean;
   db: any;
 }): Promise<{ html: string; subject: string; text: string }> {
   const dateLabel = new Date().toLocaleDateString('en-US', {
@@ -901,6 +906,7 @@ export async function buildNewsletterEmailHtml({
   // Use caller-provided text if available; fall back to DB lookup (e.g. admin preview path)
   const macroText = weekInMacroText !== undefined ? weekInMacroText : await fetchCurrentWeekMacroRecap(db);
   const weekInMacro = buildWeekInMacroBlock(macroText);
+  const onYourRadar = buildOnYourRadarBlock(radarSuggestions ?? [], !!isPro);
   const newsBlock = buildNewsBlockHtml(stocks, smaPeriod, aiSummaries);
   const viewOnlineBlock = viewOnlineUrl
     ? `<span style="display:table-cell;text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`
@@ -924,6 +930,7 @@ export async function buildNewsletterEmailHtml({
       newsSummaries,
       weekAhead,
       weekInMacro,
+      onYourRadar,
       newsBlock,
       viewOnlineBlock,
       unsubscribeUrl,
@@ -955,6 +962,8 @@ export async function sendNewsletterEmail({
   aiSummaries,
   weeklyEarnings,
   weekInMacroText,
+  radarSuggestions,
+  isPro,
   db,
 }: {
   to: string;
@@ -968,9 +977,11 @@ export async function sendNewsletterEmail({
   aiSummaries?: Record<string, string>;
   weeklyEarnings?: EarningsItem[];
   weekInMacroText?: string;
+  radarSuggestions?: RadarCandidate[];
+  isPro?: boolean;
   db: any;
 }): Promise<boolean> {
-  const { html, subject, text } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, weeklyEarnings, weekInMacroText, db });
+  const { html, subject, text } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, weeklyEarnings, weekInMacroText, radarSuggestions, isPro, db });
   return sendEmail({ to, subject, html, text });
 }
 

@@ -43,6 +43,7 @@ api/                  ← Serverless functions (one file = one route, 11 total �
     tickers.ts        ← upsertTicker(), markTickerFailed(), getActiveTickers()
     ai-summaries.ts   ← generateAiSummary(), upsertAiSummary(), getApprovedSummaries()
     macro-recap.ts    ← generateMacroRecap(), fetchCurrentWeekMacroRecap() — "The week in macro" section
+    radar.ts          ← On Your Radar: scoring engine, block builder, DB helpers (getRadarSuggestions, fetchUniverseBatch, loadTagMap, buildOnYourRadarBlock)
   user.ts             ← Auth: login, register, password reset, profile, captcha
   watchlist.ts        ← GET/POST watchlist (also saves smaPeriod, chartOrientation)
   batch-stocks.ts     ← POST: multi-stock SMA fetch for dashboard; GET ?action=tickers for autocomplete
@@ -57,6 +58,10 @@ api/                  ← Serverless functions (one file = one route, 11 total �
 
 scripts/
   setup-indexes.js    ← One-time MongoDB index creation (run once per environment)
+  seed-ticker-tags.js ← Seeds ticker_tags collection from data/ticker-tags-seed.json (run once per environment, safe to re-run)
+
+data/
+  ticker-tags-seed.json ← 431 tickers (S&P 500 + ADRs) with sector/industry/factors/themes/market_cap_tier for Radar scoring
 ```
 
 **Data flow — dashboard:**
@@ -77,6 +82,7 @@ Then for each `sundayBriefSubscribed` user: checks `isTimeToSend(user.timezone)`
 1. Saves per-user `weeklySnapshots` (SMA positions) — powers the personal opener delta sentence
 2. Generates AI stock summaries: unique symbols across all subscribers → Finnhub headlines → Claude Haiku → stored in `aiSummaries` with `reviewed:false`. Admin reviews in "AI Summaries" tab before Sunday send; only approved summaries are injected.
 3. Generates macro recap: fetches SPY/QQQ/IWM/^TNX weekly moves + 11 sector ETFs → builds mechanical sentence 1 (index moves) and sentence 3 (sector lead/lag) → fetches Finnhub general news → Claude Haiku generates sentence 2 (driver/theme, temp 0.2, max_tokens 60) → stored in `weeklyMacroRecaps` (idempotent). Falls back to neutral text if any step fails.
+4. On Your Radar universe sweep: loads all `ticker_tags` → fetches weekly price data for ~431 tagged tickers (15-concurrent batches via `fetchUniverseBatch`) → stores `weekly_radar_universe` → for each subscriber, runs `getRadarSuggestions()` → stores in `weekly_radar_suggestions`. Sunday send reads pre-computed suggestions per user.
 
 **Sunday Brief template placeholder blocks:**
 
@@ -94,6 +100,7 @@ Then for each `sundayBriefSubscribed` user: checks `isTimeToSend(user.timezone)`
 | `{{newsSummaries}}` | Per-stock AI summary cards (approved summaries only) |
 | `{{weekAhead}}` | Upcoming earnings reports on the user's watchlist |
 | `{{weekInMacro}}` | 3-sentence macro recap: index moves, AI driver, sector lead/lag |
+| `{{onYourRadar}}` | Personalized stock suggestions scored against user's watchlist tags |
 | `{{newsBlock}}` | Legacy per-stock news card block (raw Finnhub headlines) |
 | `{{unsubscribeUrl}}` | One-click unsubscribe link |
 
@@ -116,6 +123,9 @@ Then for each `sundayBriefSubscribed` user: checks `isTimeToSend(user.timezone)`
 | `weeklySnapshots` | Per-user watchlist SMA snapshot (Saturday night) — powers opener delta logic | permanent (keep last 2 per user) |
 | `aiSummaries` | Per-symbol AI news summaries (Saturday night) — admin reviews before Sunday send | permanent (weekly cadence, small) |
 | `weeklyMacroRecaps` | Weekly macro recap text (Saturday night) — keyed by ISO week, e.g. "2026-W20" | permanent (small, weekly) |
+| `ticker_tags` | Static tag data for Radar scoring — sector/industry/factors/themes/market_cap_tier per ticker | permanent (seed once) |
+| `weekly_radar_universe` | Weekly price snapshot for all tagged tickers (Saturday night) — keyed by weekKey+ticker | permanent (weekly) |
+| `weekly_radar_suggestions` | Pre-computed per-user Radar suggestions (Saturday night) — keyed by userId+weekKey | permanent (weekly) |
 | `settings` | Key-value store: app config + cron last-run tracking + AI prompt template | permanent |
 
 TTL indexes are live on Atlas — MongoDB auto-deletes expired docs. App-level TTL checks at read time provide an additional fast-path guard.
@@ -157,7 +167,8 @@ Read these first:
 2. `api/lib/email.ts` — newsletter HTML builder (`buildNewsletterEmailHtml`), all email templates, block builders, QuickChart integration
 3. `api/lib/newsletter-data.ts` — `buildStockResults()` is the core stock data pipeline; also `fetchAllWeekEarnings()` and `filterEarningsByWatchlist()`
 4. `api/lib/macro-recap.ts` — Saturday macro recap generation and Sunday retrieval
-5. `api/batch-stocks.ts` — dashboard data fetch with two-level caching (memory + MongoDB)
+5. `api/lib/radar.ts` — On Your Radar: scoring engine, `fetchUniverseBatch()`, `buildOnYourRadarBlock()`, DB helpers
+6. `api/batch-stocks.ts` — dashboard data fetch with two-level caching (memory + MongoDB)
 6. `public/dipfinder.js` — dashboard render, chart orientation toggle, SMA period persistence
 7. `public/screener.js` — race-condition-safe stock loading, timeframe slicing, chart lifecycle
 8. `public/auth.js` — AuthManager: token state, guest vs. authenticated UI, `window.MAX_STOCKS`
@@ -235,6 +246,9 @@ curl https://dipfinder.com/api/check
 
 # Create all MongoDB indexes (run once per environment — safe to re-run)
 MONGODB_URI=<uri> MONGODB_DB=<db> npm run setup-indexes
+
+# Seed ticker tags for On Your Radar (run once per environment — safe to re-run)
+MONGODB_URI=<uri> MONGODB_DB=<db> npm run seed-tickers
 ```
 
 ## SOPs
@@ -339,6 +353,26 @@ All three steps run in `newsletter-snapshot.ts` at Saturday 23:00 UTC:
 1. **Weekly snapshots** — per-user SMA positions saved to `weeklySnapshots`. Powers the personal opener sentence comparing this week vs. last week.
 2. **AI stock summaries** — unique symbols across all subscribers, Finnhub headlines → Claude Haiku → `aiSummaries` (reviewed:false). Admin reviews in the "AI Summaries" admin tab before Sunday. `getApprovedSummaries()` returns all-time approved summaries deduped by symbol (most recent week wins).
 3. **Macro recap** — SPY/QQQ/IWM/^TNX + 11 sector ETFs fetched via `dashboardStocks` cache → mechanical sentences 1 and 3 built → Finnhub general news fetched → Claude Haiku sentence 2 generated → stored in `weeklyMacroRecaps`. Idempotent (skips if current week already stored). Falls back to neutral text on any failure.
+4. **On Your Radar universe sweep** — loads all `ticker_tags` from DB → fetches weekly price data for ~431 tickers (15 concurrent via `fetchUniverseBatch`) → stores per-ticker snapshot in `weekly_radar_universe` → runs `getRadarSuggestions()` per subscriber → stores in `weekly_radar_suggestions`. Sunday send reads pre-computed suggestions. Non-fatal if sweep fails.
+
+### Seeding ticker tags (On Your Radar)
+
+Tags must be seeded before the Saturday snapshot can generate Radar suggestions:
+```bash
+MONGODB_URI=<uri> MONGODB_DB=<db> npm run seed-tickers
+```
+The seed file is `data/ticker-tags-seed.json` (431 tickers). Safe to re-run — uses upsert. Also run `npm run setup-indexes` to create the required indexes (`ticker_tags.ticker`, `weekly_radar_universe`, `weekly_radar_suggestions`).
+
+### Radar scoring
+
+Candidates are scored per watchlist ticker (higher = more relevant):
+- Same industry: +3
+- Same sector (different industry): +2
+- Per shared factor: +1
+- Per shared theme: +1
+- Same market_cap_tier as majority of watchlist: +0.5
+
+Minimum score to appear: 2.0. Only tickers that "moved" this week qualify (`|weeklyChange| > 3%` OR `relativePrice < -5%`). Watchlist tickers are excluded. Free users see up to 2, Pro users up to 3.
 
 ## Gotchas
 
@@ -347,6 +381,12 @@ All three steps run in `newsletter-snapshot.ts` at Saturday 23:00 UTC:
 **Yahoo Finance price data is capped at ~18 months.** `range=18mo` is the max for `action=price`. Max timeframe on the screener chart shows ~18 months of data, not all-time. 2Y/5Y ranges were removed because Yahoo doesn't return them.
 
 **`^TNX` (10-yr yield) is fetched via `fetchStockData()`.** The closes are already in percent (e.g. 4.21 = 4.21%), so weekly change is `(current - prev) * 100` basis points — not a ratio like equity ETFs. Handled in `macro-recap.ts`.
+
+**Radar uses a 50-day SMA computed from cached closes (not the user's `smaPeriod`).** This is intentional — the universe sweep uses a fixed 50-period SMA for consistency across all scored tickers, regardless of individual user preferences.
+
+**Ticker tags live separately from the `tickers` collection.** `tickers` is the self-learning autocomplete store (seeded by successful fetches). `ticker_tags` is the curated Radar scoring store (seeded manually from `data/ticker-tags-seed.json`). Do not confuse them.
+
+**newsletter-snapshot.ts has `maxDuration: 300` in vercel.json.** Required because the 431-ticker universe sweep takes ~30-70 seconds depending on Yahoo Finance response times.
 
 **`styles/styles.css` is generated.** Always edit `public/styles/input.css`. Running `npm run build:css` overwrites `styles/styles.css` entirely.
 
