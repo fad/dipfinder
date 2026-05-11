@@ -100,65 +100,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return stockCollectionPromise;
     };
 
-    const stockResults = await Promise.all(stocks.map(async (symbol: string) => {
+    const stockResults = (await Promise.all(stocks.map(async (symbol: string) => {
       const normalizedSymbol = symbol.toUpperCase();
       const stockCacheKey = `dashboard-stock-${normalizedSymbol}`;
       const memoryEntry = memoryCache[stockCacheKey];
       let dashboardStock = memoryEntry ? memoryEntry.data : null;
       let stockTimestamp = memoryEntry ? memoryEntry.timestamp : 0;
 
-      if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
-        const stockCollection = await getStockCollection();
-        const stockDataDoc = await stockCollection.findOne({ cacheKey: stockCacheKey });
-        dashboardStock = stockDataDoc ? stockDataDoc.data as DashboardStockCache : null;
-        stockTimestamp = stockDataDoc ? stockDataDoc.timestamp : 0;
+      try {
+        if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
+          const stockCollection = await getStockCollection();
+          const stockDataDoc = await stockCollection.findOne({ cacheKey: stockCacheKey });
+          dashboardStock = stockDataDoc ? stockDataDoc.data as DashboardStockCache : null;
+          stockTimestamp = stockDataDoc ? stockDataDoc.timestamp : 0;
 
-        if (dashboardStock && Date.now() - stockTimestamp <= CACHE_EXPIRY_STOCKS) {
-          memoryCache[stockCacheKey] = { data: dashboardStock, timestamp: stockTimestamp };
-        }
-      }
-
-      if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
-        // 365 calendar days ≈ 250 trading days — gives comfortable headroom above the
-        // 200-day SMA requirement after subtracting weekends (~104) and US holidays (~10).
-        const period1 = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-        const chartData = await yahooFinance.chart(normalizedSymbol, { period1, interval: '1d' });
-        dashboardStock = getCachedDashboardStock(chartData);
-
-        if (!dashboardStock) {
-          throw new Error(`No chart data found for ${symbol}`);
+          if (dashboardStock && Date.now() - stockTimestamp <= CACHE_EXPIRY_STOCKS) {
+            memoryCache[stockCacheKey] = { data: dashboardStock, timestamp: stockTimestamp };
+          }
         }
 
-        // Teach the autocomplete about this ticker
-        const db = await connectToDatabase();
-        const name = dashboardStock.companyName !== 'Unknown' ? dashboardStock.companyName : normalizedSymbol;
-        upsertTicker(db, normalizedSymbol, name).catch(() => {});
+        if (!dashboardStock || Date.now() - stockTimestamp > CACHE_EXPIRY_STOCKS) {
+          // 365 calendar days ≈ 250 trading days — gives comfortable headroom above the
+          // 200-day SMA requirement after subtracting weekends (~104) and US holidays (~10).
+          const period1 = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+          const chartData = await yahooFinance.chart(normalizedSymbol, { period1, interval: '1d' });
+          dashboardStock = getCachedDashboardStock(chartData);
 
-        const stockCollection = await getStockCollection();
-        await stockCollection.updateOne(
-          { cacheKey: stockCacheKey },
-          { $set: { cacheKey: stockCacheKey, data: dashboardStock, timestamp: new Date() } },
-          { upsert: true }
-        );
-        memoryCache[stockCacheKey] = { data: dashboardStock, timestamp: Date.now() };
+          if (!dashboardStock) {
+            console.error(`batch-stocks: no chart data for ${symbol}`);
+            return null;
+          }
+
+          // Teach the autocomplete about this ticker
+          const db = await connectToDatabase();
+          const name = dashboardStock.companyName !== 'Unknown' ? dashboardStock.companyName : normalizedSymbol;
+          upsertTicker(db, normalizedSymbol, name).catch(() => {});
+
+          const stockCollection = await getStockCollection();
+          await stockCollection.updateOne(
+            { cacheKey: stockCacheKey },
+            { $set: { cacheKey: stockCacheKey, data: dashboardStock, timestamp: new Date() } },
+            { upsert: true }
+          );
+          memoryCache[stockCacheKey] = { data: dashboardStock, timestamp: Date.now() };
+        }
+
+        if (!dashboardStock || dashboardStock.closes.length < smaPeriod) {
+          console.error(`batch-stocks: insufficient data for ${symbol} (${dashboardStock?.closes.length ?? 0} closes, need ${smaPeriod})`);
+          return null;
+        }
+
+        const sma = calculateSma(dashboardStock.closes, smaPeriod);
+        const relativePrice = dashboardStock.currentPrice / sma - 1;
+
+        return {
+          stock: normalizedSymbol,
+          companyName: dashboardStock.companyName,
+          currentPrice: dashboardStock.currentPrice,
+          previousPrice: dashboardStock.previousPrice,
+          sma,
+          relativePrice
+        };
+      } catch (err) {
+        console.error(`batch-stocks: failed to fetch ${symbol}:`, err);
+        return null;
       }
+    }))).filter(r => r !== null);
 
-      if (!dashboardStock || dashboardStock.closes.length < smaPeriod) {
-        throw new Error(`Not enough data for ${symbol} ${smaPeriod}-day SMA`);
-      }
-
-      const sma = calculateSma(dashboardStock.closes, smaPeriod);
-      const relativePrice = dashboardStock.currentPrice / sma - 1;
-
-      return {
-        stock: normalizedSymbol,
-        companyName: dashboardStock.companyName,
-        currentPrice: dashboardStock.currentPrice,
-        previousPrice: dashboardStock.previousPrice,
-        sma,
-        relativePrice
-      };
-    }));
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.status(200).json({ results: stockResults });
   } catch (error) {
