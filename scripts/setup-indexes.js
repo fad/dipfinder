@@ -50,6 +50,9 @@ const QUERY_INDEXES = [
   { col: 'aiSummaries',     spec: { symbol: 1, weekOf: 1 },      opts: { unique: true,  name: 'aiSummaries_symbol_weekOf_unique' } },
   { col: 'aiSummaries',     spec: { reviewed: 1, approved: 1, weekOf: -1 }, opts: { name: 'aiSummaries_reviewed_approved_weekOf' } },
 
+  // macro recaps — one per ISO week, keyed for fast lookup at send time
+  { col: 'weeklyMacroRecaps', spec: { weekKey: 1 },              opts: { unique: true,  name: 'weeklyMacroRecaps_weekKey_unique' } },
+
   // key-value stores
   { col: 'settings',       spec: { key: 1 },                     opts: { unique: true,  name: 'settings_key_unique' } },
   { col: 'emailTemplates', spec: { key: 1 },                     opts: { unique: true,  name: 'emailTemplates_key_unique' } },

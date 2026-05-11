@@ -3,6 +3,7 @@
 
 import { connectToDatabase } from './mongodb';
 import { buildStockResults, type EarningsItem } from './newsletter-data';
+import { fetchCurrentWeekMacroRecap } from './macro-recap';
 
 const RESEND_API_KEY = process.env.EMAIL_NOREPLY_API_KEY;
 const FROM_EMAIL = 'noreply@dipfinder.com';
@@ -151,6 +152,8 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
     {{newsSummaries}}
 
     {{weekAhead}}
+
+    {{weekInMacro}}
 
     <div style="margin-top:28px;text-align:center;">
       <a href="https://dipfinder.com/app" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9em;letter-spacing:0.01em;">Open Dip Finder &#x2197;</a>
@@ -606,6 +609,12 @@ function buildWeekAheadBlock(earnings: EarningsItem[]): string {
   return wrap(rows.join(''));
 }
 
+function buildWeekInMacroBlock(text: string): string {
+  if (!text) return '';
+  const header = `<h2 style="margin:14px 0 10px;padding-bottom:8px;font-size:0.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;border-bottom:1px solid #f1f5f9;text-align:left;">The week in macro</h2>`;
+  return `<div style="margin-top:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:4px 16px 14px;">${header}<p style="margin:0;font-size:0.875em;color:#374151;line-height:1.65;">${escapeHtml(text)}</p></div>`;
+}
+
 function earningsDayName(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
   // UTC noon avoids day-boundary shifts from local timezone offsets
@@ -860,7 +869,7 @@ function buildNewsletterPlainText({
 // Uses the 'sunday-brief' DB template if available; falls back to buildNewsletterHtml.
 
 export async function buildNewsletterEmailHtml({
-  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, aiSummaries, weeklyEarnings, db,
+  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, aiSummaries, weeklyEarnings, weekInMacroText, db,
 }: {
   name: string;
   stocks: NewsletterStockRow[];
@@ -871,6 +880,7 @@ export async function buildNewsletterEmailHtml({
   openerSummary?: string;
   aiSummaries?: Record<string, string>;
   weeklyEarnings?: EarningsItem[];
+  weekInMacroText?: string;
   db: any;
 }): Promise<{ html: string; subject: string; text: string }> {
   const dateLabel = new Date().toLocaleDateString('en-US', {
@@ -885,6 +895,9 @@ export async function buildNewsletterEmailHtml({
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
   const newsSummaries = buildNewsSummariesBlock(stocks, smaPeriod, aiSummaries);
   const weekAhead = buildWeekAheadBlock(weeklyEarnings ?? []);
+  // Use caller-provided text if available; fall back to DB lookup (e.g. admin preview path)
+  const macroText = weekInMacroText !== undefined ? weekInMacroText : await fetchCurrentWeekMacroRecap(db);
+  const weekInMacro = buildWeekInMacroBlock(macroText);
   const newsBlock = buildNewsBlockHtml(stocks, smaPeriod, aiSummaries);
   const viewOnlineBlock = viewOnlineUrl
     ? `<span style="display:table-cell;text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`
@@ -907,6 +920,7 @@ export async function buildNewsletterEmailHtml({
       watchlistTable,
       newsSummaries,
       weekAhead,
+      weekInMacro,
       newsBlock,
       viewOnlineBlock,
       unsubscribeUrl,
@@ -937,6 +951,7 @@ export async function sendNewsletterEmail({
   openerSummary,
   aiSummaries,
   weeklyEarnings,
+  weekInMacroText,
   db,
 }: {
   to: string;
@@ -949,9 +964,10 @@ export async function sendNewsletterEmail({
   openerSummary?: string;
   aiSummaries?: Record<string, string>;
   weeklyEarnings?: EarningsItem[];
+  weekInMacroText?: string;
   db: any;
 }): Promise<boolean> {
-  const { html, subject, text } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, weeklyEarnings, db });
+  const { html, subject, text } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, weeklyEarnings, weekInMacroText, db });
   return sendEmail({ to, subject, html, text });
 }
 

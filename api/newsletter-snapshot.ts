@@ -5,6 +5,7 @@ import { buildStockResults, NEWSLETTER_SMA_DEFAULT, fetchStockData } from './lib
 import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
 import { generateAiSummary, upsertAiSummary, estimateCost, getAiPromptTemplate, deduplicateNewsItems, type MacroContext } from './lib/ai-summaries';
 import { sendEmail, buildEmailHtml } from './lib/email';
+import { generateMacroRecap } from './lib/macro-recap';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -209,6 +210,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           html: buildEmailHtml(body),
         });
       }
+    }
+
+    // Generate this week's macro recap (stored in weeklyMacroRecaps, served via {{weekInMacro}})
+    try {
+      await generateMacroRecap(db);
+    } catch (err) {
+      console.error('Macro recap generation failed (non-fatal):', err);
     }
 
     const result = { saved, failed, weekOf, aiGenerated, aiSkipped, totalInputTokens, totalOutputTokens };

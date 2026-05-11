@@ -4,6 +4,7 @@ import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
 import { sendNewsletterEmail, buildNewsletterEmailHtml } from './lib/email';
 import { NEWSLETTER_SMA_DEFAULT, buildStockResults, fetchAllWeekEarnings, filterEarningsByWatchlist } from './lib/newsletter-data';
+import { fetchCurrentWeekMacroRecap } from './lib/macro-recap';
 import { buildOpenerSummary } from './lib/personalOpener';
 import { recordCronRun } from './lib/cron-schedule';
 import { getApprovedSummaries } from './lib/ai-summaries';
@@ -97,6 +98,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Fetch this week's full earnings calendar once — filtered per user inside the loop
     const allEarningsThisWeek = await fetchAllWeekEarnings(db);
 
+    // Fetch macro recap once — same text for all users
+    const weekInMacroText = await fetchCurrentWeekMacroRecap(db);
+
     let sent = 0, failed = 0, skipped = 0;
 
     for (const user of users) {
@@ -164,6 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           openerSummary,
           aiSummaries,
           weeklyEarnings,
+          weekInMacroText,
           db,
         });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -188,6 +193,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         openerSummary,
         aiSummaries,
         weeklyEarnings,
+        weekInMacroText,
         db,
       });
 
