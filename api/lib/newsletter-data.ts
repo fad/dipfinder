@@ -62,8 +62,9 @@ export async function fetchStockData(symbol: string, db: any): Promise<Dashboard
     return doc.data as DashboardStockCache;
   }
 
-  // 290 calendar days ≈ 200 trading days (accounts for weekends + holidays)
-  const period1 = new Date(Date.now() - 290 * 24 * 60 * 60 * 1000);
+  // 365 calendar days ≈ 250 trading days — gives comfortable headroom above the
+  // 200-day SMA requirement after subtracting weekends (~104) and US holidays (~10).
+  const period1 = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
   const chartData = await yahooFinance.chart(symbol.toUpperCase(), { period1, interval: '1d' });
   const closes: number[] = (chartData?.quotes ?? [])
     .map((q: any) => q.close)
