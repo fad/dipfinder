@@ -384,7 +384,8 @@ export function buildOnYourRadarBlock(candidates: RadarCandidate[], isPro: boole
     const weekSign = c.weeklyChange > 0 ? '+' : '';
     const weekPct = `${weekSign}${(c.weeklyChange * 100).toFixed(1)}%`;
     const { bg, color } = getBadgeColors(c.relativePrice * 100);
-    const href = `${baseUrl}/app?stock=${encodeURIComponent(c.ticker)}`;
+    const screenerHref = `${baseUrl}/app?stock=${encodeURIComponent(c.ticker)}`;
+    const addHref = `${baseUrl}/app?add=${encodeURIComponent(c.ticker)}&source=brief_radar`;
 
     // Week-change badge style: green if up, red if down, gray if flat
     const weekColor = c.weeklyChange > 0.01 ? '#16a34a' : c.weeklyChange < -0.01 ? '#dc2626' : '#64748b';
@@ -393,14 +394,15 @@ export function buildOnYourRadarBlock(candidates: RadarCandidate[], isPro: boole
   <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
     <tr>
       <td style="vertical-align:top;padding-right:10px;">
-        <a href="${href}" style="text-decoration:none;">
+        <a href="${screenerHref}" style="text-decoration:none;">
           <span style="font-weight:800;color:#1e293b;font-size:0.9em;">${escapeHtml(c.ticker)}</span>
           <span style="color:#64748b;font-size:0.78em;margin-left:6px;">${escapeHtml(c.name)}</span>
         </a>
         <div style="margin-top:3px;font-size:0.78em;color:#64748b;">${escapeHtml(c.reason)}</div>
+        <div style="margin-top:5px;"><a href="${addHref}" style="font-size:0.75em;color:#6366f1;text-decoration:none;font-weight:600;">+ Add to Watchlist</a></div>
       </td>
       <td style="white-space:nowrap;text-align:right;vertical-align:top;">
-        <span style="background:${bg};color:${color};font-weight:700;font-size:0.78em;padding:2px 7px;border-radius:999px;display:inline-block;">${smaPct} vs SMA</span>
+        <span style="background:${bg};color:${color};font-weight:700;font-size:0.78em;padding:2px 7px;border-radius:999px;display:inline-block;">${smaPct}</span>
         <div style="margin-top:3px;font-size:0.75em;font-weight:600;color:${weekColor};text-align:right;">${weekPct} this week</div>
       </td>
     </tr>
@@ -408,8 +410,8 @@ export function buildOnYourRadarBlock(candidates: RadarCandidate[], isPro: boole
 </div>`;
   }).join('');
 
-  const upgradeHint = !isPro && candidates.length >= 2
-    ? `<p style="margin:10px 0 0;font-size:0.75em;color:#94a3b8;text-align:right;"><a href="${baseUrl}/app" style="color:#6366f1;text-decoration:none;font-weight:600;">Upgrade to Pro</a> for more suggestions</p>`
+  const upgradeHint = !isPro
+    ? `<p style="margin:12px 0 0;padding-top:10px;border-top:1px solid #f1f5f9;font-size:0.75em;color:#94a3b8;text-align:center;">Pro members see 3 picks each week. <a href="${baseUrl}/app?upgrade=1" style="color:#6366f1;text-decoration:none;font-weight:600;">See Pro -&gt;</a></p>`
     : '';
 
   return `<div style="margin-top:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:4px 16px 14px;">${header}${cards}${upgradeHint}</div>`;

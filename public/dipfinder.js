@@ -393,6 +393,33 @@ function showAddError(msg) {
     setTimeout(() => { if (errorBox) errorBox.textContent = ''; }, 4000);
 }
 
+// ── Floating toast ────────────────────────────────────────────────────────────
+// showToast(msg, opts)
+//   opts.type: 'success' | 'error' | 'info'  (default 'success')
+//   opts.html: true to treat msg as HTML (for upgrade links)
+//   opts.duration: ms before auto-dismiss (default 5000)
+function showToast(msg, opts = {}) {
+    const { type = 'success', html = false, duration = 5000 } = opts;
+    const colors = {
+        success: { bg: '#f0fdf4', border: '#86efac', text: '#15803d' },
+        error:   { bg: '#fef2f2', border: '#fca5a5', text: '#b91c1c' },
+        info:    { bg: '#eff6ff', border: '#93c5fd', text: '#1d4ed8' },
+    };
+    const c = colors[type] || colors.success;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;max-width:340px;padding:12px 16px;border-radius:10px;border:1px solid ${c.border};background:${c.bg};color:${c.text};font-size:0.875rem;font-weight:600;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,0.10);transition:opacity 0.3s;`;
+    if (html) toast.innerHTML = msg; else toast.textContent = msg;
+    document.body.appendChild(toast);
+
+    const remove = () => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    };
+    toast.addEventListener('click', remove);
+    setTimeout(remove, duration);
+}
+
 // ── localStorage helpers ──────────────────────────────────────────────────────
 
 function saveStocks() {
@@ -461,7 +488,9 @@ function stopLoadingDots(intervalId, elementId, finalText = '') {
 
 function getCurrentStockLimit() {
     try {
-        if (window.AuthManager && window.AuthManager.isAuthenticated) return 10;
+        if (window.AuthManager && window.AuthManager.isAuthenticated) {
+            return window.IS_PRO ? 50 : 10;
+        }
     } catch (error) {
         console.warn('Error checking authentication status:', error);
     }
@@ -1575,6 +1604,74 @@ window.initializeDipfinder = function() {
             renderWatchlistTabs();
         } catch (e) { console.warn('Error handling watchlistRestored:', e); }
     });
+
+    // ── ?add=TICKER deep-link handler ─────────────────────────────────────────
+    // Links like /app?add=AAPL&source=brief_radar pre-add a ticker on landing.
+    // Strips the param from the URL immediately so refresh doesn't re-trigger.
+    (function handleAddParam() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const rawTicker = (urlParams.get('add') || '').toUpperCase().trim();
+        const source    = urlParams.get('source') || '';
+        if (!rawTicker) return;
+
+        // Validate ticker format: 1-5 letters, optional .X or .XX suffix (e.g. BRK.B)
+        if (!/^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(rawTicker)) return;
+
+        // Strip ?add and ?source from URL immediately
+        urlParams.delete('add');
+        urlParams.delete('source');
+        const qs = urlParams.toString();
+        history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname);
+
+        if (source) console.log('[radar-cta] add:', rawTicker, 'source:', source);
+
+        function doAdd() {
+            const token = localStorage.getItem('token');
+
+            // Not logged in — prompt sign-in
+            if (!token) {
+                showToast(
+                    `Sign in to add ${rawTicker} to your watchlist.`,
+                    { type: 'info', duration: 6000 }
+                );
+                const modal = document.getElementById('auth-modal');
+                if (modal) modal.classList.remove('hidden');
+                return;
+            }
+
+            // Already in watchlist
+            if (stocks.includes(rawTicker)) {
+                showToast(`${rawTicker} is already in your watchlist.`, { type: 'info' });
+                return;
+            }
+
+            // At tier limit
+            const limit = getCurrentStockLimit();
+            if (stocks.length >= limit) {
+                if (!window.IS_PRO) {
+                    showToast(
+                        `Watchlist full (${limit} stocks). Pro members track up to 50. <a href="/app?upgrade=1" style="color:#1d4ed8;font-weight:700;text-decoration:underline;">Upgrade &#x2192;</a>`,
+                        { type: 'error', html: true, duration: 8000 }
+                    );
+                } else {
+                    showToast(`Watchlist full (${limit} stocks). Remove a ticker to add ${rawTicker}.`, { type: 'error' });
+                }
+                return;
+            }
+
+            // Happy path: inject ticker into input and trigger add
+            const input = document.getElementById('new-stock');
+            if (input) input.value = rawTicker;
+            $('#add-stock').click();
+        }
+
+        // Wait for dipfinder:watchlistRestored so IS_PRO and the accurate stocks
+        // array are in place. Fall back after 2s if the event already fired or is slow.
+        let handled = false;
+        const handle = () => { if (!handled) { handled = true; doAdd(); } };
+        window.addEventListener('dipfinder:watchlistRestored', handle, { once: true });
+        setTimeout(handle, 2000);
+    })();
 
     // localStorage sync watcher
     dipfinderLocalStorageCheckInterval = setInterval(() => {
