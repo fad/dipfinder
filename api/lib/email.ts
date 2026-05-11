@@ -491,6 +491,7 @@ export interface NewsletterStockRow {
   currentPrice: number;
   sma: number;
   relativePrice: number;
+  weeklyChange?: number;
   topNews?: { headline: string; url: string; source: string; datetime: number }[];
 }
 
@@ -645,15 +646,27 @@ function buildNewsSummariesBlock(
     .filter(s => aiSummaries[s.symbol])
     .map(s => {
       const summary = aiSummaries[s.symbol];
-      const pct = (s.relativePrice * 100).toFixed(1);
-      const sign = s.relativePrice > 0 ? '+' : '';
-      const { color: dipColor } = getBadgeColors(s.relativePrice * 100);
+      const smaSign = s.relativePrice > 0 ? '+' : '';
+      const smaPct = `${smaSign}${(s.relativePrice * 100).toFixed(1)}%`;
+      const { bg, color: badgeColor } = getBadgeColors(s.relativePrice * 100);
+      const wc = s.weeklyChange ?? 0;
+      const weekSign = wc > 0 ? '+' : '';
+      const weekPct = `${weekSign}${(wc * 100).toFixed(1)}%`;
+      const weekColor = wc > 0.01 ? '#16a34a' : wc < -0.01 ? '#dc2626' : '#64748b';
       const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
       return `
 <div style="padding:14px 0;border-top:1px solid #f1f5f9;">
-  <p style="margin:0 0 6px;line-height:1.4;">
-    <a href="${href}" style="font-weight:800;color:#1e293b;text-decoration:none;font-size:0.9em;margin-right:8px;">${s.symbol}</a><span style="color:#64748b;font-size:0.8em;">${escapeHtml(s.companyName)}</span><span style="float:right;font-weight:700;color:${dipColor};font-size:0.85em;">${sign}${pct}% vs ${smaPeriod}d SMA</span>
-  </p>
+  <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:6px;">
+    <tr>
+      <td style="vertical-align:top;padding-right:10px;">
+        <a href="${href}" style="font-weight:800;color:#1e293b;text-decoration:none;font-size:0.9em;margin-right:8px;">${s.symbol}</a><span style="color:#64748b;font-size:0.8em;">${escapeHtml(s.companyName)}</span>
+      </td>
+      <td style="white-space:nowrap;text-align:right;vertical-align:top;">
+        <span style="background:${bg};color:${badgeColor};font-weight:700;font-size:0.78em;padding:2px 7px;border-radius:999px;display:inline-block;">${smaPct} vs ${smaPeriod}d SMA</span>
+        <div style="margin-top:3px;font-size:0.75em;font-weight:600;color:${weekColor};text-align:right;">${weekPct} this week</div>
+      </td>
+    </tr>
+  </table>
   <p style="margin:0;color:#374151;font-size:0.875em;line-height:1.65;">${escapeHtml(summary)}</p>
 </div>`;
     });

@@ -29,6 +29,7 @@ export type StockResult = {
   currentPrice: number;
   sma: number;
   relativePrice: number;
+  weeklyChange: number;
   topNews: NewsItem[];
 };
 
@@ -163,12 +164,16 @@ export async function buildStockResults(watchlist: string[], db: any, smaPeriod:
       if (data.closes.length >= smaPeriod) {
         const sma = calculateSma(data.closes, smaPeriod);
         const topNews = await fetchNewsForSymbol(symbol, db);
+        const closes = data.closes;
+        const weekAgoClose = closes.length >= 6 ? closes[closes.length - 6] : closes[0];
+        const weeklyChange = weekAgoClose > 0 ? (closes[closes.length - 1] - weekAgoClose) / weekAgoClose : 0;
         results.push({
           symbol: symbol.toUpperCase(),
           companyName: data.companyName,
           currentPrice: data.currentPrice,
           sma,
           relativePrice: data.currentPrice / sma - 1,
+          weeklyChange,
           topNews,
         });
       }
