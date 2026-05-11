@@ -37,11 +37,12 @@ api/                  ← Serverless functions (one file = one route, 11 total �
   lib/
     mongodb.ts        ← Singleton DB connection (globalThis caching)
     auth.ts           ← bcrypt + JWT helpers
-    email.ts          ← Resend API + all email templates + newsletter HTML builder
-    newsletter-data.ts← buildStockResults(), fetchStockData(), fetchNewsForSymbol()
+    email.ts          ← Resend API + all email templates + newsletter HTML builder + block builders
+    newsletter-data.ts← buildStockResults(), fetchStockData(), fetchAllWeekEarnings(), filterEarningsByWatchlist()
     stocks.ts         ← calculateSma(), calculateSmaTimeSeries(), cache TTL constants
     tickers.ts        ← upsertTicker(), markTickerFailed(), getActiveTickers()
     ai-summaries.ts   ← generateAiSummary(), upsertAiSummary(), getApprovedSummaries()
+    macro-recap.ts    ← generateMacroRecap(), fetchCurrentWeekMacroRecap() — "The week in macro" section
   user.ts             ← Auth: login, register, password reset, profile, captcha
   watchlist.ts        ← GET/POST watchlist (also saves smaPeriod, chartOrientation)
   batch-stocks.ts     ← POST: multi-stock SMA fetch for dashboard; GET ?action=tickers for autocomplete
@@ -49,7 +50,7 @@ api/                  ← Serverless functions (one file = one route, 11 total �
   newsletter-send.ts  ← 3 cron triggers (Sat 23:00, Sun 07:00, Sun 14:00 UTC) + admin preview
   newsletter.ts       ← GET ?action=view (tokenized view-online) + ?action=unsubscribe
   newsletter-onboarding.ts ← Daily cron (10:00 UTC): sends welcome email to new brief subscribers
-  newsletter-snapshot.ts ← Weekly cron (Saturday 23:00 UTC): snapshots each user's watchlist SMA status into weeklySnapshots collection for opener delta computation; also generates AI summaries for unique symbols via Claude Haiku and stores them in aiSummaries (reviewed:false)
+  newsletter-snapshot.ts ← Weekly cron (Saturday 23:00 UTC): snapshots watchlist SMA status, generates AI summaries, generates macro recap
   admin.ts            ← Admin: list users, template management, cron triggers
   health-check.ts     ← System health check (MongoDB, Yahoo, Finnhub, Resend) + ping
   morning-report.ts   ← Daily cron (07:00 UTC): emails admin a summary of user counts, subscriber totals, cron last-run statuses
@@ -64,11 +65,39 @@ scripts/
 **Data flow — stock price:**
 `stock-data.ts` → check MongoDB `stocks` cache → miss: try Yahoo Finance → fail: try Finnhub `/stock/candle` → fail: `markTickerFailed()` + 404. On success: `upsertTicker()` (self-learning autocomplete) + cache result.
 
-**Data flow — newsletter:**
-3 Vercel crons (Sat 23:00, Sun 07:00, Sun 14:00 UTC) → `newsletter-send.ts` → fetches admin-approved AI summaries from `aiSummaries` collection → for each `sundayBriefSubscribed` user, checks `isTimeToSend(user.timezone)` (Sunday 6-10am in user's local time) and `lastNewsletterSentAt` (skip if sent within 7 days) → `buildStockResults()` (Yahoo Finance + Finnhub, cached in MongoDB) → `buildNewsletterEmailHtml()` (checks DB for `sunday-brief` template, falls back to hardcoded; injects approved AI summaries into news block) → Resend API. View-online link points to `/newsletter/:token` → `newsletter.ts?action=view`.
+**Data flow — newsletter (Sunday send):**
+3 Vercel crons (Sat 23:00, Sun 07:00, Sun 14:00 UTC) → `newsletter-send.ts` → fetches once (shared across all users):
+- `getApprovedSummaries(db)` → admin-approved AI stock summaries from `aiSummaries`
+- `fetchAllWeekEarnings(db)` → next 7 days of Finnhub earnings, cached in `earningsCalendar` (24h)
+- `fetchCurrentWeekMacroRecap(db)` → this week's macro recap text from `weeklyMacroRecaps`
 
-**Data flow — AI summaries (Saturday night):**
-`newsletter-snapshot.ts` cron → after saving weekly snapshots, collects unique symbols across all subscribers → for each symbol without a summary this week, fetches cached Finnhub news headlines → calls Claude Haiku via `generateAiSummary()` → stores in `aiSummaries` with `reviewed:false`. Admin opens "AI Summaries" tab in admin panel, reviews each summary (Approve / Edit+Approve / Reject), then the Sunday send picks up only approved ones. Stocks without an approved summary fall back to raw Finnhub headlines.
+Then for each `sundayBriefSubscribed` user: checks `isTimeToSend(user.timezone)` (Sunday 6-10am local) and `lastNewsletterSentAt` (skip if sent within 7 days) → `buildStockResults()` (Yahoo Finance + Finnhub, cached in MongoDB) → `buildNewsletterEmailHtml()` (checks DB for `sunday-brief` template, renders all placeholder blocks, falls back to hardcoded) → Resend API. View-online link → `newsletter.ts?action=view`.
+
+**Data flow — Saturday snapshot cron (newsletter-snapshot.ts):**
+1. Saves per-user `weeklySnapshots` (SMA positions) — powers the personal opener delta sentence
+2. Generates AI stock summaries: unique symbols across all subscribers → Finnhub headlines → Claude Haiku → stored in `aiSummaries` with `reviewed:false`. Admin reviews in "AI Summaries" tab before Sunday send; only approved summaries are injected.
+3. Generates macro recap: fetches SPY/QQQ/IWM/^TNX weekly moves + 11 sector ETFs → builds mechanical sentence 1 (index moves) and sentence 3 (sector lead/lag) → fetches Finnhub general news → Claude Haiku generates sentence 2 (driver/theme, temp 0.2, max_tokens 60) → stored in `weeklyMacroRecaps` (idempotent). Falls back to neutral text if any step fails.
+
+**Sunday Brief template placeholder blocks:**
+
+| Placeholder | Content |
+|---|---|
+| `{{name}}` | Subscriber's first name |
+| `{{dateLabel}}` | Full date, e.g. "Sunday, May 4, 2025" |
+| `{{shortDate}}` | Short date for subject line, e.g. "May 4" |
+| `{{smaPeriod}}` | User's SMA period, e.g. "50" |
+| `{{openerSummary}}` | Personalised opener: dip count / mixed week / quiet |
+| `{{viewOnlineBlock}}` | "View Online" link span (empty for preview) |
+| `{{tierCounts}}` | 4-card row: Deep Dip / Dipping / Fair / Hot counts |
+| `{{chartBlock}}` | QuickChart bar chart image |
+| `{{watchlistTable}}` | Ranked table of stocks with price + SMA |
+| `{{newsSummaries}}` | Per-stock AI summary cards (approved summaries only) |
+| `{{weekAhead}}` | Upcoming earnings reports on the user's watchlist |
+| `{{weekInMacro}}` | 3-sentence macro recap: index moves, AI driver, sector lead/lag |
+| `{{newsBlock}}` | Legacy per-stock news card block (raw Finnhub headlines) |
+| `{{unsubscribeUrl}}` | One-click unsubscribe link |
+
+`renderTemplate(html, vars)` handles both literal `{{varName}}` and WYSIWYG HTML-encoded `&#123;&#123;varName&#125;&#125;` so placeholders typed in the visual editor work correctly.
 
 **MongoDB collections:**
 
@@ -77,15 +106,17 @@ scripts/
 | `users` | Auth, watchlist, preferences, subscription flags | permanent |
 | `tickers` | Self-learning autocomplete — upserted on every successful stock fetch | permanent |
 | `stocks` | Yahoo/Finnhub price+OHLC cache | 2h (MongoDB TTL index) |
-| `dashboardStocks` | Batch dashboard price/SMA cache | 2h (MongoDB TTL index) |
+| `dashboardStocks` | Batch dashboard price/SMA cache; also used by macro-recap for index/sector ETF data | 2h (MongoDB TTL index) |
 | `smaTimeseries` | SMA chart series cache | 2h (MongoDB TTL index) |
-| `news` | Finnhub news cache | 6h (MongoDB TTL index) |
+| `news` | Finnhub company news cache | 6h (MongoDB TTL index) |
 | `fundamentals` | Finnhub fundamentals cache | 7d (MongoDB TTL index) |
 | `companyNames` | Finnhub company name cache | 7d (MongoDB TTL index) |
+| `earningsCalendar` | Finnhub upcoming earnings cache (full unfiltered list) | 24h (app-level check) |
 | `emailTemplates` | Editable email templates — auto-seeded on first use | permanent |
 | `weeklySnapshots` | Per-user watchlist SMA snapshot (Saturday night) — powers opener delta logic | permanent (keep last 2 per user) |
 | `aiSummaries` | Per-symbol AI news summaries (Saturday night) — admin reviews before Sunday send | permanent (weekly cadence, small) |
-| `settings` | Key-value store: app config + cron last-run tracking | permanent |
+| `weeklyMacroRecaps` | Weekly macro recap text (Saturday night) — keyed by ISO week, e.g. "2026-W20" | permanent (small, weekly) |
+| `settings` | Key-value store: app config + cron last-run tracking + AI prompt template | permanent |
 
 TTL indexes are live on Atlas — MongoDB auto-deletes expired docs. App-level TTL checks at read time provide an additional fast-path guard.
 
@@ -123,13 +154,14 @@ source: 'seed'|'user'
 Read these first:
 
 1. `vercel.json` — all routes, rewrites, cron schedule, security headers
-2. `api/lib/email.ts` — newsletter HTML builder (`buildNewsletterHtml`), all email templates, QuickChart integration
-3. `api/lib/newsletter-data.ts` — `buildStockResults()` is the core data pipeline
-4. `api/batch-stocks.ts` — dashboard data fetch with two-level caching (memory + MongoDB)
-5. `public/dipfinder.js` — dashboard render, chart orientation toggle, SMA period persistence
-6. `public/screener.js` — race-condition-safe stock loading, timeframe slicing, chart lifecycle
-7. `public/auth.js` — AuthManager: token state, guest vs. authenticated UI, `window.MAX_STOCKS`
-8. `api/user.ts` — all auth endpoints: login lockout logic, password reset flow, captcha
+2. `api/lib/email.ts` — newsletter HTML builder (`buildNewsletterEmailHtml`), all email templates, block builders, QuickChart integration
+3. `api/lib/newsletter-data.ts` — `buildStockResults()` is the core stock data pipeline; also `fetchAllWeekEarnings()` and `filterEarningsByWatchlist()`
+4. `api/lib/macro-recap.ts` — Saturday macro recap generation and Sunday retrieval
+5. `api/batch-stocks.ts` — dashboard data fetch with two-level caching (memory + MongoDB)
+6. `public/dipfinder.js` — dashboard render, chart orientation toggle, SMA period persistence
+7. `public/screener.js` — race-condition-safe stock loading, timeframe slicing, chart lifecycle
+8. `public/auth.js` — AuthManager: token state, guest vs. authenticated UI, `window.MAX_STOCKS`
+9. `api/user.ts` — all auth endpoints: login lockout logic, password reset flow, captcha
 
 ## Conventions
 
@@ -194,6 +226,10 @@ curl "https://dipfinder.com/api/newsletter-send?preview=true" \
 curl -X POST https://dipfinder.com/api/newsletter-send \
   -H "Authorization: Bearer <CRON_SECRET>"
 
+# Trigger Saturday snapshot manually (generates snapshots + AI summaries + macro recap)
+curl -X POST https://dipfinder.com/api/newsletter-snapshot \
+  -H "Authorization: Bearer <CRON_SECRET>"
+
 # Health check
 curl https://dipfinder.com/api/check
 
@@ -219,11 +255,13 @@ Body copy style: `font-size:15px; color:#374151; line-height:1.75`
 CTA buttons: `background: linear-gradient(135deg,#2563EB,#4F46E5); color:#FFFFFF; padding:14px 32px; border-radius:8px; font-weight:700`  
 Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 
-**Template variable substitution**: use `{{varName}}` placeholders in HTML (e.g. `{{name}}`, `{{resetUrl}}`, `{{magicUrl}}`). `renderTemplate(html, vars)` replaces them at send time. **All user-supplied values (name, email) must be wrapped in `escapeHtml()` before being passed to `renderTemplate()` or interpolated into HTML strings.** Pre-built HTML blocks (chart images, table HTML) must NOT be escaped.
+**Template variable substitution**: use `{{varName}}` placeholders in HTML (e.g. `{{name}}`, `{{resetUrl}}`, `{{magicUrl}}`). `renderTemplate(html, vars)` replaces them at send time — handles both literal `{{var}}` and WYSIWYG HTML-encoded `&#123;&#123;var&#125;&#125;`. **All user-supplied values (name, email) must be wrapped in `escapeHtml()` before being passed to `renderTemplate()` or interpolated into HTML strings.** Pre-built HTML blocks (chart images, table HTML) must NOT be escaped.
 
 **DB-backed templates**: templates are stored in the MongoDB `emailTemplates` collection (key, name, subject, html, updatedAt). `getEmailTemplate(db, key)` auto-seeds the default if no DB record exists. Admin can edit all templates in the "Email Templates" tab of the admin panel. When updating the visual theme, update `buildEmailHtml` in `email.ts` AND delete the affected DB docs so they re-seed with the new shell next time (or resave via admin panel).
 
-**Known templates** (keys): `onboarding`, `password-reset`, `magic-link`
+**Known templates** (keys): `sunday-brief`, `onboarding`, `password-reset`, `magic-link`
+
+**Adding a placeholder to the Sunday Brief**: add the block builder in `email.ts`, wire it into `buildNewsletterEmailHtml()`, add the key to the `renderTemplate` vars map, add dummy HTML to `buildDummyVars()` in `admin.ts` (for Send Test) and `TPL_DUMMY_VARS` in `admin.html` (for live preview), and add a row to the placeholder reference table in `admin.html`.
 
 ### Adding a new API endpoint
 
@@ -243,6 +281,15 @@ Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 5. If preview HTML renders but send fails: Resend API issue.
 6. If preview returns 404/empty: admin user doc doesn't match criteria (not subscribed, empty watchlist).
 7. If a subscriber isn't getting mail: check `sundayBriefSubscribed: true`, non-empty `watchlist`, correct `timezone`, and `lastNewsletterSentAt` (if set within the last 7 days they'll be skipped).
+8. If `{{weekInMacro}}` is empty: check `weeklyMacroRecaps` collection for the current ISO week key — the Saturday snapshot may not have run yet.
+
+### Debugging a missing macro recap
+
+1. Check Vercel logs for the Saturday 23:00 UTC `newsletter-snapshot` invocation.
+2. Look for `generateMacroRecap` log lines — Yahoo Finance failures for SPY/QQQ/IWM will be logged and cause the fallback text to be stored.
+3. Query `weeklyMacroRecaps` in Atlas for the current ISO week (`getISOWeekKey(new Date())` in `macro-recap.ts`).
+4. `isFallback: true` means a failure occurred — check logs for which step failed (Yahoo, Finnhub general news, or Claude).
+5. Trigger the snapshot manually via `curl -X POST .../api/newsletter-snapshot -H "Authorization: Bearer <CRON_SECRET>"` to regenerate (idempotent — will skip if text already stored for this week).
 
 ### Rolling back a bad deploy
 
@@ -254,14 +301,14 @@ Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 
 1. Check the stock's Yahoo Finance data directly: `GET /stocks/<SYMBOL>` (action=price).
 2. Verify the SMA calculation: `GET /sma/<SYMBOL>` — confirm the period matches what the user has set.
-3. Check `dashboardStocks` MongoDB collection for stale cache (TTL = 30 min). Delete the doc to force a fresh fetch.
+3. Check `dashboardStocks` MongoDB collection for stale cache (TTL = 2h). Delete the doc to force a fresh fetch.
 4. Confirm Yahoo Finance returned a full `closes` array (≥ smaPeriod values). Insufficient history returns `sma: null`.
 
 ### Cache purge SOP
 
 Cache collections (`stocks`, `dashboardStocks`, `smaTimeseries`, `news`, `fundamentals`, `companyNames`) use `timestamp: new Date()` (BSON Date) on every write. MongoDB TTL indexes on the live Atlas cluster auto-delete expired documents. App-level TTL checks at read time provide a fast-path guard so warm-cache reads never see stale data even before MongoDB's background reaper runs.
 
-**Active TTLs:** stocks/dashboard/SMA = 2h, news = 6h, fundamentals/companyNames = 7d.
+**Active TTLs:** stocks/dashboard/SMA = 2h, news = 6h, fundamentals/companyNames = 7d, earningsCalendar = 24h (app-level only, no TTL index).
 
 To force a manual cache clear (e.g. bad data stuck in cache): use Admin panel → "Clear Stock Cache", or delete documents directly in Atlas.
 
@@ -271,7 +318,7 @@ Indexes are defined in `scripts/setup-indexes.js`. Run once per environment afte
 ```bash
 MONGODB_URI=<uri> MONGODB_DB=<db> npm run setup-indexes
 ```
-Safe to re-run — existing indexes are skipped. Covers: `users.email` (unique), `users.newsletterSubscribed`, `users.sundayBriefSubscribed`, `cacheKey` (unique) on all cache collections, `tickers.ticker` (unique), `tickers.active`, `settings.key`, `emailTemplates.key`.
+Safe to re-run — existing indexes are skipped. Covers: `users.email` (unique), `users.newsletterSubscribed`, `users.sundayBriefSubscribed`, `cacheKey` (unique) on all cache collections, `earningsCalendar.cacheKey` (unique), `tickers.ticker` (unique), `tickers.active`, `weeklySnapshots` (userId+weekOf), `aiSummaries` (symbol+weekOf unique, reviewed+approved+weekOf), `weeklyMacroRecaps.weekKey` (unique), `settings.key`, `emailTemplates.key`.
 
 ### Newsletter send — all subscribers
 
@@ -285,11 +332,21 @@ Safe to re-run — existing indexes are skipped. Covers: `users.email` (unique),
 
 Users without a stored timezone default to UTC (Sunday 07:00 window). Preview (`?preview=true`) always uses the admin user regardless of timezone/subscription. A 300ms delay between sends respects Resend's free-plan rate limit (100 emails/day, 3,000/month).
 
+### Saturday snapshot — what runs
+
+All three steps run in `newsletter-snapshot.ts` at Saturday 23:00 UTC:
+
+1. **Weekly snapshots** — per-user SMA positions saved to `weeklySnapshots`. Powers the personal opener sentence comparing this week vs. last week.
+2. **AI stock summaries** — unique symbols across all subscribers, Finnhub headlines → Claude Haiku → `aiSummaries` (reviewed:false). Admin reviews in the "AI Summaries" admin tab before Sunday. `getApprovedSummaries()` returns all-time approved summaries deduped by symbol (most recent week wins).
+3. **Macro recap** — SPY/QQQ/IWM/^TNX + 11 sector ETFs fetched via `dashboardStocks` cache → mechanical sentences 1 and 3 built → Finnhub general news fetched → Claude Haiku sentence 2 generated → stored in `weeklyMacroRecaps`. Idempotent (skips if current week already stored). Falls back to neutral text on any failure.
+
 ## Gotchas
 
 **QuickChart uses Chart.js 2.x syntax.** Horizontal bars require `type: 'horizontalBar'` (not `indexAxis: 'y'`). Axes are `xAxes`/`yAxes` arrays, not `x`/`y` objects. This affects `generateBarChartUrl()` in `api/lib/email.ts`.
 
 **Yahoo Finance price data is capped at ~18 months.** `range=18mo` is the max for `action=price`. Max timeframe on the screener chart shows ~18 months of data, not all-time. 2Y/5Y ranges were removed because Yahoo doesn't return them.
+
+**`^TNX` (10-yr yield) is fetched via `fetchStockData()`.** The closes are already in percent (e.g. 4.21 = 4.21%), so weekly change is `(current - prev) * 100` basis points — not a ratio like equity ETFs. Handled in `macro-recap.ts`.
 
 **`styles/styles.css` is generated.** Always edit `public/styles/input.css`. Running `npm run build:css` overwrites `styles/styles.css` entirely.
 
@@ -309,6 +366,10 @@ Users without a stored timezone default to UTC (Sunday 07:00 window). Preview (`
 
 **MongoDB `timestamp` fields in cache collections are stored as BSON Date.** TTL indexes are live on Atlas — run `npm run setup-indexes` if provisioning a new environment. App-level TTL checks coerce Date to ms via arithmetic, so both layers work correctly.
 
+**Template dummy vars must be kept in sync in two places.** `buildDummyVars()` in `api/admin.ts` powers "Send Test". `TPL_DUMMY_VARS` in `public/admin.html` powers the live client-side preview. When adding a new placeholder, update both.
+
+**`getApprovedSummaries()` returns all-time approved summaries**, not just this week's. It deduplicates by symbol keeping the most recent week's approved version. This means a symbol approved in a prior week still appears in the brief if no new summary exists for the current week.
+
 ## What "done" looks like
 
 - `npm run check` passes with no type errors
@@ -322,5 +383,3 @@ Users without a stored timezone default to UTC (Sunday 07:00 window). Preview (`
 ## Maintaining this file
 
 When you (Claude) make a change that affects architecture, commands, gotchas, or SOPs — update this file in the same change. Don't wait to be asked. If a section becomes wrong, fixing it is part of the task.
-
-
