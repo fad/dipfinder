@@ -2,7 +2,7 @@
 // Using Resend API with EMAIL_NOREPLY_API_KEY
 
 import { connectToDatabase } from './mongodb';
-import { buildStockResults } from './newsletter-data';
+import { buildStockResults, type EarningsItem } from './newsletter-data';
 
 const RESEND_API_KEY = process.env.EMAIL_NOREPLY_API_KEY;
 const FROM_EMAIL = 'noreply@dipfinder.com';
@@ -149,6 +149,8 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
     {{watchlistTable}}
 
     {{newsSummaries}}
+
+    {{weekAhead}}
 
     <div style="margin-top:28px;text-align:center;">
       <a href="https://dipfinder.com/app" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9em;letter-spacing:0.01em;">Open Dip Finder &#x2197;</a>
@@ -578,6 +580,56 @@ function buildTierCountsBlock(stocks: NewsletterStockRow[]): string {
 </table>`;
 }
 
+function buildWeekAheadBlock(earnings: EarningsItem[]): string {
+  const header = `<h2 style="margin:14px 0 6px;font-size:0.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">The week ahead</h2>`;
+
+  if (!earnings.length) {
+    return `
+<div style="margin-top:24px;">
+  ${header}
+  <p style="margin:0;font-size:0.875em;color:#64748b;line-height:1.65;">No earnings on your watchlist this week.</p>
+</div>`;
+  }
+
+  const capped = earnings.slice(0, 5);
+  const overflow = earnings.length - capped.length;
+
+  const rows = capped.map(e => {
+    const day = earningsDayName(e.date);
+    const timing = earningsTiming(e.hour);
+    const timingStr = timing ? ` ${timing}` : '';
+    return `<li style="margin:0 0 5px;font-size:0.875em;color:#374151;line-height:1.65;"><strong style="color:#1e293b;">${escapeHtml(e.symbol)}</strong> - ${day}${timingStr}</li>`;
+  });
+
+  const moreRow = overflow > 0
+    ? `<li style="margin:4px 0 0;font-size:0.8em;color:#94a3b8;list-style:none;padding-left:0;">+ ${overflow} more</li>`
+    : '';
+
+  return `
+<div style="margin-top:24px;">
+  ${header}
+  <p style="margin:0 0 8px;font-size:0.8em;color:#64748b;font-style:italic;">Earnings on your watchlist:</p>
+  <ul style="margin:0;padding-left:16px;">
+    ${rows.join('\n    ')}
+    ${moreRow}
+  </ul>
+</div>`;
+}
+
+function earningsDayName(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  // UTC noon avoids day-boundary shifts from local timezone offsets
+  const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  return d.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+}
+
+function earningsTiming(hour: string): string {
+  if (hour === 'bmo') return 'before open';
+  if (hour === 'amc') return 'after close';
+  if (hour === 'dmh') return 'intraday';
+  return '';
+}
+
 function buildNewsSummariesBlock(
   stocks: NewsletterStockRow[],
   smaPeriod: number,
@@ -818,7 +870,7 @@ function buildNewsletterPlainText({
 // Uses the 'sunday-brief' DB template if available; falls back to buildNewsletterHtml.
 
 export async function buildNewsletterEmailHtml({
-  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, aiSummaries, db,
+  name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation = 'y', openerSummary, aiSummaries, weeklyEarnings, db,
 }: {
   name: string;
   stocks: NewsletterStockRow[];
@@ -828,6 +880,7 @@ export async function buildNewsletterEmailHtml({
   chartOrientation?: 'x' | 'y';
   openerSummary?: string;
   aiSummaries?: Record<string, string>;
+  weeklyEarnings?: EarningsItem[];
   db: any;
 }): Promise<{ html: string; subject: string; text: string }> {
   const dateLabel = new Date().toLocaleDateString('en-US', {
@@ -841,6 +894,7 @@ export async function buildNewsletterEmailHtml({
   const chartBlock = buildChartBlock(stocks, chartOrientation, smaPeriod);
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
   const newsSummaries = buildNewsSummariesBlock(stocks, smaPeriod, aiSummaries);
+  const weekAhead = buildWeekAheadBlock(weeklyEarnings ?? []);
   const newsBlock = buildNewsBlockHtml(stocks, smaPeriod, aiSummaries);
   const viewOnlineBlock = viewOnlineUrl
     ? `<span style="display:table-cell;text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`
@@ -862,6 +916,7 @@ export async function buildNewsletterEmailHtml({
       chartBlock,
       watchlistTable,
       newsSummaries,
+      weekAhead,
       newsBlock,
       viewOnlineBlock,
       unsubscribeUrl,
@@ -891,6 +946,7 @@ export async function sendNewsletterEmail({
   chartOrientation = 'y',
   openerSummary,
   aiSummaries,
+  weeklyEarnings,
   db,
 }: {
   to: string;
@@ -902,9 +958,10 @@ export async function sendNewsletterEmail({
   chartOrientation?: 'x' | 'y';
   openerSummary?: string;
   aiSummaries?: Record<string, string>;
+  weeklyEarnings?: EarningsItem[];
   db: any;
 }): Promise<boolean> {
-  const { html, subject, text } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, db });
+  const { html, subject, text } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, weeklyEarnings, db });
   return sendEmail({ to, subject, html, text });
 }
 

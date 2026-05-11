@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
 import { sendNewsletterEmail, buildNewsletterEmailHtml } from './lib/email';
-import { NEWSLETTER_SMA_DEFAULT, buildStockResults } from './lib/newsletter-data';
+import { NEWSLETTER_SMA_DEFAULT, buildStockResults, fetchAllWeekEarnings, filterEarningsByWatchlist } from './lib/newsletter-data';
 import { buildOpenerSummary } from './lib/personalOpener';
 import { recordCronRun } from './lib/cron-schedule';
 import { getApprovedSummaries } from './lib/ai-summaries';
@@ -94,6 +94,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Fetch admin-approved AI summaries once — shared across all users this send run
     const aiSummaries = await getApprovedSummaries(db);
 
+    // Fetch this week's full earnings calendar once — filtered per user inside the loop
+    const allEarningsThisWeek = await fetchAllWeekEarnings(db);
+
     let sent = 0, failed = 0, skipped = 0;
 
     for (const user of users) {
@@ -122,6 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const smaPeriod: number = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
       const chartOrientation: 'x' | 'y' = user.chartOrientation === 'x' ? 'x' : 'y';
+      const weeklyEarnings = filterEarningsByWatchlist(allEarningsThisWeek, watchlist);
       const stockResults = await buildStockResults(watchlist, db, smaPeriod);
 
       if (stockResults.length === 0) {
@@ -159,6 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           chartOrientation,
           openerSummary,
           aiSummaries,
+          weeklyEarnings,
           db,
         });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -182,6 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         chartOrientation,
         openerSummary,
         aiSummaries,
+        weeklyEarnings,
         db,
       });
 

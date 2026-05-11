@@ -3,9 +3,17 @@ import { calculateSma, CACHE_EXPIRY_STOCKS, yahooFinance } from './stocks';
 
 export const NEWSLETTER_SMA_DEFAULT = 200;
 const CACHE_EXPIRY_NEWS = 3 * 60 * 60 * 1000; // 3 hours
+const CACHE_EXPIRY_EARNINGS = 24 * 60 * 60 * 1000; // 24 hours
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 
 export type NewsItem = { headline: string; url: string; source: string; datetime: number };
+
+// One upcoming earnings event as returned by Finnhub /calendar/earnings (filtered to watchlist)
+export type EarningsItem = {
+  symbol: string; // uppercase
+  date: string;   // YYYY-MM-DD
+  hour: string;   // 'bmo' | 'amc' | 'dmh' | '' (before open / after close / intraday / unknown)
+};
 
 export type DashboardStockCache = {
   companyName: string;
@@ -90,6 +98,61 @@ export async function fetchStockData(symbol: string, db: any): Promise<Dashboard
   );
 
   return data;
+}
+
+/**
+ * Fetches all earnings events in the next 7 days from Finnhub, caches the raw list
+ * in MongoDB for 24 h, and returns it unfiltered. Filter per user at call-site using
+ * filterEarningsByWatchlist(). Hoisting this outside the per-user send loop avoids
+ * one Finnhub call + one cache lookup per subscriber.
+ */
+export async function fetchAllWeekEarnings(db: any): Promise<EarningsItem[]> {
+  if (!FINNHUB_API_KEY) return [];
+
+  const now = new Date();
+  const from = now.toISOString().slice(0, 10);
+  const to = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const cacheKey = `earnings-calendar-${from}`;
+
+  const col = db.collection('earningsCalendar');
+  try {
+    const cached = await col.findOne({ cacheKey });
+    if (cached && Date.now() - new Date(cached.timestamp).getTime() < CACHE_EXPIRY_EARNINGS) {
+      return cached.data as EarningsItem[];
+    }
+  } catch (err) {
+    console.error('fetchAllWeekEarnings: cache read error:', err);
+  }
+
+  try {
+    const url = `https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
+    const response = await axios.get(url);
+    const raw: any[] = response.data?.earningsCalendar ?? [];
+    const all: EarningsItem[] = raw
+      .map(e => ({
+        symbol: (e.symbol || '').toUpperCase(),
+        date: e.date || '',
+        hour: e.hour || '',
+      }))
+      .filter(e => e.symbol && e.date)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    await col.updateOne(
+      { cacheKey },
+      { $set: { cacheKey, data: all, timestamp: new Date() } },
+      { upsert: true }
+    );
+    return all;
+  } catch (err) {
+    console.error('fetchAllWeekEarnings: Finnhub error:', err);
+    return [];
+  }
+}
+
+/** Filter a full earnings list down to tickers on the given watchlist. */
+export function filterEarningsByWatchlist(all: EarningsItem[], watchlist: string[]): EarningsItem[] {
+  const symbols = new Set(watchlist.map(s => s.toUpperCase()));
+  return all.filter(e => symbols.has(e.symbol));
 }
 
 export async function buildStockResults(watchlist: string[], db: any, smaPeriod: number = NEWSLETTER_SMA_DEFAULT): Promise<StockResult[]> {
