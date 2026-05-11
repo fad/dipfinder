@@ -61,6 +61,69 @@ function headlineAge(datetimeSec: number): string {
   return `${Math.floor(ageDays)}d ago`;
 }
 
+/** Week-over-week price change (last 5 trading days). Always included — velocity matters. */
+function getWeekChange(closes: number[]): string {
+  if (closes.length < 6) return '';
+  const change = closes[closes.length - 1] / closes[closes.length - 6] - 1;
+  const pct = `${change > 0 ? '+' : ''}${(change * 100).toFixed(1)}%`;
+  return `\nWeek change: ${pct}.`;
+}
+
+/** Flag when price is in the top or bottom 10% of its 52-week range. */
+function getRangeContext(closes: number[]): string {
+  const window = closes.slice(-252);
+  if (window.length < 50) return '';
+  const high = Math.max(...window);
+  const low = Math.min(...window);
+  const current = closes[closes.length - 1];
+  const range = high - low;
+  if (range === 0) return '';
+  const position = (current - low) / range;
+  if (position <= 0.1) return `\nNear 52-week low ($${low.toFixed(2)}).`;
+  if (position >= 0.9) return `\nNear 52-week high ($${high.toFixed(2)}).`;
+  return '';
+}
+
+/** Count consecutive down days (close < prior close) from the most recent session. */
+function getRedDaysContext(closes: number[]): string {
+  if (closes.length < 4) return '';
+  let streak = 0;
+  for (let i = closes.length - 1; i > 0 && streak < 10; i--) {
+    if (closes[i] < closes[i - 1]) streak++;
+    else break;
+  }
+  if (streak < 3) return '';
+  return `\n${streak} consecutive down days.`;
+}
+
+/**
+ * Trim Claude's output to at most `max` sentences.
+ * Splits on punctuation followed by a space and an uppercase letter to avoid
+ * breaking on decimal numbers or common abbreviations mid-sentence.
+ */
+function enforceMaxSentences(text: string, max = 2): string {
+  const parts = text.split(/(?<=[.!?]) +(?=[A-Z])/);
+  if (parts.length <= max) return text.trim();
+  return parts.slice(0, max).join(' ').trim();
+}
+
+/**
+ * Return false if fewer than min(2, headlines.length) headlines mention the
+ * ticker or a key word from the company name. Catches market-roundup articles
+ * that reference the stock in passing rather than covering it directly.
+ */
+function hasEnoughRelevantHeadlines(symbol: string, companyName: string, headlines: string[]): boolean {
+  if (!headlines.length) return false;
+  const needle = symbol.toLowerCase();
+  const firstName = companyName.split(/[\s,()/]+/)[0]?.toLowerCase() ?? '';
+  const nameWord = firstName.length >= 4 ? firstName : '';
+  const matches = headlines.filter(h => {
+    const hl = h.toLowerCase();
+    return hl.includes(needle) || (nameWord && hl.includes(nameWord));
+  }).length;
+  return matches >= Math.min(2, headlines.length);
+}
+
 /**
  * Detect unusual volume vs. the 20-day average.
  * Returns a one-line context string if volume is notably elevated or suppressed,
@@ -127,16 +190,17 @@ function getDipContext(closes: number[], smaPeriod: number): { streak: number; t
 /**
  * Default prompt template. Variables substituted at call time:
  * {{symbol}}, {{companyName}}, {{pct}}, {{smaPeriod}}, {{position}},
+ * {{weekChange}}, {{rangeContext}}, {{redDays}},
  * {{dipContext}}, {{volumeContext}}, {{macroContext}}, {{headlines}}
  *
- * Context variables (dipContext, volumeContext, macroContext) are empty strings
- * when not applicable, so they collapse cleanly in the rendered prompt.
+ * Context variables start with \n when present, are empty strings otherwise,
+ * so they collapse cleanly when not applicable.
  */
 export const DEFAULT_NEWS_SUMMARY_PROMPT =
 `You are a concise financial newsletter writer. Given a stock's current market position and recent news headlines, write 1-2 sentences that explain what is happening. Be factual and specific to the provided headlines. Only mention macro context if the broad market moved enough (e.g. >2%) to plausibly explain part of this stock's move - skip it if the market is flat or only slightly up/down. Only mention volume if it is notably elevated. Do not make buy/sell recommendations. Do not start with the stock ticker or company name.
 
 Stock: {{symbol}} ({{companyName}})
-Current position: {{pct}} vs {{smaPeriod}}-day SMA ({{position}}){{dipContext}}{{volumeContext}}{{macroContext}}
+Current position: {{pct}} vs {{smaPeriod}}-day SMA ({{position}}){{weekChange}}{{rangeContext}}{{redDays}}{{dipContext}}{{volumeContext}}{{macroContext}}
 Recent headlines:
 {{headlines}}
 
@@ -176,11 +240,21 @@ export async function generateAiSummary(
     return { summary: '', inputTokens: 0, outputTokens: 0 };
   }
 
+  // Skip Claude call if headlines aren't actually about this company
+  if (!hasEnoughRelevantHeadlines(symbol, companyName, headlines)) {
+    return { summary: '', inputTokens: 0, outputTokens: 0 };
+  }
+
   const position =
     relativePrice < -0.05 ? 'in dip territory (below trend)'
     : relativePrice > 0.05 ? 'above its long-term trend'
     : 'near its long-term trend';
   const pct = `${relativePrice > 0 ? '+' : ''}${(relativePrice * 100).toFixed(1)}%`;
+
+  // New price-action contexts (all derived from closes[])
+  const weekChange = options?.closes ? getWeekChange(options.closes) : '';
+  const rangeContext = options?.closes ? getRangeContext(options.closes) : '';
+  const redDays = options?.closes ? getRedDaysContext(options.closes) : '';
 
   // Dip duration context
   let dipContext = '';
@@ -221,6 +295,9 @@ export async function generateAiSummary(
     .replace('{{pct}}', pct)
     .replace('{{smaPeriod}}', String(smaPeriod))
     .replace('{{position}}', position)
+    .replace('{{weekChange}}', weekChange)
+    .replace('{{rangeContext}}', rangeContext)
+    .replace('{{redDays}}', redDays)
     .replace('{{dipContext}}', dipContext)
     .replace('{{volumeContext}}', volumeContext)
     .replace('{{macroContext}}', macroContext)
@@ -234,7 +311,8 @@ export async function generateAiSummary(
       messages: [{ role: 'user', content: prompt }],
     });
     const block = message.content[0];
-    const summary = block.type === 'text' ? block.text.trim() : '';
+    const raw = block.type === 'text' ? block.text.trim() : '';
+    const summary = enforceMaxSentences(raw, 2);
     return {
       summary,
       inputTokens: message.usage.input_tokens,
