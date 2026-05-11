@@ -24,6 +24,23 @@ export type AiSummaryDoc = {
   updatedAt: Date;
 };
 
+/**
+ * Detect unusual volume vs. the 20-day average.
+ * Returns a one-line context string if volume is notably elevated or suppressed,
+ * empty string otherwise (so it adds nothing to the prompt on normal weeks).
+ */
+function getVolumeContext(volumes: number[]): string {
+  const nonZero = volumes.filter(v => v > 0);
+  if (nonZero.length < 20) return '';
+  const avg20 = nonZero.slice(-20).reduce((a, b) => a + b, 0) / 20;
+  if (avg20 === 0) return '';
+  const recent5avg = nonZero.slice(-5).reduce((a, b) => a + b, 0) / 5;
+  const ratio = recent5avg / avg20;
+  if (ratio >= 1.5) return `\nVolume: ${ratio.toFixed(1)}x 20-day average (elevated this week).`;
+  if (ratio <= 0.5) return `\nVolume: ${ratio.toFixed(1)}x 20-day average (unusually quiet this week).`;
+  return '';
+}
+
 export type MacroContext = {
   spyWeekly?: number;  // SPY % change over last 5 trading days
   qqqWeekly?: number;  // QQQ % change over last 5 trading days
@@ -82,6 +99,7 @@ export async function generateAiSummary(
   smaPeriod: number,
   options?: {
     closes?: number[];
+    volumes?: number[];
     macro?: MacroContext;
   },
 ): Promise<SummaryResult> {
@@ -105,6 +123,9 @@ export async function generateAiSummary(
     }
   }
 
+  // Volume anomaly context
+  const volumeContext = options?.volumes ? getVolumeContext(options.volumes) : '';
+
   // Macro context
   let macroContext = '';
   if (options?.macro) {
@@ -118,10 +139,10 @@ export async function generateAiSummary(
     if (parts.length) macroContext = `\nMarket context: ${parts.join(', ')}.`;
   }
 
-  const prompt = `You are a concise financial newsletter writer. Given a stock's current market position and recent news headlines, write 1-2 sentences that explain what is happening. Be factual and specific to the provided headlines. If the stock move looks macro-driven (market context shows similar broad move), say so briefly. Do not make buy/sell recommendations. Do not start with the stock ticker or company name.
+  const prompt = `You are a concise financial newsletter writer. Given a stock's current market position and recent news headlines, write 1-2 sentences that explain what is happening. Be factual and specific to the provided headlines. If the stock move looks macro-driven (market context shows similar broad move), say so briefly. If volume is elevated, mention it briefly if it adds context. Do not make buy/sell recommendations. Do not start with the stock ticker or company name.
 
 Stock: ${symbol} (${companyName})
-Current position: ${pct} vs ${smaPeriod}-day SMA (${position})${dipContext}${macroContext}
+Current position: ${pct} vs ${smaPeriod}-day SMA (${position})${dipContext}${volumeContext}${macroContext}
 Recent headlines:
 ${headlines.slice(0, 5).map((h, i) => `${i + 1}. ${h}`).join('\n')}
 

@@ -76,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let saved = 0, failed = 0;
 
     // Collect unique symbol data across all users for AI summary generation
-    type SymbolMeta = { companyName: string; headlines: string[]; relativePrice: number; smaPeriod: number; closes: number[] };
+    type SymbolMeta = { companyName: string; headlines: string[]; relativePrice: number; smaPeriod: number; closes: number[]; volumes: number[] };
     const symbolData = new Map<string, SymbolMeta>();
 
     for (const user of users) {
@@ -93,7 +93,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               headlines: (s.topNews || []).map(n => n.headline),
               relativePrice: s.relativePrice,
               smaPeriod,
-              closes: [],  // filled below
+              closes: [],   // filled below
+              volumes: [],  // filled below
             });
           }
         }
@@ -135,6 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           const stockData = await fetchStockData(symbol, db);
           meta.closes = stockData.closes;
+          meta.volumes = stockData.volumes || [];
           // Freshen headlines with up to 5 items (cache is already warm from buildStockResults)
           const { fetchNewsForSymbol } = await import('./lib/newsletter-data');
           const news = await fetchNewsForSymbol(symbol, db, 5);
@@ -161,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           const result = await generateAiSummary(
             symbol, meta.companyName, meta.headlines, meta.relativePrice, meta.smaPeriod,
-            { closes: meta.closes, macro },
+            { closes: meta.closes, volumes: meta.volumes, macro },
           );
           if (!result.summary) { aiSkipped++; return; }
 

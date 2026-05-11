@@ -91,6 +91,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleUpdateAiSummary(req, res);
       case 'generate-ai-summaries':
         return await handleGenerateAiSummaries(req, res);
+      case 'regenerate-ai-summary':
+        return await handleRegenerateAiSummary(req, res);
+      case 'list-ai-cost-history':
+        return await handleListAiCostHistory(res);
       case 'test-ai':
         return await handleTestAi(res);
       default:
@@ -781,6 +785,7 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
     headlines: string[];
     relativePrice: number;
     closes: number[];
+    volumes: number[];
   };
 
   const payloads = (await Promise.all(
@@ -799,7 +804,7 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
         const sma = calculateSma(stockData.closes, smaPeriod);
         return {
           symbol, smaPeriod, companyName: stockData.companyName,
-          headlines, closes: stockData.closes,
+          headlines, closes: stockData.closes, volumes: stockData.volumes || [],
           relativePrice: stockData.currentPrice / sma - 1,
         } as SymbolPayload;
       } catch {
@@ -812,9 +817,9 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
 
   // Step 2: run Claude calls in parallel with macro + dip-duration context
   let generated = 0, errors = 0, totalInputTokens = 0, totalOutputTokens = 0;
-  await Promise.all(payloads.map(async ({ symbol, smaPeriod, companyName, headlines, relativePrice, closes }) => {
+  await Promise.all(payloads.map(async ({ symbol, smaPeriod, companyName, headlines, relativePrice, closes, volumes }) => {
     try {
-      const result = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod, { closes, macro });
+      const result = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod, { closes, volumes, macro });
       if (!result.summary) return;
       await upsertAiSummary(db, symbol, companyName, headlines, result, weekOf);
       generated++;
@@ -832,6 +837,97 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
     totalInputTokens, totalOutputTokens,
     estimatedCost: estimateCost(totalInputTokens, totalOutputTokens),
   });
+}
+
+async function handleRegenerateAiSummary(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { symbol } = req.body || {};
+  if (!symbol || typeof symbol !== 'string') return res.status(400).json({ error: 'symbol required' });
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'ANTHROPIC_API_KEY is not set in environment' });
+  }
+
+  const db = await connectToDatabase();
+
+  // Determine SMA period from subscribers (first match wins, fallback to default)
+  const user = await db.collection('users').findOne(
+    { sundayBriefSubscribed: true, watchlist: symbol.toUpperCase() },
+    { projection: { smaPeriod: 1 } },
+  );
+  const smaPeriod: number = (user?.smaPeriod) || NEWSLETTER_SMA_DEFAULT;
+
+  // Fetch data in parallel
+  const [stockData, news] = await Promise.all([
+    fetchStockData(symbol.toUpperCase(), db),
+    fetchNewsForSymbol(symbol.toUpperCase(), db, 5),
+  ]);
+
+  const headlines = (news as any[]).map(n => n.headline);
+  if (!headlines.length) return res.status(400).json({ error: 'No headlines available for this symbol' });
+  if (stockData.closes.length < smaPeriod) return res.status(400).json({ error: 'Not enough price history for SMA calculation' });
+
+  const sma = calculateSma(stockData.closes, smaPeriod);
+  const relativePrice = stockData.currentPrice / sma - 1;
+
+  // Fetch macro context
+  const macro: { spyWeekly?: number; qqqWeekly?: number } = {};
+  try {
+    const spy = await fetchStockData('SPY', db);
+    if (spy.closes.length >= 6) macro.spyWeekly = spy.closes[spy.closes.length - 1] / spy.closes[spy.closes.length - 6] - 1;
+  } catch { /* best-effort */ }
+  try {
+    const qqq = await fetchStockData('QQQ', db);
+    if (qqq.closes.length >= 6) macro.qqqWeekly = qqq.closes[qqq.closes.length - 1] / qqq.closes[qqq.closes.length - 6] - 1;
+  } catch { /* best-effort */ }
+
+  const result = await generateAiSummary(
+    symbol.toUpperCase(), stockData.companyName, headlines, relativePrice, smaPeriod,
+    { closes: stockData.closes, volumes: stockData.volumes || [], macro },
+  );
+  if (!result.summary) return res.status(500).json({ error: 'Claude returned an empty summary' });
+
+  const now = new Date();
+  const weekOf = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  await upsertAiSummary(db, symbol.toUpperCase(), stockData.companyName, headlines, result, weekOf);
+
+  const { estimateCost } = await import('./lib/ai-summaries');
+  return res.status(200).json({
+    ok: true,
+    symbol: symbol.toUpperCase(),
+    summary: result.summary,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+    estimatedCost: estimateCost(result.inputTokens, result.outputTokens),
+  });
+}
+
+async function handleListAiCostHistory(res: VercelResponse) {
+  const db = await connectToDatabase();
+  const { estimateCost } = await import('./lib/ai-summaries');
+
+  const rows = await db.collection('aiSummaries').aggregate([
+    {
+      $group: {
+        _id: '$weekOf',
+        count: { $sum: 1 },
+        inputTokens: { $sum: '$inputTokens' },
+        outputTokens: { $sum: '$outputTokens' },
+      },
+    },
+    { $sort: { _id: -1 } },
+    { $limit: 12 },
+  ]).toArray();
+
+  const weeks = rows.map((r: any) => ({
+    weekOf: r._id,
+    count: r.count,
+    inputTokens: r.inputTokens,
+    outputTokens: r.outputTokens,
+    estimatedCost: estimateCost(r.inputTokens, r.outputTokens),
+  }));
+
+  return res.status(200).json({ weeks });
 }
 
 async function handleTestAi(res: VercelResponse) {

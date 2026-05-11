@@ -12,6 +12,7 @@ export type DashboardStockCache = {
   currentPrice: number;
   previousPrice: number;
   closes: number[];
+  volumes: number[];
 };
 
 export type StockResult = {
@@ -66,9 +67,10 @@ export async function fetchStockData(symbol: string, db: any): Promise<Dashboard
   // 200-day SMA requirement after subtracting weekends (~104) and US holidays (~10).
   const period1 = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
   const chartData = await yahooFinance.chart(symbol.toUpperCase(), { period1, interval: '1d' });
-  const closes: number[] = (chartData?.quotes ?? [])
-    .map((q: any) => q.close)
-    .filter((p: unknown) => Number.isFinite(p));
+  // Filter by valid close, keep volumes aligned to the same rows
+  const validQuotes: any[] = (chartData?.quotes ?? []).filter((q: any) => Number.isFinite(q.close));
+  const closes: number[] = validQuotes.map((q: any) => q.close);
+  const volumes: number[] = validQuotes.map((q: any) => Number.isFinite(q.volume) ? q.volume : 0);
 
   if (closes.length < 2) throw new Error(`No chart data for ${symbol}`);
 
@@ -78,6 +80,7 @@ export async function fetchStockData(symbol: string, db: any): Promise<Dashboard
     currentPrice: closes[closes.length - 1],
     previousPrice: closes[closes.length - 2],
     closes,
+    volumes,
   };
 
   await col.updateOne(
