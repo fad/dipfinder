@@ -589,7 +589,7 @@ function buildWeekAheadBlock(earnings: EarningsItem[]): string {
     `<div style="margin-top:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:4px 16px 14px;">${header}${inner}</div>`;
 
   if (!earnings.length) {
-    return wrap(`<p style="margin:0;font-size:0.875em;color:#64748b;line-height:1.65;">No earnings on your watchlist this week.</p>`);
+    return wrap(`<p style="margin:0;font-size:0.875em;color:#64748b;line-height:1.65;">No earnings reports on your watchlist this week.</p>`);
   }
 
   const capped = earnings.slice(0, 5);
@@ -598,15 +598,18 @@ function buildWeekAheadBlock(earnings: EarningsItem[]): string {
   const rows = capped.map(e => {
     const day = earningsDayName(e.date);
     const timing = earningsTiming(e.hour);
-    const timingStr = timing ? ` ${timing}` : '';
-    return `<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;margin-bottom:6px;"><tr><td style="font-size:0.875em;font-weight:700;color:#1e293b;white-space:nowrap;padding-right:14px;width:1%;">${escapeHtml(e.symbol)}</td><td style="font-size:0.875em;color:#374151;">${day}${timingStr}</td></tr></table>`;
-  });
+    const timingStr = timing ? ` <span style="color:#94a3b8;">${timing}</span>` : '';
+    return `<tr>
+  <td style="font-size:0.875em;font-weight:700;color:#1e293b;white-space:nowrap;padding:3px 16px 3px 0;vertical-align:top;">${escapeHtml(e.symbol)}</td>
+  <td style="font-size:0.875em;color:#374151;padding:3px 0;vertical-align:top;">${day} earnings${timingStr}</td>
+</tr>`;
+  }).join('');
 
-  if (overflow > 0) {
-    rows.push(`<p style="margin:4px 0 0;font-size:0.8em;color:#94a3b8;">+ ${overflow} more</p>`);
-  }
+  const overflowRow = overflow > 0
+    ? `<tr><td colspan="2" style="font-size:0.8em;color:#94a3b8;padding-top:6px;">+ ${overflow} more</td></tr>`
+    : '';
 
-  return wrap(rows.join(''));
+  return wrap(`<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">${rows}${overflowRow}</table>`);
 }
 
 function buildWeekInMacroBlock(text: string): string {
