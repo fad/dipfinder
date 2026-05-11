@@ -231,6 +231,11 @@
             <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Sends the daily admin summary email now (user stats + cron status).</p>
           </div>
 
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.85rem 1rem;">
+            <button class="btn" id="test-ai-btn" style="background:#2d1657; color:#c4b5fd; border:1px solid #6d28d9; width:100%; margin-bottom:0.5rem;" onclick="testAiConnection()">Test AI Connection</button>
+            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Sends a ping to Claude Haiku and checks ANTHROPIC_API_KEY is set and working.</p>
+          </div>
+
         </div>
         <pre id="test-stocks-output" style="display:none; margin-top:1rem; background:#0f1a12; border:1px solid #166534; border-radius:8px; padding:1rem; font-size:0.75rem; color:#86efac; white-space:pre-wrap; word-break:break-all;"></pre>
       </div>
@@ -955,6 +960,38 @@
     }
 
     // ── Morning Report ────────────────────────────────────────────────────────
+    async function testAiConnection() {
+      const btn = document.getElementById('test-ai-btn');
+      const out = document.getElementById('test-stocks-output');
+      btn.disabled = true;
+      out.style.display = 'block';
+      out.textContent = 'Pinging Claude Haiku…';
+      out.style.borderColor = '#6d28d9';
+      out.style.color = '#c4b5fd';
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=test-ai', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        if (data.ok) {
+          out.textContent = `OK - ${data.model} replied "${data.reply}" in ${data.latencyMs}ms`;
+          out.style.borderColor = '#166534';
+          out.style.color = '#86efac';
+        } else {
+          out.textContent = `Failed - ${data.error}`;
+          out.style.borderColor = '#dc2626';
+          out.style.color = '#fca5a5';
+        }
+      } catch (e) {
+        out.textContent = 'Network error: ' + e.message;
+        out.style.borderColor = '#dc2626';
+        out.style.color = '#fca5a5';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     async function sendMorningReport() {
       const btn = document.getElementById('send-morning-report-btn');
       const out = document.getElementById('test-stocks-output');

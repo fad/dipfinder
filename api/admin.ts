@@ -5,6 +5,7 @@ import axios from 'axios';
 import { connectToDatabase } from './lib/mongodb';
 import { yahooFinance, calculateSma } from './lib/stocks';
 import { getEmailTemplate, saveEmailTemplate, listTemplateKeys, sendEmail, buildEmailHtml, renderTemplate } from './lib/email';
+import Anthropic from '@anthropic-ai/sdk';
 import { fetchStockData, fetchNewsForSymbol, NEWSLETTER_SMA_DEFAULT } from './lib/newsletter-data';
 import { generateAiSummary, upsertAiSummary } from './lib/ai-summaries';
 
@@ -90,6 +91,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleUpdateAiSummary(req, res);
       case 'generate-ai-summaries':
         return await handleGenerateAiSummaries(req, res);
+      case 'test-ai':
+        return await handleTestAi(res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -490,8 +493,8 @@ const CRON_DEFS = [
   },
   {
     id: 'newsletter-snapshot',
-    name: 'Weekly Snapshot',
-    description: 'Snapshots each subscriber\'s watchlist SMA status. Powers the personalised opener in Sunday Brief. Runs Saturday night before the Sunday send.',
+    name: 'Weekly Snapshot + AI Summaries',
+    description: 'Snapshots each subscriber\'s watchlist SMA status (powers the personalised opener), then generates AI news summaries for all unique symbols via Claude Haiku. Admin reviews summaries in the AI Summaries tab before the Sunday send.',
     endpoint: '/api/newsletter-snapshot',
     method: 'POST',
     vercelSchedule: 'Saturdays at 23:00 UTC',
@@ -803,4 +806,23 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
   }));
 
   return res.status(200).json({ generated, skipped, errors, total: symbolSmaPeriod.size });
+}
+
+async function handleTestAi(res: VercelResponse) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(200).json({ ok: false, error: 'ANTHROPIC_API_KEY is not set' });
+  }
+  const start = Date.now();
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 20,
+      messages: [{ role: 'user', content: 'Reply with just: ok' }],
+    });
+    const reply = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '';
+    return res.status(200).json({ ok: true, reply, latencyMs: Date.now() - start, model: msg.model });
+  } catch (err: any) {
+    return res.status(200).json({ ok: false, error: err.message, latencyMs: Date.now() - start });
+  }
 }
