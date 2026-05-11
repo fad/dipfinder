@@ -5,7 +5,7 @@ var stocks = [];  // populated from localStorage in initializeDipfinder
 var chart;        // Chart.js instance; created/destroyed in renderDashboardData
 var chartOrientation = 'y'; // 'y' = horizontal bars, 'x' = vertical bars
 var lastRenderCache = { data: null, period: null, tableBody: null };
-var newsCache = {};  // ticker → articles[], kept in sync with add/remove
+var aiSummariesCache = {};  // symbol → { summary, weekOf, companyName }
 
 // Pro multi-watchlist state
 var activeWatchlistId = 'primary';
@@ -71,18 +71,15 @@ async function fetchCompanyName(stock) {
     return data.name;
 }
 
-async function fetchNews(stock) {
+async function fetchAiSummaries(symbolList) {
+    if (!symbolList || !symbolList.length) return {};
     try {
-        const response = await fetch(stockDataUrl(stock, { action: 'news' }));
-        if (!response.ok) {
-            throw new Error(`Error fetching news for ${stock}: ${response.statusText}`);
-        }
-        const data = await response.json();
-        return data.news;
-    } catch (error) {
-        console.error(error);
-        return [];
-    }
+        const params = new URLSearchParams({ action: 'ai-summaries', symbols: symbolList.join(',') });
+        const res = await fetch(`${BASE_URL}/api/batch-stocks?${params}`);
+        if (!res.ok) return {};
+        const data = await res.json();
+        return data.summaries || {};
+    } catch { return {}; }
 }
 
 async function fetchBatchStockSMA(stocks, period) {
@@ -155,19 +152,6 @@ function formatPercent(value) {
     return `${sign}${value.toFixed(2)}%`;
 }
 
-function formatNewsDate(value) {
-    if (!value) return 'Recent';
-    const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Recent';
-    const diff = Date.now() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
-}
 
 // ── SMA diff helpers ──────────────────────────────────────────────────────────
 
@@ -340,117 +324,48 @@ function renderStockTableRows(tableBody, stockDataArray) {
     });
 }
 
-// ── News helpers ──────────────────────────────────────────────────────────────
+// ── AI summary helpers ────────────────────────────────────────────────────────
 
-function getNewsTimestamp(value) {
-    if (!value) return 0;
-    const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
-    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
-}
-
-function getArticleKey(article) {
-    return (article.url || article.headline || '').toLowerCase().trim();
-}
-
-function renderNewsArticle(article, hidden) {
-    const hiddenClass = hidden ? ' hidden' : '';
-    return `
-        <article class="ticker-news-item${hiddenClass} rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm transition hover:shadow-md hover:border-blue-100">
-            <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer" class="block">
-                <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-blue-500">${escapeHtml(article.source || 'News')}</p>
-                <p class="text-sm font-semibold leading-snug text-gray-900 transition group-hover:text-blue-700">${escapeHtml(article.headline || 'Untitled article')}</p>
-                <p class="mt-2 text-xs text-gray-400">${formatNewsDate(article.datetime)}</p>
-            </a>
-        </article>
-    `;
-}
-
-function renderNewsByTicker(newsFeed, newsByTicker) {
+function renderAiSummaries(newsFeed, stockDataArray) {
     newsFeed.empty();
-    const tickers = Object.keys(newsByTicker).filter(ticker => newsByTicker[ticker].length > 0);
-    if (tickers.length === 0) {
-        newsFeed.append(`
-            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
-                No recent watchlist news found.
+    const smaPeriod = lastRenderCache.period || localStorage.getItem('selectedPeriod') || '200';
+    const withSummaries = (stockDataArray || []).filter(s => aiSummariesCache[s.stock]);
+
+    if (!withSummaries.length) {
+        newsFeed.html(`
+            <div class="rounded-xl border border-gray-100 bg-gray-50 px-5 py-6 text-center">
+                <p class="text-sm font-medium text-gray-500">No brief summaries for your watchlist stocks yet.</p>
+                <p class="mt-1 text-xs text-gray-400">AI insights are generated each Saturday night before Sunday's brief.</p>
             </div>
         `);
         return;
     }
 
-    // Group tickers in rows of 3; each row is a 3-col grid
-    const rows = [];
-    for (let i = 0; i < tickers.length; i += 3) {
-        rows.push(tickers.slice(i, i + 3));
-    }
-
-    const rowsHtml = rows.map(group => {
-        const cells = group.map(ticker =>
-            `<div>${buildTickerNewsSection(ticker, newsByTicker[ticker])}</div>`
-        ).join('');
-        // Pad to 3 cols so borders stay consistent
-        const padding = group.length < 3
-            ? Array(3 - group.length).fill('<div></div>').join('')
+    const cards = withSummaries.map(s => {
+        const entry = aiSummariesCache[s.stock];
+        const diffPercent = getSmaDiffPercent(s);
+        const diffClasses = getSmaDiffClasses(diffPercent);
+        const sign = Number.isFinite(diffPercent) && diffPercent > 0 ? '+' : '';
+        const pct = Number.isFinite(diffPercent) ? `${sign}${diffPercent.toFixed(1)}%` : '--';
+        const weekLabel = entry.weekOf
+            ? new Date(entry.weekOf).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : '';
-        return `<div class="news-row-grid">${cells}${padding}</div>`;
+        const href = `/screener?stock=${encodeURIComponent(s.stock)}`;
+        return `
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <a href="${href}" class="text-sm font-bold text-gray-900 hover:text-blue-600 transition-colors">${escapeHtml(s.stock)}</a>
+                    <span class="truncate text-xs text-gray-500">${escapeHtml(s.companyName || entry.companyName || '')}</span>
+                </div>
+                <span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${diffClasses}">${pct} vs ${smaPeriod}d SMA</span>
+            </div>
+            <p class="text-sm text-gray-700 leading-relaxed">${escapeHtml(entry.summary)}</p>
+            ${weekLabel ? `<p class="mt-2.5 text-xs text-gray-400">Week of ${escapeHtml(weekLabel)} &middot; <a href="${href}" class="text-blue-500 hover:text-blue-700 transition-colors">View in screener &rarr;</a></p>` : ''}
+        </div>`;
     }).join('');
 
-    newsFeed.html(`<div style="display:flex;flex-direction:column;gap:32px;">${rowsHtml}</div>`);
-}
-
-function buildTickerNewsSection(ticker, articles) {
-    const deduped = [];
-    const seen = new Set();
-    [...articles]
-        .sort((a, b) => getNewsTimestamp(b.datetime) - getNewsTimestamp(a.datetime))
-        .forEach(article => {
-            const key = getArticleKey(article);
-            if (!key || seen.has(key)) return;
-            seen.add(key);
-            deduped.push(article);
-        });
-    if (deduped.length === 0) return '';
-
-    const visibleHtml = deduped.slice(0, 4).map(a => renderNewsArticle(a, false)).join('');
-    const hiddenHtml  = deduped.slice(4, 8).map(a => renderNewsArticle(a, true)).join('');
-    const buttonHtml  = deduped.length > 4
-        ? `<button type="button" class="view-more-news mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700" data-ticker="${escapeHtml(ticker)}">View more news</button>`
-        : '';
-
-    return `
-        <section>
-            <div class="mb-3">
-                <h3 class="text-base font-bold text-gray-900"><a href="/screener?stock=${encodeURIComponent(ticker)}" class="hover:text-blue-600 transition-colors">${escapeHtml(ticker)}</a></h3>
-            </div>
-            <div class="space-y-3" data-news-group="${escapeHtml(ticker)}">
-                ${visibleHtml}${hiddenHtml}
-            </div>
-            ${buttonHtml}
-        </section>
-    `;
-}
-
-function appendTickerNewsSection(newsFeed, ticker, articles) {
-    const html = buildTickerNewsSection(ticker, articles);
-    if (!html) return;
-    const wrapper = newsFeed.find('.space-y-8');
-    if (wrapper.length) {
-        const lastRow = wrapper.children('.grid').last();
-        const cells = lastRow.children('div');
-        if (lastRow.length && cells.length < 3) {
-            // There's room in the last row — replace an empty padding cell or append
-            const emptyCell = cells.filter((_, el) => el.innerHTML.trim() === '').first();
-            if (emptyCell.length) {
-                emptyCell.html(html);
-            } else {
-                lastRow.append(`<div>${html}</div>`);
-            }
-        } else {
-            // Start a new row
-            wrapper.append(`<div class="news-row-grid"><div>${html}</div><div></div><div></div></div>`);
-        }
-    } else {
-        newsFeed.append(html);
-    }
+    newsFeed.html(cards);
 }
 
 // ── Inline notices ────────────────────────────────────────────────────────────
@@ -635,8 +550,9 @@ function removeStockFromUI(stockToRemove) {
         }
     }
 
-    delete newsCache[stockToRemove];
-    renderNewsByTicker($('#news-feed'), newsCache);
+    delete aiSummariesCache[stockToRemove];
+    const remainingData = (lastRenderCache.data || []).filter(s => s.stock !== stockToRemove);
+    renderAiSummaries($('#news-feed'), remainingData);
 
     $('#stock-limit-message').addClass('hidden');
     saveDipfinderContentState();
@@ -799,16 +715,15 @@ async function updateTableAndChart(period) {
     const stockDataArray = [];
     let removedStocks = [];
 
-    // Kick off news fetch immediately — it's independent of SMA data
+    // Kick off AI summaries fetch immediately — it's independent of SMA data
     const newsFeed = $('#news-feed');
     newsFeed.html(`
         <div class="flex items-center gap-2 py-6 text-gray-400">
             <div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent shrink-0"></div>
-            <span class="text-sm">Loading news…</span>
+            <span class="text-sm">Loading summaries…</span>
         </div>
     `);
-    if (stocks.length > 0) $('#news-title').text('News by ticker');
-    const newsPromise = Promise.all(stocks.map(stock => fetchNews(stock)));
+    const summariesPromise = fetchAiSummaries(stocks);
 
     let batchResults;
     try {
@@ -871,20 +786,8 @@ async function updateTableAndChart(period) {
     saveCachedDashboardData(period, stockDataArray);
     renderDashboardData(stockDataArray, period, tableBody);
 
-    const newsResults = await newsPromise;
-    newsCache = {};
-    stocks.forEach((stock, i) => {
-        newsCache[stock] = Array.isArray(newsResults[i]) ? newsResults[i] : [];
-    });
-    renderNewsByTicker(newsFeed, newsCache);
-
-    $(document).off('click.dipfinderNews', '.view-more-news');
-    $(document).on('click.dipfinderNews', '.view-more-news', function() {
-        const ticker = $(this).data('ticker');
-        $(`[data-news-group="${ticker}"] .ticker-news-item.hidden`).removeClass('hidden');
-        $(this).remove();
-    });
-
+    aiSummariesCache = await summariesPromise;
+    renderAiSummaries(newsFeed, stockDataArray);
     stopLoadingDots(newsLoading, null, '');
     saveDipfinderContentState();
 }
@@ -1314,9 +1217,10 @@ async function moveStockToWatchlist(symbol, targetId) {
         }
     }
 
-    // Update news
-    delete newsCache[symbol];
-    renderNewsByTicker($('#news-feed'), newsCache);
+    // Update brief summaries
+    delete aiSummariesCache[symbol];
+    const remainingData = (lastRenderCache.data || []).filter(s => s.stock !== symbol);
+    renderAiSummaries($('#news-feed'), remainingData);
 
     // Persist: save current watchlist
     await saveWatchlistToDb();
@@ -1571,9 +1475,10 @@ window.initializeDipfinder = function() {
         if (input) { input.value = ''; input.disabled = false; }
         if (loadingEl) loadingEl.textContent = '';
 
-        fetchNews(newStock).then(articles => {
-            newsCache[newStock] = Array.isArray(articles) ? articles : [];
-            renderNewsByTicker($('#news-feed'), newsCache);
+        fetchAiSummaries([newStock]).then(newSummaries => {
+            Object.assign(aiSummariesCache, newSummaries);
+            const updatedData = [...(lastRenderCache.data || []), newStockData];
+            renderAiSummaries($('#news-feed'), updatedData);
         });
 
         saveDipfinderContentState();

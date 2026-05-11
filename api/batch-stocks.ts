@@ -6,6 +6,7 @@ import { getActiveTickers, upsertTicker } from './lib/tickers';
 
 const GUEST_STOCK_LIMIT = 5;
 const AUTH_STOCK_LIMIT = 10;
+const TICKER_RE = /^[A-Z0-9.\-]{1,10}$/;
 
 type DashboardStockCache = {
   companyName: string;
@@ -46,6 +47,45 @@ function getCachedDashboardStock(data: any): DashboardStockCache | null {
 
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // GET /api/batch-stocks?action=ai-summaries&symbols=AAPL,MSFT,...
+  // Returns the most recent admin-approved AI summary per symbol.
+  if (req.method === 'GET' && req.query.action === 'ai-summaries') {
+    const symbolsRaw = typeof req.query.symbols === 'string' ? req.query.symbols : '';
+    const symbols = symbolsRaw
+      .split(',')
+      .map(s => s.trim().toUpperCase())
+      .filter(s => TICKER_RE.test(s))
+      .slice(0, 20); // cap to 20 symbols
+
+    if (!symbols.length) return res.status(400).json({ error: 'Missing or invalid symbols' });
+
+    try {
+      const db = await connectToDatabase();
+      const docs = await db.collection('aiSummaries')
+        .find({ symbol: { $in: symbols }, reviewed: true })
+        .sort({ weekOf: -1 })
+        .toArray();
+
+      // Deduplicate: keep the most recent approved entry per symbol
+      const summaries: Record<string, { summary: string; weekOf: string; companyName: string }> = {};
+      for (const doc of docs) {
+        if (!summaries[doc.symbol]) {
+          summaries[doc.symbol] = {
+            summary: doc.summary,
+            weekOf: doc.weekOf,
+            companyName: doc.companyName,
+          };
+        }
+      }
+
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
+      return res.status(200).json({ summaries });
+    } catch (error) {
+      console.error('ai-summaries error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   // GET /api/batch-stocks?action=tickers — used by stock autocomplete
   if (req.method === 'GET' && req.query.action === 'tickers') {
     try {
@@ -83,7 +123,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: `Stock limit exceeded (max ${stockLimit})` });
   }
 
-  const TICKER_RE = /^[A-Z0-9.\-]{1,10}$/;
   const validatedStocks = (stocks as any[]).filter(
     s => typeof s === 'string' && TICKER_RE.test(s.toUpperCase())
   );
