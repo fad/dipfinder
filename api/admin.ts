@@ -3,8 +3,10 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import axios from 'axios';
 import { connectToDatabase } from './lib/mongodb';
-import { yahooFinance } from './lib/stocks';
+import { yahooFinance, calculateSma } from './lib/stocks';
 import { getEmailTemplate, saveEmailTemplate, listTemplateKeys, sendEmail, buildEmailHtml, renderTemplate } from './lib/email';
+import { fetchStockData, fetchNewsForSymbol, NEWSLETTER_SMA_DEFAULT } from './lib/newsletter-data';
+import { generateAiSummary, upsertAiSummary } from './lib/ai-summaries';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -86,6 +88,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleListAiSummaries(req, res);
       case 'update-ai-summary':
         return await handleUpdateAiSummary(req, res);
+      case 'generate-ai-summaries':
+        return await handleGenerateAiSummaries(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -711,4 +715,73 @@ async function handleUpdateAiSummary(req: VercelRequest, res: VercelResponse) {
   );
   if (result.matchedCount === 0) return res.status(404).json({ error: 'Summary not found' });
   return res.status(200).json({ ok: true });
+}
+
+async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'ANTHROPIC_API_KEY is not set' });
+  }
+
+  // force=true regenerates summaries that already exist this week (resets reviewed/approved)
+  const force = req.body?.force === true;
+
+  const db = await connectToDatabase();
+
+  // Collect unique symbols + their preferred SMA period from all brief subscribers
+  const users = await db.collection('users')
+    .find({ sundayBriefSubscribed: true, watchlist: { $exists: true, $not: { $size: 0 } } })
+    .project({ watchlist: 1, smaPeriod: 1 })
+    .toArray();
+
+  const symbolSmaPeriod = new Map<string, number>();
+  for (const user of users) {
+    const period = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
+    for (const sym of (user.watchlist as string[] || [])) {
+      const normalized = sym.toUpperCase();
+      if (!symbolSmaPeriod.has(normalized)) symbolSmaPeriod.set(normalized, period);
+    }
+  }
+
+  if (symbolSmaPeriod.size === 0) {
+    return res.status(200).json({ generated: 0, skipped: 0, errors: 0, total: 0, message: 'No subscribers with watchlists found' });
+  }
+
+  // weekOf = today at midnight UTC (matches the snapshot convention)
+  const now = new Date();
+  const weekOf = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  const summaryCol = db.collection('aiSummaries');
+  let generated = 0, skipped = 0, errors = 0;
+
+  for (const [symbol, smaPeriod] of symbolSmaPeriod) {
+    try {
+      if (!force) {
+        const existing = await summaryCol.findOne({ symbol, weekOf });
+        if (existing) { skipped++; continue; }
+      }
+
+      const stockData = await fetchStockData(symbol, db);
+      const news = await fetchNewsForSymbol(symbol, db);
+      const headlines = news.map((n: any) => n.headline);
+
+      if (!headlines.length) { skipped++; continue; }
+      if (stockData.closes.length < smaPeriod) { skipped++; continue; }
+
+      const sma = calculateSma(stockData.closes, smaPeriod);
+      const relativePrice = stockData.currentPrice / sma - 1;
+
+      const summary = await generateAiSummary(symbol, stockData.companyName, headlines, relativePrice, smaPeriod);
+      if (!summary) { skipped++; continue; }
+
+      await upsertAiSummary(db, symbol, stockData.companyName, headlines, summary, weekOf);
+      generated++;
+    } catch (err) {
+      console.error(`generate-ai-summaries: failed for ${symbol}:`, err);
+      errors++;
+    }
+  }
+
+  return res.status(200).json({ generated, skipped, errors, total: symbolSmaPeriod.size });
 }
