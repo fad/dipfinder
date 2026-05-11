@@ -69,7 +69,11 @@ export function escapeHtml(text: string): string {
 // Values that contain user-supplied text must be escaped with escapeHtml() before being passed in.
 // Values that are pre-built HTML blocks must NOT be escaped.
 export function renderTemplate(html: string, vars: Record<string, string>): string {
-  return html.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
+  const substitute = (_: string, k: string) => vars[k] ?? '';
+  // Handle both literal {{var}} and WYSIWYG HTML-encoded &#123;&#123;var&#125;&#125;
+  return html
+    .replace(/\{\{(\w+)\}\}/g, substitute)
+    .replace(/&#123;&#123;(\w+)&#125;&#125;/g, substitute);
 }
 
 // ── Default template bodies (inner HTML only, no outer wrapper) ───────────────
