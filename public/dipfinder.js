@@ -365,7 +365,7 @@ function renderAiSummaries(newsFeed, stockDataArray) {
         </div>`;
     }).join('');
 
-    newsFeed.html(cards);
+    newsFeed.html(`<div class="grid grid-cols-1 gap-4 md:grid-cols-2">${cards}</div>`);
 }
 
 // ── Inline notices ────────────────────────────────────────────────────────────
