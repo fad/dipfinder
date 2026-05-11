@@ -411,14 +411,17 @@ export async function upsertAiSummary(
  * Only returns summaries that have been reviewed and approved by an admin.
  */
 export async function getApprovedSummaries(db: any): Promise<Record<string, string>> {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const docs = await db.collection('aiSummaries')
-    .find({ reviewed: true, approved: true, weekOf: { $gte: sevenDaysAgo } })
+    .find({ reviewed: true, approved: true })
+    .sort({ weekOf: -1 })
     .toArray();
 
+  // Most recent approved summary per symbol (sort guarantees newest-first)
   const result: Record<string, string> = {};
   for (const doc of docs) {
-    result[doc.symbol] = doc.editedSummary || doc.summary;
+    if (!result[doc.symbol]) {
+      result[doc.symbol] = doc.editedSummary || doc.summary;
+    }
   }
   return result;
 }
