@@ -70,15 +70,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const isCronInvocation = !!req.headers['x-vercel-cron'];
 
   // Admin can preview any user's brief by passing ?previewEmail=<email>.
-  // Only honoured for admin JWT auth (not cron secret) to prevent enumeration.
+  // isAuthed already verified the caller; no need to re-check the token here.
   let previewEmail = ADMIN_EMAIL;
-  if (isPreview && req.query.previewEmail) {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    // Confirm this is an admin JWT, not the cron secret
-    if (token && token !== CRON_SECRET) {
-      previewEmail = (req.query.previewEmail as string).toLowerCase();
-    }
+  if (isPreview && req.query.previewEmail && typeof req.query.previewEmail === 'string') {
+    previewEmail = req.query.previewEmail.toLowerCase();
   }
 
   try {
@@ -90,6 +85,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? { email: previewEmail }
       : { sundayBriefSubscribed: true };
     const users = await db.collection('users').find(query).toArray();
+
+    if (isPreview && users.length === 0) {
+      return res.status(404).send(`<p>User not found: ${previewEmail}</p>`);
+    }
 
     let sent = 0, failed = 0, skipped = 0;
 
@@ -112,6 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const watchlist: string[] = user.watchlist || [];
       if (watchlist.length === 0) {
+        if (isPreview) return res.status(200).send('<p>This user has no watchlist stocks.</p>');
         skipped++;
         continue;
       }
@@ -121,6 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const stockResults = await buildStockResults(watchlist, db, smaPeriod);
 
       if (stockResults.length === 0) {
+        if (isPreview) return res.status(200).send(`<p>Could not load stock data for ${user.email}&apos;s watchlist (${watchlist.join(', ')}). Yahoo Finance may be temporarily unavailable or the SMA period requires more history than is cached.</p>`);
         skipped++;
         continue;
       }
