@@ -553,7 +553,6 @@ function buildTierCountBlock(stocks: NewsletterStockRow[]): string {
   let deepDip = 0, dipping = 0, fair = 0, hot = 0;
   for (const s of stocks) {
     const pct = s.relativePrice * 100;
-    if (!Number.isFinite(pct)) continue;
     if (pct < -15)     deepDip++;
     else if (pct < -5) dipping++;
     else if (pct < 5)  fair++;
@@ -561,14 +560,13 @@ function buildTierCountBlock(stocks: NewsletterStockRow[]): string {
   }
   const pill = (bg: string, fg: string, label: string, n: number) => n === 0 ? '' :
     `<span style="display:inline-block;background:${bg};color:${fg};font-weight:700;font-size:12px;padding:3px 10px;border-radius:999px;margin:0 6px 6px 0;white-space:nowrap;">${label} ${n}</span>`;
-  const pills = [
+  const html = [
     pill('#0F766E', '#CCFBF1', 'Deep dip', deepDip),
     pill('#CCFBF1', '#0F766E', 'Dipping',  dipping),
     pill('#F1F5F9', '#475569', 'Fair',      fair),
     pill('#FFEDD5', '#C2410C', 'Hot',       hot),
   ].filter(Boolean).join('');
-  if (!pills) return '';
-  return `<div style="margin:0 0 20px;line-height:2;">${pills}</div>`;
+  return html ? `<div style="margin:0 0 20px;line-height:2;">${html}</div>` : '';
 }
 
 function buildChartBlock(stocks: NewsletterStockRow[], orientation: 'x' | 'y', smaPeriod: number): string {
@@ -815,12 +813,7 @@ export async function buildNewsletterEmailHtml({
   if (template) {
     const resolvedOpener = openerSummary ||
       `Here are your watchlist stocks ranked by distance from their ${smaPeriod}-day SMA.`;
-    // Back-compat: templates saved before {{tierCounts}} existed won't have the placeholder.
-    // Inject it right after {{openerSummary}} so stored templates pick it up automatically.
-    const templateHtml = template.html.includes('{{tierCounts}}')
-      ? template.html
-      : template.html.replace('{{openerSummary}}', '{{openerSummary}}\n\n    {{tierCounts}}');
-    let html = renderTemplate(templateHtml, {
+    let html = renderTemplate(template.html, {
       name: escapeHtml(name || 'there'),
       dateLabel,
       shortDate,
