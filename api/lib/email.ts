@@ -142,6 +142,8 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
   <div style="padding:28px 32px;">
     <p style="color:#1e293b;margin:0 0 16px;line-height:1.6;font-size:0.9em;"><strong>Good morning, {{name}}</strong><br><span style="color:#475569;">{{openerSummary}}</span></p>
 
+    {{tierCounts}}
+
     {{chartBlock}}
 
     {{watchlistTable}}
@@ -546,6 +548,34 @@ function buildNewsletterPreviewText(stocks: NewsletterStockRow[]): string {
 
 // ── Newsletter block builders ─────────────────────────────────────────────────
 
+function buildTierCountsBlock(stocks: NewsletterStockRow[]): string {
+  if (!stocks.length) return '';
+  const tiers = [
+    { label: 'Deep Dip', bg: '#CCFBF1', color: '#0F766E', border: '#99F6E4', count: 0 },
+    { label: 'Dipping',  bg: '#F0FDFA', color: '#0D9488', border: '#CCFBF1', count: 0 },
+    { label: 'Fair',     bg: '#F1F5F9', color: '#475569', border: '#E2E8F0', count: 0 },
+    { label: 'Hot',      bg: '#FEF3C7', color: '#B45309', border: '#FDE68A', count: 0 },
+  ];
+  for (const s of stocks) {
+    const pct = s.relativePrice * 100;
+    if (pct < -15)      tiers[0].count++;
+    else if (pct < -5)  tiers[1].count++;
+    else if (pct < 5)   tiers[2].count++;
+    else                tiers[3].count++;
+  }
+  const cells = tiers.map(t => `
+<td style="width:25%;padding:0 4px;">
+  <div style="background:${t.bg};border:1px solid ${t.border};border-radius:8px;padding:12px 8px;text-align:center;">
+    <div style="font-size:1.4em;font-weight:800;color:${t.color};line-height:1;">${t.count}</div>
+    <div style="font-size:0.62em;font-weight:700;color:${t.color};text-transform:uppercase;letter-spacing:0.07em;margin-top:4px;">${t.label}</div>
+  </div>
+</td>`).join('');
+  return `
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 4px;border-collapse:separate;border-spacing:0;">
+  <tr>${cells}</tr>
+</table>`;
+}
+
 function buildNewsSummariesBlock(
   stocks: NewsletterStockRow[],
   smaPeriod: number,
@@ -805,6 +835,7 @@ export async function buildNewsletterEmailHtml({
 
   const template = await getEmailTemplate(db, 'sunday-brief');
 
+  const tierCounts = buildTierCountsBlock(stocks);
   const chartBlock = buildChartBlock(stocks, chartOrientation, smaPeriod);
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
   const newsSummaries = buildNewsSummariesBlock(stocks, smaPeriod, aiSummaries);
@@ -825,6 +856,7 @@ export async function buildNewsletterEmailHtml({
       dateLabel,
       shortDate,
       smaPeriod: String(smaPeriod),
+      tierCounts,
       chartBlock,
       watchlistTable,
       newsSummaries,
