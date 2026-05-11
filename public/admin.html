@@ -1795,7 +1795,7 @@
         <ul style="color:#64748b;font-size:0.75rem;line-height:1.7;margin:0.4rem 0 0;padding-left:1.25rem;">${headlines}</ul>
       </details>
     </div>
-    <div id="ai-summary-edit-${idx}" style="display:none;">
+    <div id="ai-summary-edit-${idx}" style="display:none;" onclick="event.stopPropagation()">
       <textarea id="ai-summary-textarea-${idx}" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;font-family:inherit;line-height:1.6;box-sizing:border-box;resize:vertical;" rows="3">${displayText}</textarea>
       <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
         <button onclick="saveEditedAiSummary(${idx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.78rem;font-weight:700;cursor:pointer;">Save &amp; Approve</button>
@@ -1814,9 +1814,15 @@
     }
 
     function setAiFocus(idx) {
+      // Update border colors in-place — never re-render, which would destroy textarea focus
+      const prev = document.getElementById('ai-card-' + focusedAiIdx);
+      if (prev) prev.style.borderColor = '#334155';
       focusedAiIdx = idx;
-      renderAiSummaries();
-      document.getElementById('ai-card-' + idx)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const next = document.getElementById('ai-card-' + idx);
+      if (next) {
+        next.style.borderColor = '#38bdf8';
+        next.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
 
     document.addEventListener('keydown', function(e) {
@@ -1869,8 +1875,12 @@
     }
 
     function editAiSummary(idx) {
+      setAiFocus(idx);
       document.getElementById('ai-summary-display-' + idx).style.display = 'none';
       document.getElementById('ai-summary-edit-' + idx).style.display = 'block';
+      const ta = document.getElementById('ai-summary-textarea-' + idx);
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
     }
 
     function cancelEditAiSummary(idx) {
