@@ -142,6 +142,8 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
 
     {{watchlistTable}}
 
+    {{newsSummaries}}
+
     <div style="margin-top:28px;text-align:center;">
       <a href="https://dipfinder.com/app" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9em;letter-spacing:0.01em;">Open Dip Finder &#x2197;</a>
     </div>
@@ -540,6 +542,35 @@ function buildNewsletterPreviewText(stocks: NewsletterStockRow[]): string {
 
 // ── Newsletter block builders ─────────────────────────────────────────────────
 
+function buildNewsSummariesBlock(
+  stocks: NewsletterStockRow[],
+  smaPeriod: number,
+  aiSummaries?: Record<string, string>,
+): string {
+  if (!aiSummaries) return '';
+  const cards = stocks
+    .filter(s => aiSummaries[s.symbol])
+    .map(s => {
+      const summary = aiSummaries[s.symbol];
+      const pct = (s.relativePrice * 100).toFixed(1);
+      const sign = s.relativePrice > 0 ? '+' : '';
+      const { color: dipColor } = getBadgeColors(s.relativePrice * 100);
+      const href = `https://dipfinder.com/screener?stock=${s.symbol}`;
+      return `
+<div style="padding:14px 0;border-top:1px solid #f1f5f9;">
+  <p style="margin:0 0 6px;line-height:1.4;">
+    <a href="${href}" style="font-weight:800;color:#1e293b;text-decoration:none;font-size:0.9em;margin-right:8px;">${s.symbol}</a><span style="color:#64748b;font-size:0.8em;">${escapeHtml(s.companyName)}</span><span style="float:right;font-weight:700;color:${dipColor};font-size:0.85em;">${sign}${pct}% vs ${smaPeriod}d SMA</span>
+  </p>
+  <p style="margin:0;color:#374151;font-size:0.875em;line-height:1.65;">${escapeHtml(summary)}</p>
+</div>`;
+    });
+  if (!cards.length) return '';
+  return `
+<div style="margin-top:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:4px 16px 2px;">
+  <h2 style="margin:14px 0 2px;font-size:0.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">This Week's News</h2>
+  ${cards.join('')}
+</div>`;
+}
 
 function buildChartBlock(stocks: NewsletterStockRow[], orientation: 'x' | 'y', smaPeriod: number): string {
   if (!stocks.length) return '';
@@ -772,6 +803,7 @@ export async function buildNewsletterEmailHtml({
 
   const chartBlock = buildChartBlock(stocks, chartOrientation, smaPeriod);
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
+  const newsSummaries = buildNewsSummariesBlock(stocks, smaPeriod, aiSummaries);
   const newsBlock = buildNewsBlockHtml(stocks, smaPeriod, aiSummaries);
   const viewOnlineBlock = viewOnlineUrl
     ? `<span style="display:table-cell;text-align:right;"><a href="${viewOnlineUrl}" style="color:#64748b;font-size:0.75em;text-decoration:none;">View Online</a></span>`
@@ -791,6 +823,7 @@ export async function buildNewsletterEmailHtml({
       smaPeriod: String(smaPeriod),
       chartBlock,
       watchlistTable,
+      newsSummaries,
       newsBlock,
       viewOnlineBlock,
       unsubscribeUrl,
