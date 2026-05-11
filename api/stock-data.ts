@@ -395,6 +395,6 @@ async function fetchFromFinnhub(symbol: string) {
 
 async function handleAiSummary(db: any, symbol: string, res: VercelResponse) {
   const summary = await getApprovedSummaryForSymbol(db, symbol);
-  res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+  res.setHeader('Cache-Control', 'no-cache');
   return res.status(200).json({ summary });
 }

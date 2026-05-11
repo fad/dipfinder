@@ -1828,10 +1828,14 @@
     document.addEventListener('keydown', function(e) {
       if (document.getElementById('tab-ai-summaries')?.classList.contains('active') && !aiSummariesData.length) return;
       if (!document.getElementById('tab-ai-summaries')?.classList.contains('active')) return;
-      // Don't fire when typing in a textarea or input
-      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+      // Allow Escape through from textarea (to cancel edit); block all other keys
+      if ((e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') && e.key !== 'Escape') return;
 
-      if (e.key === 'j' || e.key === 'ArrowDown') {
+      if (e.key === 'Escape') {
+        const match = e.target.id?.match(/ai-summary-textarea-(\d+)/);
+        if (match) { cancelEditAiSummary(parseInt(match[1])); e.preventDefault(); }
+        return;
+      } else if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
         setAiFocus(Math.min(focusedAiIdx + 1, aiSummariesData.length - 1));
       } else if (e.key === 'k' || e.key === 'ArrowUp') {
