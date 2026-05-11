@@ -126,20 +126,22 @@ export async function generateAiSummary(
   // Volume anomaly context
   const volumeContext = options?.volumes ? getVolumeContext(options.volumes) : '';
 
-  // Macro context
+  // Macro context — only include if at least one index moved meaningfully (>1%)
+  // so Claude doesn't waste words noting a flat market
   let macroContext = '';
   if (options?.macro) {
     const parts: string[] = [];
-    if (options.macro.spyWeekly !== undefined) {
+    const MACRO_THRESHOLD = 0.01;
+    if (options.macro.spyWeekly !== undefined && Math.abs(options.macro.spyWeekly) >= MACRO_THRESHOLD) {
       parts.push(`S&P 500 (SPY) ${options.macro.spyWeekly > 0 ? '+' : ''}${options.macro.spyWeekly.toFixed(1)}% this week`);
     }
-    if (options.macro.qqqWeekly !== undefined) {
+    if (options.macro.qqqWeekly !== undefined && Math.abs(options.macro.qqqWeekly) >= MACRO_THRESHOLD) {
       parts.push(`Nasdaq (QQQ) ${options.macro.qqqWeekly > 0 ? '+' : ''}${options.macro.qqqWeekly.toFixed(1)}% this week`);
     }
     if (parts.length) macroContext = `\nMarket context: ${parts.join(', ')}.`;
   }
 
-  const prompt = `You are a concise financial newsletter writer. Given a stock's current market position and recent news headlines, write 1-2 sentences that explain what is happening. Be factual and specific to the provided headlines. If the stock move looks macro-driven (market context shows similar broad move), say so briefly. If volume is elevated, mention it briefly if it adds context. Do not make buy/sell recommendations. Do not start with the stock ticker or company name.
+  const prompt = `You are a concise financial newsletter writer. Given a stock's current market position and recent news headlines, write 1-2 sentences that explain what is happening. Be factual and specific to the provided headlines. Only mention macro context if the broad market moved enough (e.g. >2%) to plausibly explain part of this stock's move - skip it if the market is flat or only slightly up/down. Only mention volume if it is notably elevated. Do not make buy/sell recommendations. Do not start with the stock ticker or company name.
 
 Stock: ${symbol} (${companyName})
 Current position: ${pct} vs ${smaPeriod}-day SMA (${position})${dipContext}${volumeContext}${macroContext}
