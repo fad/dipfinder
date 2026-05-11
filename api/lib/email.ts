@@ -136,7 +136,9 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
   </a>
 
   <div style="padding:28px 32px;">
-    <p style="color:#1e293b;margin:0 0 24px;line-height:1.6;font-size:0.9em;"><strong>Good morning, {{name}}</strong><br><span style="color:#475569;">{{openerSummary}}</span></p>
+    <p style="color:#1e293b;margin:0 0 16px;line-height:1.6;font-size:0.9em;"><strong>Good morning, {{name}}</strong><br><span style="color:#475569;">{{openerSummary}}</span></p>
+
+    {{tierCounts}}
 
     {{chartBlock}}
 
@@ -540,6 +542,35 @@ function buildNewsletterPreviewText(stocks: NewsletterStockRow[]): string {
 
 // ── Newsletter block builders ─────────────────────────────────────────────────
 
+/**
+ * Four colored pills showing how many watchlist stocks fall into each SMA tier.
+ * Only pills with a non-zero count are rendered, so the block shrinks naturally.
+ * Exposed as {{tierCounts}} in the sunday-brief template — can be repositioned
+ * by the admin via the template editor.
+ */
+function buildTierCountBlock(stocks: NewsletterStockRow[]): string {
+  if (!stocks.length) return '';
+  let deepDip = 0, dipping = 0, fair = 0, hot = 0;
+  for (const s of stocks) {
+    const pct = s.relativePrice * 100;
+    if (!Number.isFinite(pct)) continue;
+    if (pct < -15)     deepDip++;
+    else if (pct < -5) dipping++;
+    else if (pct < 5)  fair++;
+    else               hot++;
+  }
+  const pill = (bg: string, fg: string, label: string, n: number) => n === 0 ? '' :
+    `<span style="display:inline-block;background:${bg};color:${fg};font-weight:700;font-size:12px;padding:3px 10px;border-radius:999px;margin:0 6px 6px 0;white-space:nowrap;">${label} ${n}</span>`;
+  const pills = [
+    pill('#0F766E', '#CCFBF1', 'Deep dip', deepDip),
+    pill('#CCFBF1', '#0F766E', 'Dipping',  dipping),
+    pill('#F1F5F9', '#475569', 'Fair',      fair),
+    pill('#FFEDD5', '#C2410C', 'Hot',       hot),
+  ].filter(Boolean).join('');
+  if (!pills) return '';
+  return `<div style="margin:0 0 20px;line-height:2;">${pills}</div>`;
+}
+
 function buildChartBlock(stocks: NewsletterStockRow[], orientation: 'x' | 'y', smaPeriod: number): string {
   if (!stocks.length) return '';
   const chartUrl = generateBarChartUrl(stocks, orientation);
@@ -769,6 +800,7 @@ export async function buildNewsletterEmailHtml({
 
   const template = await getEmailTemplate(db, 'sunday-brief');
 
+  const tierCounts = buildTierCountBlock(stocks);
   const chartBlock = buildChartBlock(stocks, chartOrientation, smaPeriod);
   const watchlistTable = buildWatchlistTableHtml(stocks, smaPeriod);
   const newsBlock = buildNewsBlockHtml(stocks, smaPeriod, aiSummaries);
@@ -788,6 +820,7 @@ export async function buildNewsletterEmailHtml({
       dateLabel,
       shortDate,
       smaPeriod: String(smaPeriod),
+      tierCounts,
       chartBlock,
       watchlistTable,
       newsBlock,
