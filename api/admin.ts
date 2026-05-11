@@ -7,7 +7,7 @@ import { yahooFinance, calculateSma } from './lib/stocks';
 import { getEmailTemplate, saveEmailTemplate, listTemplateKeys, sendEmail, buildEmailHtml, renderTemplate } from './lib/email';
 import Anthropic from '@anthropic-ai/sdk';
 import { fetchStockData, fetchNewsForSymbol, NEWSLETTER_SMA_DEFAULT } from './lib/newsletter-data';
-import { generateAiSummary, upsertAiSummary } from './lib/ai-summaries';
+import { generateAiSummary, upsertAiSummary, getAiPromptTemplate, DEFAULT_NEWS_SUMMARY_PROMPT } from './lib/ai-summaries';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -95,6 +95,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleRegenerateAiSummary(req, res);
       case 'list-ai-cost-history':
         return await handleListAiCostHistory(res);
+      case 'get-ai-prompt':
+        return await handleGetAiPrompt(res);
+      case 'save-ai-prompt':
+        return await handleSaveAiPrompt(req, res);
       case 'test-ai':
         return await handleTestAi(res);
       default:
@@ -815,11 +819,12 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
 
   const skipped = symbolSmaPeriod.size - payloads.length;
 
-  // Step 2: run Claude calls in parallel with macro + dip-duration context
+  // Step 2: fetch prompt template once, then run Claude calls in parallel
+  const promptTemplate = await getAiPromptTemplate(db);
   let generated = 0, errors = 0, totalInputTokens = 0, totalOutputTokens = 0;
   await Promise.all(payloads.map(async ({ symbol, smaPeriod, companyName, headlines, relativePrice, closes, volumes }) => {
     try {
-      const result = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod, { closes, volumes, macro });
+      const result = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod, { closes, volumes, macro, promptTemplate });
       if (!result.summary) return;
       await upsertAiSummary(db, symbol, companyName, headlines, result, weekOf);
       generated++;
@@ -837,6 +842,33 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
     totalInputTokens, totalOutputTokens,
     estimatedCost: estimateCost(totalInputTokens, totalOutputTokens),
   });
+}
+
+async function handleGetAiPrompt(res: VercelResponse) {
+  const db = await connectToDatabase();
+  const doc = await db.collection('settings').findOne({ key: 'ai-prompt-news-summary' });
+  return res.status(200).json({
+    prompt: doc?.value ?? null,
+    default: DEFAULT_NEWS_SUMMARY_PROMPT,
+    isCustom: !!doc?.value,
+  });
+}
+
+async function handleSaveAiPrompt(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { prompt, reset } = req.body || {};
+  const db = await connectToDatabase();
+  if (reset) {
+    await db.collection('settings').deleteOne({ key: 'ai-prompt-news-summary' });
+    return res.status(200).json({ ok: true, reset: true });
+  }
+  if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required' });
+  await db.collection('settings').updateOne(
+    { key: 'ai-prompt-news-summary' },
+    { $set: { key: 'ai-prompt-news-summary', value: prompt.trim(), updatedAt: new Date() } },
+    { upsert: true },
+  );
+  return res.status(200).json({ ok: true });
 }
 
 async function handleRegenerateAiSummary(req: VercelRequest, res: VercelResponse) {
@@ -881,9 +913,10 @@ async function handleRegenerateAiSummary(req: VercelRequest, res: VercelResponse
     if (qqq.closes.length >= 6) macro.qqqWeekly = qqq.closes[qqq.closes.length - 1] / qqq.closes[qqq.closes.length - 6] - 1;
   } catch { /* best-effort */ }
 
+  const [promptTemplate] = await Promise.all([getAiPromptTemplate(db)]);
   const result = await generateAiSummary(
     symbol.toUpperCase(), stockData.companyName, headlines, relativePrice, smaPeriod,
-    { closes: stockData.closes, volumes: stockData.volumes || [], macro },
+    { closes: stockData.closes, volumes: stockData.volumes || [], macro, promptTemplate },
   );
   if (!result.summary) return res.status(500).json({ error: 'Claude returned an empty summary' });
 

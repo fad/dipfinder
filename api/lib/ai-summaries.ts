@@ -88,6 +88,36 @@ function getDipContext(closes: number[], smaPeriod: number): { streak: number; t
 }
 
 /**
+ * Default prompt template. Variables substituted at call time:
+ * {{symbol}}, {{companyName}}, {{pct}}, {{smaPeriod}}, {{position}},
+ * {{dipContext}}, {{volumeContext}}, {{macroContext}}, {{headlines}}
+ *
+ * Context variables (dipContext, volumeContext, macroContext) are empty strings
+ * when not applicable, so they collapse cleanly in the rendered prompt.
+ */
+export const DEFAULT_NEWS_SUMMARY_PROMPT =
+`You are a concise financial newsletter writer. Given a stock's current market position and recent news headlines, write 1-2 sentences that explain what is happening. Be factual and specific to the provided headlines. Only mention macro context if the broad market moved enough (e.g. >2%) to plausibly explain part of this stock's move - skip it if the market is flat or only slightly up/down. Only mention volume if it is notably elevated. Do not make buy/sell recommendations. Do not start with the stock ticker or company name.
+
+Stock: {{symbol}} ({{companyName}})
+Current position: {{pct}} vs {{smaPeriod}}-day SMA ({{position}}){{dipContext}}{{volumeContext}}{{macroContext}}
+Recent headlines:
+{{headlines}}
+
+Write a 1-2 sentence summary for a Sunday investor newsletter:`;
+
+/**
+ * Fetch the admin-edited prompt template from the settings collection,
+ * falling back to DEFAULT_NEWS_SUMMARY_PROMPT if none is saved.
+ */
+export async function getAiPromptTemplate(db: any): Promise<string> {
+  try {
+    const doc = await db.collection('settings').findOne({ key: 'ai-prompt-news-summary' });
+    if (doc?.value && typeof doc.value === 'string') return doc.value;
+  } catch { /* fall through */ }
+  return DEFAULT_NEWS_SUMMARY_PROMPT;
+}
+
+/**
  * Call Claude Haiku to produce a 1-2 sentence newsletter summary.
  * Returns empty summary with zero tokens if no API key or no headlines.
  */
@@ -101,6 +131,7 @@ export async function generateAiSummary(
     closes?: number[];
     volumes?: number[];
     macro?: MacroContext;
+    promptTemplate?: string;
   },
 ): Promise<SummaryResult> {
   if (!ANTHROPIC_API_KEY || !headlines.length) {
@@ -141,14 +172,18 @@ export async function generateAiSummary(
     if (parts.length) macroContext = `\nMarket context: ${parts.join(', ')}.`;
   }
 
-  const prompt = `You are a concise financial newsletter writer. Given a stock's current market position and recent news headlines, write 1-2 sentences that explain what is happening. Be factual and specific to the provided headlines. Only mention macro context if the broad market moved enough (e.g. >2%) to plausibly explain part of this stock's move - skip it if the market is flat or only slightly up/down. Only mention volume if it is notably elevated. Do not make buy/sell recommendations. Do not start with the stock ticker or company name.
-
-Stock: ${symbol} (${companyName})
-Current position: ${pct} vs ${smaPeriod}-day SMA (${position})${dipContext}${volumeContext}${macroContext}
-Recent headlines:
-${headlines.slice(0, 5).map((h, i) => `${i + 1}. ${h}`).join('\n')}
-
-Write a 1-2 sentence summary for a Sunday investor newsletter:`;
+  const headlinesList = headlines.slice(0, 5).map((h, i) => `${i + 1}. ${h}`).join('\n');
+  const template = options?.promptTemplate || DEFAULT_NEWS_SUMMARY_PROMPT;
+  const prompt = template
+    .replace('{{symbol}}', symbol)
+    .replace('{{companyName}}', companyName)
+    .replace('{{pct}}', pct)
+    .replace('{{smaPeriod}}', String(smaPeriod))
+    .replace('{{position}}', position)
+    .replace('{{dipContext}}', dipContext)
+    .replace('{{volumeContext}}', volumeContext)
+    .replace('{{macroContext}}', macroContext)
+    .replace('{{headlines}}', headlinesList);
 
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });

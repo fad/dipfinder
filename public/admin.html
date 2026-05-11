@@ -430,6 +430,22 @@
         </div>
         <div id="ai-generate-status" style="display:none; margin-bottom:0.75rem; padding:0.6rem 1rem; background:#1e293b; border:1px solid #334155; border-radius:8px; font-size:0.8rem; color:#94a3b8;"></div>
 
+        <!-- Prompt editor collapsible -->
+        <details id="ai-prompt-details" style="margin-bottom:0.75rem;">
+          <summary style="color:#64748b;font-size:0.78rem;font-weight:600;cursor:pointer;user-select:none;padding:0.4rem 0;" onclick="loadAiPrompt()">Edit AI prompt</summary>
+          <div style="margin-top:0.5rem;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:1rem;">
+            <p style="color:#475569;font-size:0.72rem;margin:0 0 0.5rem;line-height:1.6;">Available variables: <code style="color:#7dd3fc;">{{symbol}}</code> <code style="color:#7dd3fc;">{{companyName}}</code> <code style="color:#7dd3fc;">{{pct}}</code> <code style="color:#7dd3fc;">{{smaPeriod}}</code> <code style="color:#7dd3fc;">{{position}}</code> <code style="color:#7dd3fc;">{{dipContext}}</code> <code style="color:#7dd3fc;">{{volumeContext}}</code> <code style="color:#7dd3fc;">{{macroContext}}</code> <code style="color:#7dd3fc;">{{headlines}}</code></p>
+            <p style="color:#475569;font-size:0.72rem;margin:0 0 0.75rem;">Context variables (dipContext, volumeContext, macroContext) are empty strings when not applicable - place them inline with no surrounding whitespace.</p>
+            <textarea id="ai-prompt-textarea" rows="12" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.78rem;font-family:ui-monospace,monospace;line-height:1.6;box-sizing:border-box;resize:vertical;" onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"></textarea>
+            <div style="display:flex;gap:0.5rem;margin-top:0.5rem;align-items:center;">
+              <button onclick="saveAiPrompt()" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.3rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;">Save</button>
+              <button onclick="resetAiPrompt()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:0.3rem 0.9rem;font-size:0.78rem;cursor:pointer;">Reset to default</button>
+              <span id="ai-prompt-badge" style="display:none;background:#312e81;color:#a5b4fc;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Custom</span>
+              <span id="ai-prompt-status" style="color:#94a3b8;font-size:0.75rem;margin-left:auto;"></span>
+            </div>
+          </div>
+        </details>
+
         <!-- Cost history collapsible -->
         <details id="ai-cost-history-details" style="margin-bottom:0.75rem;">
           <summary style="color:#64748b;font-size:0.78rem;font-weight:600;cursor:pointer;user-select:none;padding:0.4rem 0;" onclick="loadAiCostHistory()">Token cost history</summary>
@@ -1959,6 +1975,76 @@
       } finally {
         const b = document.getElementById('regen-btn-' + idx);
         if (b) { b.disabled = false; b.textContent = 'Regen'; }
+      }
+    }
+
+    let aiPromptLoaded = false;
+    let aiPromptDefault = '';
+
+    async function loadAiPrompt() {
+      if (aiPromptLoaded) return;
+      aiPromptLoaded = true;
+      const token = localStorage.getItem('token');
+      const ta = document.getElementById('ai-prompt-textarea');
+      const badge = document.getElementById('ai-prompt-badge');
+      ta.value = 'Loading...';
+      try {
+        const res = await fetch('/api/admin?action=get-ai-prompt', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+        aiPromptDefault = data.default || '';
+        ta.value = data.prompt || data.default || '';
+        badge.style.display = data.isCustom ? 'inline' : 'none';
+      } catch (e) {
+        ta.value = '';
+        document.getElementById('ai-prompt-status').textContent = 'Failed to load: ' + e.message;
+      }
+    }
+
+    async function saveAiPrompt() {
+      const token = localStorage.getItem('token');
+      const ta = document.getElementById('ai-prompt-textarea');
+      const statusEl = document.getElementById('ai-prompt-status');
+      const badge = document.getElementById('ai-prompt-badge');
+      const prompt = ta.value.trim();
+      if (!prompt) { statusEl.textContent = 'Prompt cannot be empty.'; return; }
+      statusEl.textContent = 'Saving...';
+      try {
+        const res = await fetch('/api/admin?action=save-ai-prompt', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok) { statusEl.textContent = 'Error: ' + (data.error || res.status); return; }
+        statusEl.textContent = 'Saved.';
+        badge.style.display = 'inline';
+        setTimeout(() => { statusEl.textContent = ''; }, 2000);
+      } catch (e) {
+        statusEl.textContent = 'Failed: ' + e.message;
+      }
+    }
+
+    async function resetAiPrompt() {
+      if (!confirm('Reset to the built-in default prompt?')) return;
+      const token = localStorage.getItem('token');
+      const statusEl = document.getElementById('ai-prompt-status');
+      const badge = document.getElementById('ai-prompt-badge');
+      try {
+        const res = await fetch('/api/admin?action=save-ai-prompt', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reset: true }),
+        });
+        const data = await res.json();
+        if (!res.ok) { statusEl.textContent = 'Error: ' + (data.error || res.status); return; }
+        document.getElementById('ai-prompt-textarea').value = aiPromptDefault;
+        badge.style.display = 'none';
+        statusEl.textContent = 'Reset to default.';
+        setTimeout(() => { statusEl.textContent = ''; }, 2000);
+      } catch (e) {
+        statusEl.textContent = 'Failed: ' + e.message;
       }
     }
 

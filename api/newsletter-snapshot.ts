@@ -3,7 +3,7 @@ import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
 import { buildStockResults, NEWSLETTER_SMA_DEFAULT, fetchStockData } from './lib/newsletter-data';
 import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
-import { generateAiSummary, upsertAiSummary, estimateCost, type MacroContext } from './lib/ai-summaries';
+import { generateAiSummary, upsertAiSummary, estimateCost, getAiPromptTemplate, type MacroContext } from './lib/ai-summaries';
 import { sendEmail, buildEmailHtml } from './lib/email';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
@@ -152,8 +152,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const summaryCol = db.collection('aiSummaries');
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-      // Fetch macro context once
-      const macro = await fetchMacroContext(db);
+      // Fetch macro context and prompt template once
+      const [macro, promptTemplate] = await Promise.all([
+        fetchMacroContext(db),
+        getAiPromptTemplate(db),
+      ]);
 
       await Promise.all(Array.from(symbolData.entries()).map(async ([symbol, meta]) => {
         try {
@@ -163,7 +166,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           const result = await generateAiSummary(
             symbol, meta.companyName, meta.headlines, meta.relativePrice, meta.smaPeriod,
-            { closes: meta.closes, volumes: meta.volumes, macro },
+            { closes: meta.closes, volumes: meta.volumes, macro, promptTemplate },
           );
           if (!result.summary) { aiSkipped++; return; }
 
