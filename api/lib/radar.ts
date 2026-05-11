@@ -376,7 +376,7 @@ export function buildOnYourRadarBlock(candidates: RadarCandidate[], isPro: boole
   if (!candidates.length) return '';
 
   const baseUrl = process.env.FRONTEND_URL || 'https://dipfinder.com';
-  const header = `<h2 style="margin:14px 0 4px;font-size:0.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;text-align:left;">On Your Radar</h2><p style="margin:0 0 10px;padding-bottom:8px;font-size:0.78em;color:#94a3b8;border-bottom:1px solid #f1f5f9;">Stocks that might interest you based on your watchlist.</p>`;
+  const header = `<h2 style="margin:14px 0 4px;font-size:0.7em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;text-align:left;">On Your Radar</h2><p style="margin:0 0 10px;padding-bottom:8px;font-size:0.78em;color:#94a3b8;border-bottom:1px solid #f1f5f9;">Stocks that might interest you based on your watchlist. SMA position uses a fixed 50-day SMA.</p>`;
 
   const cards = candidates.map(c => {
     const smaSign = c.relativePrice > 0 ? '+' : '';
