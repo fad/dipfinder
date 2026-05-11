@@ -3,7 +3,7 @@ import { connectToDatabase } from './lib/mongodb';
 import { verifyJWT } from './lib/auth';
 import { buildStockResults, NEWSLETTER_SMA_DEFAULT, fetchStockData } from './lib/newsletter-data';
 import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
-import { generateAiSummary, upsertAiSummary, estimateCost, getAiPromptTemplate, type MacroContext } from './lib/ai-summaries';
+import { generateAiSummary, upsertAiSummary, estimateCost, getAiPromptTemplate, deduplicateNewsItems, type MacroContext } from './lib/ai-summaries';
 import { sendEmail, buildEmailHtml } from './lib/email';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
@@ -76,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let saved = 0, failed = 0;
 
     // Collect unique symbol data across all users for AI summary generation
-    type SymbolMeta = { companyName: string; headlines: string[]; relativePrice: number; smaPeriod: number; closes: number[]; volumes: number[] };
+    type SymbolMeta = { companyName: string; headlines: string[]; headlineDates: number[]; relativePrice: number; smaPeriod: number; closes: number[]; volumes: number[] };
     const symbolData = new Map<string, SymbolMeta>();
 
     for (const user of users) {
@@ -91,6 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             symbolData.set(s.symbol, {
               companyName: s.companyName,
               headlines: (s.topNews || []).map(n => n.headline),
+              headlineDates: [],  // filled below after dedup
               relativePrice: s.relativePrice,
               smaPeriod,
               closes: [],   // filled below
@@ -130,17 +131,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Fetch closes for each symbol (for dip duration context) and up to 5 headlines
+    // Fetch closes + fresh headlines for each symbol
     if (symbolData.size > 0) {
       await Promise.all(Array.from(symbolData.entries()).map(async ([symbol, meta]) => {
         try {
           const stockData = await fetchStockData(symbol, db);
           meta.closes = stockData.closes;
           meta.volumes = stockData.volumes || [];
-          // Freshen headlines with up to 5 items (cache is already warm from buildStockResults)
+          // Fetch up to 10 headlines then deduplicate to 5 unique stories
           const { fetchNewsForSymbol } = await import('./lib/newsletter-data');
-          const news = await fetchNewsForSymbol(symbol, db, 5);
-          if (news.length > meta.headlines.length) meta.headlines = news.map(n => n.headline);
+          const news = await fetchNewsForSymbol(symbol, db, 10);
+          const deduped = deduplicateNewsItems(news, 5);
+          meta.headlines = deduped.map(n => n.headline);
+          meta.headlineDates = deduped.map(n => n.datetime);
         } catch { /* best-effort */ }
       }));
     }
@@ -166,7 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           const result = await generateAiSummary(
             symbol, meta.companyName, meta.headlines, meta.relativePrice, meta.smaPeriod,
-            { closes: meta.closes, volumes: meta.volumes, macro, promptTemplate },
+            { closes: meta.closes, volumes: meta.volumes, headlineDates: meta.headlineDates, macro, promptTemplate },
           );
           if (!result.summary) { aiSkipped++; return; }
 

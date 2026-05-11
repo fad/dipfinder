@@ -25,6 +25,43 @@ export type AiSummaryDoc = {
 };
 
 /**
+ * Normalise a headline to a short key for deduplication.
+ * Lowercases, strips punctuation, takes first 7 words.
+ */
+function headlineKey(h: string): string {
+  return h.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).slice(0, 7).join(' ');
+}
+
+/**
+ * Deduplicate a list of news items by headline similarity (first-7-words key),
+ * newest-first, returning up to maxCount unique items.
+ */
+export function deduplicateNewsItems(
+  items: Array<{ headline: string; datetime: number }>,
+  maxCount = 5,
+): Array<{ headline: string; datetime: number }> {
+  const seen = new Set<string>();
+  const result: Array<{ headline: string; datetime: number }> = [];
+  for (const item of [...items].sort((a, b) => b.datetime - a.datetime)) {
+    const key = headlineKey(item.headline);
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(item);
+      if (result.length >= maxCount) break;
+    }
+  }
+  return result;
+}
+
+/** Format a Unix timestamp (seconds) as a human-readable age string. */
+function headlineAge(datetimeSec: number): string {
+  const ageDays = (Date.now() / 1000 - datetimeSec) / 86400;
+  if (ageDays < 1) return 'today';
+  if (ageDays < 2) return 'yesterday';
+  return `${Math.floor(ageDays)}d ago`;
+}
+
+/**
  * Detect unusual volume vs. the 20-day average.
  * Returns a one-line context string if volume is notably elevated or suppressed,
  * empty string otherwise (so it adds nothing to the prompt on normal weeks).
@@ -130,6 +167,7 @@ export async function generateAiSummary(
   options?: {
     closes?: number[];
     volumes?: number[];
+    headlineDates?: number[];  // Unix timestamps (seconds), parallel to headlines[]
     macro?: MacroContext;
     promptTemplate?: string;
   },
@@ -172,7 +210,10 @@ export async function generateAiSummary(
     if (parts.length) macroContext = `\nMarket context: ${parts.join(', ')}.`;
   }
 
-  const headlinesList = headlines.slice(0, 5).map((h, i) => `${i + 1}. ${h}`).join('\n');
+  const headlinesList = headlines.slice(0, 5).map((h, i) => {
+    const age = options?.headlineDates?.[i] ? ` [${headlineAge(options.headlineDates[i])}]` : '';
+    return `${i + 1}.${age} ${h}`;
+  }).join('\n');
   const template = options?.promptTemplate || DEFAULT_NEWS_SUMMARY_PROMPT;
   const prompt = template
     .replace('{{symbol}}', symbol)

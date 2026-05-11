@@ -7,7 +7,7 @@ import { yahooFinance, calculateSma } from './lib/stocks';
 import { getEmailTemplate, saveEmailTemplate, listTemplateKeys, sendEmail, buildEmailHtml, renderTemplate } from './lib/email';
 import Anthropic from '@anthropic-ai/sdk';
 import { fetchStockData, fetchNewsForSymbol, NEWSLETTER_SMA_DEFAULT } from './lib/newsletter-data';
-import { generateAiSummary, upsertAiSummary, getAiPromptTemplate, DEFAULT_NEWS_SUMMARY_PROMPT } from './lib/ai-summaries';
+import { generateAiSummary, upsertAiSummary, getAiPromptTemplate, DEFAULT_NEWS_SUMMARY_PROMPT, deduplicateNewsItems } from './lib/ai-summaries';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -787,6 +787,7 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
     smaPeriod: number;
     companyName: string;
     headlines: string[];
+    headlineDates: number[];
     relativePrice: number;
     closes: number[];
     volumes: number[];
@@ -799,16 +800,18 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
           const existing = await summaryCol.findOne({ symbol, weekOf: { $gte: sevenDaysAgo } });
           if (existing) return null;
         }
-        const [stockData, news] = await Promise.all([
+        const [stockData, newsRaw] = await Promise.all([
           fetchStockData(symbol, db),
-          fetchNewsForSymbol(symbol, db, 5),
+          fetchNewsForSymbol(symbol, db, 10),
         ]);
-        const headlines = (news as any[]).map(n => n.headline);
+        const deduped = deduplicateNewsItems(newsRaw as any[], 5);
+        const headlines = deduped.map((n: any) => n.headline);
+        const headlineDates = deduped.map((n: any) => n.datetime);
         if (!headlines.length || stockData.closes.length < smaPeriod) return null;
         const sma = calculateSma(stockData.closes, smaPeriod);
         return {
           symbol, smaPeriod, companyName: stockData.companyName,
-          headlines, closes: stockData.closes, volumes: stockData.volumes || [],
+          headlines, headlineDates, closes: stockData.closes, volumes: stockData.volumes || [],
           relativePrice: stockData.currentPrice / sma - 1,
         } as SymbolPayload;
       } catch {
@@ -822,9 +825,9 @@ async function handleGenerateAiSummaries(req: VercelRequest, res: VercelResponse
   // Step 2: fetch prompt template once, then run Claude calls in parallel
   const promptTemplate = await getAiPromptTemplate(db);
   let generated = 0, errors = 0, totalInputTokens = 0, totalOutputTokens = 0;
-  await Promise.all(payloads.map(async ({ symbol, smaPeriod, companyName, headlines, relativePrice, closes, volumes }) => {
+  await Promise.all(payloads.map(async ({ symbol, smaPeriod, companyName, headlines, headlineDates, relativePrice, closes, volumes }) => {
     try {
-      const result = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod, { closes, volumes, macro, promptTemplate });
+      const result = await generateAiSummary(symbol, companyName, headlines, relativePrice, smaPeriod, { closes, volumes, headlineDates, macro, promptTemplate });
       if (!result.summary) return;
       await upsertAiSummary(db, symbol, companyName, headlines, result, weekOf);
       generated++;
@@ -890,12 +893,14 @@ async function handleRegenerateAiSummary(req: VercelRequest, res: VercelResponse
   const smaPeriod: number = (user?.smaPeriod) || NEWSLETTER_SMA_DEFAULT;
 
   // Fetch data in parallel
-  const [stockData, news] = await Promise.all([
+  const [stockData, newsRaw] = await Promise.all([
     fetchStockData(symbol.toUpperCase(), db),
-    fetchNewsForSymbol(symbol.toUpperCase(), db, 5),
+    fetchNewsForSymbol(symbol.toUpperCase(), db, 10),
   ]);
 
-  const headlines = (news as any[]).map(n => n.headline);
+  const deduped = deduplicateNewsItems(newsRaw as any[], 5);
+  const headlines = deduped.map((n: any) => n.headline);
+  const headlineDates = deduped.map((n: any) => n.datetime);
   if (!headlines.length) return res.status(400).json({ error: 'No headlines available for this symbol' });
   if (stockData.closes.length < smaPeriod) return res.status(400).json({ error: 'Not enough price history for SMA calculation' });
 
@@ -913,10 +918,10 @@ async function handleRegenerateAiSummary(req: VercelRequest, res: VercelResponse
     if (qqq.closes.length >= 6) macro.qqqWeekly = qqq.closes[qqq.closes.length - 1] / qqq.closes[qqq.closes.length - 6] - 1;
   } catch { /* best-effort */ }
 
-  const [promptTemplate] = await Promise.all([getAiPromptTemplate(db)]);
+  const promptTemplate = await getAiPromptTemplate(db);
   const result = await generateAiSummary(
     symbol.toUpperCase(), stockData.companyName, headlines, relativePrice, smaPeriod,
-    { closes: stockData.closes, volumes: stockData.volumes || [], macro, promptTemplate },
+    { closes: stockData.closes, volumes: stockData.volumes || [], headlineDates, macro, promptTemplate },
   );
   if (!result.summary) return res.status(500).json({ error: 'Claude returned an empty summary' });
 

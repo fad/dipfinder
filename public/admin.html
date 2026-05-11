@@ -428,6 +428,14 @@
             <button class="btn" onclick="approveAllPending()" style="background:#14532d; color:#86efac; padding:0.4rem 1rem; font-size:0.8rem;">Approve All Pending</button>
           </div>
         </div>
+        <!-- Filter bar -->
+        <div style="display:flex; gap:0.4rem; margin-bottom:0.75rem;">
+          <button id="ai-filter-all" onclick="setAiFilter('all')" style="background:#1e40af;color:#bfdbfe;border:none;border-radius:6px;padding:0.25rem 0.75rem;font-size:0.75rem;font-weight:700;cursor:pointer;">All</button>
+          <button id="ai-filter-pending" onclick="setAiFilter('pending')" style="background:#1e293b;color:#64748b;border:1px solid #334155;border-radius:6px;padding:0.25rem 0.75rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Pending</button>
+          <button id="ai-filter-approved" onclick="setAiFilter('approved')" style="background:#1e293b;color:#64748b;border:1px solid #334155;border-radius:6px;padding:0.25rem 0.75rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Approved</button>
+          <button id="ai-filter-rejected" onclick="setAiFilter('rejected')" style="background:#1e293b;color:#64748b;border:1px solid #334155;border-radius:6px;padding:0.25rem 0.75rem;font-size:0.75rem;font-weight:700;cursor:pointer;">Rejected</button>
+          <span id="ai-filter-count" style="color:#475569;font-size:0.75rem;margin-left:0.25rem;align-self:center;"></span>
+        </div>
         <div id="ai-generate-status" style="display:none; margin-bottom:0.75rem; padding:0.6rem 1rem; background:#1e293b; border:1px solid #334155; border-radius:8px; font-size:0.8rem; color:#94a3b8;"></div>
 
         <!-- Prompt editor collapsible -->
@@ -1703,6 +1711,22 @@
     // ── AI Summaries ──────────────────────────────────────────────────────────
 
     let aiSummariesData = [];
+    let displayedAiItems = []; // { data, originalIdx }[]
+    let aiFilter = 'all';
+
+    function setAiFilter(f) {
+      aiFilter = f;
+      ['all', 'pending', 'approved', 'rejected'].forEach(name => {
+        const btn = document.getElementById('ai-filter-' + name);
+        if (!btn) return;
+        const active = name === f;
+        btn.style.background = active ? '#1e40af' : '#1e293b';
+        btn.style.color = active ? '#bfdbfe' : '#64748b';
+        btn.style.border = active ? 'none' : '1px solid #334155';
+      });
+      focusedAiIdx = 0;
+      renderAiSummaries();
+    }
 
     async function generateSummaries(force) {
       const token = localStorage.getItem('token');
@@ -1788,7 +1812,29 @@
         el.innerHTML = '<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.5rem;color:#64748b;font-size:0.85rem;">No AI summaries found for the current week. They are generated during the Saturday snapshot cron. Make sure ANTHROPIC_API_KEY is set.</div>';
         return;
       }
-      el.innerHTML = aiSummariesData.map((s, idx) => {
+
+      // Build filtered view
+      displayedAiItems = aiSummariesData
+        .map((data, originalIdx) => ({ data, originalIdx }))
+        .filter(({ data: s }) => {
+          if (aiFilter === 'pending') return !s.reviewed;
+          if (aiFilter === 'approved') return s.reviewed && s.approved;
+          if (aiFilter === 'rejected') return s.reviewed && !s.approved;
+          return true;
+        });
+
+      // Update count badge
+      const countEl = document.getElementById('ai-filter-count');
+      if (countEl) countEl.textContent = displayedAiItems.length + ' of ' + aiSummariesData.length;
+
+      if (!displayedAiItems.length) {
+        el.innerHTML = '<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.5rem;color:#64748b;font-size:0.85rem;">No summaries match the current filter.</div>';
+        return;
+      }
+
+      if (focusedAiIdx >= displayedAiItems.length) focusedAiIdx = displayedAiItems.length - 1;
+
+      el.innerHTML = displayedAiItems.map(({ data: s }, displayIdx) => {
         const statusBadge = s.reviewed
           ? (s.approved
               ? '<span style="background:#14532d;color:#86efac;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Approved</span>'
@@ -1799,33 +1845,33 @@
           : '';
         const displayText = s.editedSummary || s.summary;
         const headlines = (s.headlines || []).map(h => `<li style="margin:2px 0;">${h}</li>`).join('');
-        const isFocused = idx === focusedAiIdx;
+        const isFocused = displayIdx === focusedAiIdx;
         return `
-<div id="ai-card-${idx}" data-idx="${idx}" style="background:#1e293b;border:1px solid ${isFocused ? '#38bdf8' : '#334155'};border-radius:10px;overflow:hidden;cursor:pointer;" onclick="setAiFocus(${idx})">
+<div id="ai-card-${displayIdx}" style="background:#1e293b;border:1px solid ${isFocused ? '#38bdf8' : '#334155'};border-radius:10px;overflow:hidden;cursor:pointer;" onclick="setAiFocus(${displayIdx})">
   <div style="padding:0.75rem 1rem;background:#0f172a;border-bottom:1px solid #334155;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
     <span style="font-weight:800;color:#e2e8f0;font-size:0.9rem;">${s.symbol}</span>
     <span style="color:#64748b;font-size:0.8rem;">${s.companyName || ''}</span>
     ${statusBadge}${editedBadge}
     <div style="margin-left:auto;display:flex;gap:0.5rem;">
-      <button onclick="event.stopPropagation();approveAiSummary(${idx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="A">Approve</button>
-      <button onclick="event.stopPropagation();editAiSummary(${idx})" style="background:#1e3a5f;color:#7dd3fc;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="E">Edit</button>
-      <button onclick="event.stopPropagation();rejectAiSummary(${idx})" style="background:#450a0a;color:#fca5a5;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="R">Reject</button>
-      <button id="regen-btn-${idx}" onclick="event.stopPropagation();regenerateAiSummary(${idx})" style="background:#292524;color:#a8a29e;border:1px solid #44403c;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="Regenerate summary">Regen</button>
+      <button onclick="event.stopPropagation();approveAiSummary(${displayIdx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="A">Approve</button>
+      <button onclick="event.stopPropagation();editAiSummary(${displayIdx})" style="background:#1e3a5f;color:#7dd3fc;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="E">Edit</button>
+      <button onclick="event.stopPropagation();rejectAiSummary(${displayIdx})" style="background:#450a0a;color:#fca5a5;border:none;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="R">Reject</button>
+      <button id="regen-btn-${displayIdx}" onclick="event.stopPropagation();regenerateAiSummary(${displayIdx})" style="background:#292524;color:#a8a29e;border:1px solid #44403c;border-radius:6px;padding:0.25rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;" title="Regenerate summary">Regen</button>
     </div>
   </div>
   <div style="padding:0.85rem 1rem;">
-    <div id="ai-summary-display-${idx}">
+    <div id="ai-summary-display-${displayIdx}">
       <p style="color:#e2e8f0;font-size:0.875rem;line-height:1.6;margin:0 0 0.75rem;">${displayText}</p>
       <details style="cursor:pointer;">
         <summary style="color:#64748b;font-size:0.75rem;font-weight:600;">Source headlines (${(s.headlines||[]).length})</summary>
         <ul style="color:#64748b;font-size:0.75rem;line-height:1.7;margin:0.4rem 0 0;padding-left:1.25rem;">${headlines}</ul>
       </details>
     </div>
-    <div id="ai-summary-edit-${idx}" style="display:none;" onclick="event.stopPropagation()">
-      <textarea id="ai-summary-textarea-${idx}" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;font-family:inherit;line-height:1.6;box-sizing:border-box;resize:vertical;" rows="3">${displayText}</textarea>
+    <div id="ai-summary-edit-${displayIdx}" style="display:none;" onclick="event.stopPropagation()">
+      <textarea id="ai-summary-textarea-${displayIdx}" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;font-family:inherit;line-height:1.6;box-sizing:border-box;resize:vertical;" rows="3">${displayText}</textarea>
       <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-        <button onclick="saveEditedAiSummary(${idx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.78rem;font-weight:700;cursor:pointer;">Save &amp; Approve</button>
-        <button onclick="cancelEditAiSummary(${idx})" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.78rem;cursor:pointer;">Cancel</button>
+        <button onclick="saveEditedAiSummary(${displayIdx})" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.78rem;font-weight:700;cursor:pointer;">Save &amp; Approve</button>
+        <button onclick="cancelEditAiSummary(${displayIdx})" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.78rem;cursor:pointer;">Cancel</button>
       </div>
     </div>
   </div>
@@ -1863,7 +1909,7 @@
         return;
       } else if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
-        setAiFocus(Math.min(focusedAiIdx + 1, aiSummariesData.length - 1));
+        setAiFocus(Math.min(focusedAiIdx + 1, displayedAiItems.length - 1));
       } else if (e.key === 'k' || e.key === 'ArrowUp') {
         e.preventDefault();
         setAiFocus(Math.max(focusedAiIdx - 1, 0));
@@ -1876,9 +1922,15 @@
       }
     });
 
-    async function updateAiSummary(idx, reviewed, approved, editedSummary) {
+    function getOriginalIdx(displayIdx) {
+      return displayedAiItems[displayIdx]?.originalIdx ?? -1;
+    }
+
+    async function updateAiSummary(displayIdx, reviewed, approved, editedSummary) {
       const token = localStorage.getItem('token');
-      const s = aiSummariesData[idx];
+      const origIdx = getOriginalIdx(displayIdx);
+      if (origIdx < 0) return false;
+      const s = aiSummariesData[origIdx];
       const body = { symbol: s.symbol, weekOf: s.weekOf, reviewed, approved };
       if (editedSummary !== undefined) body.editedSummary = editedSummary;
       const res = await fetch('/api/admin?action=update-ai-summary', {
@@ -1890,62 +1942,71 @@
       return true;
     }
 
-    async function approveAiSummary(idx) {
-      if (!await updateAiSummary(idx, true, true, undefined)) return;
-      aiSummariesData[idx].reviewed = true;
-      aiSummariesData[idx].approved = true;
+    async function approveAiSummary(displayIdx) {
+      if (!await updateAiSummary(displayIdx, true, true, undefined)) return;
+      const origIdx = getOriginalIdx(displayIdx);
+      aiSummariesData[origIdx].reviewed = true;
+      aiSummariesData[origIdx].approved = true;
       renderAiSummaries();
     }
 
-    async function rejectAiSummary(idx) {
-      if (!await updateAiSummary(idx, true, false, undefined)) return;
-      aiSummariesData[idx].reviewed = true;
-      aiSummariesData[idx].approved = false;
+    async function rejectAiSummary(displayIdx) {
+      if (!await updateAiSummary(displayIdx, true, false, undefined)) return;
+      const origIdx = getOriginalIdx(displayIdx);
+      aiSummariesData[origIdx].reviewed = true;
+      aiSummariesData[origIdx].approved = false;
       renderAiSummaries();
     }
 
-    function editAiSummary(idx) {
-      setAiFocus(idx);
-      document.getElementById('ai-summary-display-' + idx).style.display = 'none';
-      document.getElementById('ai-summary-edit-' + idx).style.display = 'block';
-      const ta = document.getElementById('ai-summary-textarea-' + idx);
+    function editAiSummary(displayIdx) {
+      setAiFocus(displayIdx);
+      document.getElementById('ai-summary-display-' + displayIdx).style.display = 'none';
+      document.getElementById('ai-summary-edit-' + displayIdx).style.display = 'block';
+      const ta = document.getElementById('ai-summary-textarea-' + displayIdx);
       ta.focus();
       ta.setSelectionRange(ta.value.length, ta.value.length);
     }
 
-    function cancelEditAiSummary(idx) {
-      document.getElementById('ai-summary-display-' + idx).style.display = 'block';
-      document.getElementById('ai-summary-edit-' + idx).style.display = 'none';
+    function cancelEditAiSummary(displayIdx) {
+      document.getElementById('ai-summary-display-' + displayIdx).style.display = 'block';
+      document.getElementById('ai-summary-edit-' + displayIdx).style.display = 'none';
     }
 
-    async function saveEditedAiSummary(idx) {
-      const edited = document.getElementById('ai-summary-textarea-' + idx).value.trim();
+    async function saveEditedAiSummary(displayIdx) {
+      const edited = document.getElementById('ai-summary-textarea-' + displayIdx).value.trim();
       if (!edited) { alert('Summary cannot be empty.'); return; }
-      if (!await updateAiSummary(idx, true, true, edited)) return;
-      aiSummariesData[idx].reviewed = true;
-      aiSummariesData[idx].approved = true;
-      aiSummariesData[idx].editedSummary = edited;
+      if (!await updateAiSummary(displayIdx, true, true, edited)) return;
+      const origIdx = getOriginalIdx(displayIdx);
+      aiSummariesData[origIdx].reviewed = true;
+      aiSummariesData[origIdx].approved = true;
+      aiSummariesData[origIdx].editedSummary = edited;
       renderAiSummaries();
     }
 
     async function approveAllPending() {
-      const pending = aiSummariesData
-        .map((s, idx) => ({ s, idx }))
-        .filter(({ s }) => !s.reviewed);
+      const token = localStorage.getItem('token');
+      const pending = aiSummariesData.filter(s => !s.reviewed);
       if (!pending.length) { alert('No pending summaries to approve.'); return; }
       if (!confirm(`Approve all ${pending.length} pending summaries?`)) return;
-      for (const { s, idx } of pending) {
-        await updateAiSummary(idx, true, true, undefined);
+      for (const s of pending) {
+        const body = { symbol: s.symbol, weekOf: s.weekOf, reviewed: true, approved: true };
+        await fetch('/api/admin?action=update-ai-summary', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
         s.reviewed = true;
         s.approved = true;
       }
       renderAiSummaries();
     }
 
-    async function regenerateAiSummary(idx) {
+    async function regenerateAiSummary(displayIdx) {
       const token = localStorage.getItem('token');
-      const s = aiSummariesData[idx];
-      const btn = document.getElementById('regen-btn-' + idx);
+      const origIdx = getOriginalIdx(displayIdx);
+      if (origIdx < 0) return;
+      const s = aiSummariesData[origIdx];
+      const btn = document.getElementById('regen-btn-' + displayIdx);
       if (btn) { btn.disabled = true; btn.textContent = '...'; }
       try {
         const res = await fetch('/api/admin?action=regenerate-ai-summary', {
@@ -1961,7 +2022,7 @@
         }
         const data = await res.json();
         if (!res.ok) { alert('Error: ' + (data.error || res.status)); return; }
-        aiSummariesData[idx] = Object.assign({}, aiSummariesData[idx], {
+        aiSummariesData[origIdx] = Object.assign({}, aiSummariesData[origIdx], {
           summary: data.summary,
           editedSummary: undefined,
           reviewed: false,
@@ -1973,7 +2034,7 @@
       } catch (e) {
         alert('Request failed: ' + e.message);
       } finally {
-        const b = document.getElementById('regen-btn-' + idx);
+        const b = document.getElementById('regen-btn-' + displayIdx);
         if (b) { b.disabled = false; b.textContent = 'Regen'; }
       }
     }
