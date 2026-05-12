@@ -22,45 +22,16 @@ if (heroSection && heroText && heroPreview) {
     });
 }
 
-// ── Landing page newsletter signup ──────────────────────────────────────
+// ── Landing page newsletter subscribe → channel to register ─────────────
 const lpForm = document.getElementById('lp-newsletter-form');
-const lpMsg  = document.getElementById('lp-newsletter-msg');
 
 if (lpForm) {
-    lpForm.addEventListener('submit', async (e) => {
+    lpForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const email = document.getElementById('lp-newsletter-email').value.trim();
         if (!email) return;
-
-        const btn = lpForm.querySelector('button[type="submit"]');
-        btn.disabled = true;
-        btn.textContent = 'Subscribing...';
-
-        try {
-            const res  = await fetch('/api/user?action=newsletter-subscribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, watchlist: [] })
-            });
-            const data = await res.json();
-
-            if (data.userExists) {
-                lpMsg.textContent = 'You already have an account - sign in to manage your subscription.';
-                lpMsg.className = 'mt-4 text-sm font-semibold text-amber-600';
-            } else {
-                if (data.token) localStorage.setItem('token', data.token);
-                lpMsg.textContent = 'You\'re in! Check your inbox for a welcome email.';
-                lpMsg.className = 'mt-4 text-sm font-semibold text-green-600';
-                lpForm.classList.add('hidden');
-            }
-            lpMsg.classList.remove('hidden');
-        } catch {
-            lpMsg.textContent = 'Something went wrong. Please try again.';
-            lpMsg.className = 'mt-4 text-sm font-semibold text-red-500';
-            lpMsg.classList.remove('hidden');
-            btn.disabled = false;
-            btn.textContent = 'Subscribe free';
-        }
+        // Send user to the app's register form with email pre-filled
+        window.location.href = `/app?register=1&email=${encodeURIComponent(email)}`;
     });
 }
 

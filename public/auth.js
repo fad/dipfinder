@@ -858,6 +858,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // ── Logout ────────────────────────────────────────────────────────────────
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', AuthManager.logout);
+
+    // ── ?register=1&email=... deep link (from landing page subscribe form) ────
+    // Redirects user to the register form with email pre-filled.
+    (function handleRegisterParam() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('register') !== '1') return;
+        const emailFromUrl = decodeURIComponent(urlParams.get('email') || '');
+        // Clean URL immediately
+        const cleanParams = new URLSearchParams(urlParams);
+        cleanParams.delete('register');
+        cleanParams.delete('email');
+        const qs = cleanParams.toString();
+        history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname);
+        // Open register form after auth check has had a chance to run
+        setTimeout(() => {
+            if (AuthManager.isAuthenticated) return;
+            const modal = document.getElementById('auth-modal');
+            if (modal) modal.classList.remove('hidden');
+            AuthManager.showRegisterForm();
+            if (emailFromUrl) {
+                const emailInput = document.getElementById('register-email');
+                if (emailInput) {
+                    emailInput.value = emailFromUrl;
+                    emailInput.style.borderColor = '#10b981';
+                }
+            }
+        }, 200);
+    })();
 });
 
 // Export for module usage if needed
