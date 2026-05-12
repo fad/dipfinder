@@ -47,10 +47,15 @@ const AuthManager = (function() {
 /*console.log("Checking auth status, token exists:", !!token, "last state:", lastAuthState);*/ 
         
         if (!token) {
-/*console.log("No token found, confirming guest UI");*/ 
+/*console.log("No token found, confirming guest UI");*/
             localStorage.setItem("lastAuthState", JSON.stringify({ isAuthenticated: false }));
             showGuestUI();
             updateGlobalAuthState(false, null);
+            // App requires login — open auth modal so user can sign in/register
+            if (window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/screener') || window.location.pathname.startsWith('/profile')) {
+                const modal = document.getElementById('auth-modal');
+                if (modal) modal.classList.remove('hidden');
+            }
             return false;
         }
 
@@ -60,11 +65,15 @@ const AuthManager = (function() {
             const currentTime = Math.floor(Date.now() / 1000);
             
             if (payload.exp && payload.exp < currentTime) {
-/*console.log("Token expired, clearing and showing guest UI");*/ 
+/*console.log("Token expired, clearing and showing guest UI");*/
                 localStorage.removeItem("token");
                 localStorage.setItem("lastAuthState", JSON.stringify({ isAuthenticated: false }));
                 showGuestUI();
                 updateGlobalAuthState(false, null);
+                if (window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/screener') || window.location.pathname.startsWith('/profile')) {
+                    const modal = document.getElementById('auth-modal');
+                    if (modal) modal.classList.remove('hidden');
+                }
                 return false;
             }
             
@@ -151,7 +160,7 @@ const AuthManager = (function() {
 
         // Update MAX_STOCKS
         if (typeof window.MAX_STOCKS !== 'undefined') {
-            window.MAX_STOCKS = isPro ? 50 : (authenticated ? 10 : 5);
+            window.MAX_STOCKS = isPro ? 50 : 10;
         }
 
         // Update stock limit message if it exists
@@ -159,9 +168,7 @@ const AuthManager = (function() {
         if (stockLimitMessage) {
             stockLimitMessage.textContent = isPro
                 ? "You can have up to 50 stocks per watchlist."
-                : authenticated
-                    ? "You can only have up to 10 stocks."
-                    : "You can only have up to 5 stocks. Log in to track up to 10.";
+                : "You can only have up to 10 stocks.";
         }
     }
     
@@ -170,18 +177,10 @@ const AuthManager = (function() {
         // Hide loading state
         const authLoading = document.getElementById("auth-loading");
         if (authLoading) authLoading.classList.add("hidden");
-        
+
         // Show login button
         const authButton = document.getElementById("auth-button");
         if (authButton) authButton.classList.remove("hidden");
-
-        // Show inline save button
-        const saveInline = document.getElementById("save-watchlist-btn-wrap");
-        if (saveInline) saveInline.classList.remove("hidden");
-
-        // Show sample watchlist box
-        const sampleBox = document.getElementById("sample-watchlist-box");
-        if (sampleBox) sampleBox.classList.remove("hidden");
 
         // Hide profile dropdown
         const profileDropdown = document.getElementById("profile-dropdown");
@@ -202,14 +201,6 @@ const AuthManager = (function() {
         // Hide login button
         const authButton = document.getElementById("auth-button");
         if (authButton) authButton.classList.add("hidden");
-
-        // Hide inline save button (user is already logged in)
-        const saveInline = document.getElementById("save-watchlist-btn-wrap");
-        if (saveInline) saveInline.classList.add("hidden");
-
-        // Hide sample watchlist box
-        const sampleBox = document.getElementById("sample-watchlist-box");
-        if (sampleBox) sampleBox.classList.add("hidden");
 
         // Show profile dropdown
         const profileDropdown = document.getElementById("profile-dropdown");
@@ -438,12 +429,15 @@ const AuthManager = (function() {
     // Logout
     function logout() {
         localStorage.removeItem("token");
+        localStorage.removeItem("stocks");
         localStorage.setItem("lastAuthState", JSON.stringify({ isAuthenticated: false }));
-        showGuestUI();
-        
+
         // Close profile menu if open
         const profileMenu = document.getElementById("profile-menu");
         if (profileMenu) profileMenu.classList.add("hidden");
+
+        // Redirect to landing page — app requires login
+        window.location.replace('/');
     }
     
     // UI Helper Functions

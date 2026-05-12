@@ -491,14 +491,7 @@ function stopLoadingDots(intervalId, elementId, finalText = '') {
 // ── Stock limit helpers ───────────────────────────────────────────────────────
 
 function getCurrentStockLimit() {
-    try {
-        if (window.AuthManager && window.AuthManager.isAuthenticated) {
-            return window.IS_PRO ? 50 : 10;
-        }
-    } catch (error) {
-        console.warn('Error checking authentication status:', error);
-    }
-    return 5;
+    return window.IS_PRO ? 50 : 10;
 }
 
 function enforceStockLimit(stockArray) {
@@ -518,16 +511,7 @@ function validateStocksArray() {
         window.MAX_STOCKS = getCurrentStockLimit();
         if (document.getElementById('stocks-table')) {
             const limit = getCurrentStockLimit();
-            let authStatus = 'guest';
-            try {
-                authStatus = window.AuthManager && window.AuthManager.isAuthenticated ? 'authenticated' : 'guest';
-            } catch (e) {
-                console.warn('Error checking auth status for message:', e);
-            }
-            const msg = authStatus === 'guest'
-                ? `Watchlist trimmed to ${limit} stocks. Log in to save up to 10.`
-                : `Watchlist trimmed to ${limit} stocks (your limit).`;
-            showWatchlistNotice(msg, true);
+            showWatchlistNotice(`Watchlist trimmed to ${limit} stocks (your limit).`, true);
         }
         return true;
     }
@@ -540,16 +524,10 @@ function addStockWithValidation(newStock) {
     }
     const limit = getCurrentStockLimit();
     if (stocks.length >= limit) {
-        let authStatus = 'guest';
-        try {
-            authStatus = window.AuthManager && window.AuthManager.isAuthenticated ? 'authenticated' : 'guest';
-        } catch (e) {
-            console.warn('Error checking auth status for limit message:', e);
-        }
         return {
             success: false,
             limitReached: true,
-            error: `Stock limit reached (${limit} stocks).${authStatus !== 'guest' ? ' You have reached your limit.' : ''}`
+            error: `Stock limit reached (${limit} stocks). You have reached your limit.`
         };
     }
     return { success: true };
@@ -1334,29 +1312,13 @@ window.initializeDipfinder = function() {
         if (storedStocks) {
             stocks = JSON.parse(storedStocks);
         } else {
-            // Use admin-configured initial stocks (cached from last background fetch), or fall back
-            try {
-                const cachedDefaults = localStorage.getItem('dipfinder-initial-stocks');
-                stocks = cachedDefaults ? JSON.parse(cachedDefaults) : ['CRM', 'MSFT', 'AAPL', 'INTU'];
-            } catch { stocks = ['CRM', 'MSFT', 'AAPL', 'INTU']; }
-            localStorage.setItem('stocks', JSON.stringify(stocks));
+            stocks = [];
         }
     } catch (error) {
-        console.warn('Error reading stocks from localStorage, setting defaults:', error);
-        stocks = ['CRM', 'MSFT', 'AAPL', 'INTU'];
+        console.warn('Error reading stocks from localStorage:', error);
+        stocks = [];
     }
     validateStocksArray();
-
-    // Background-refresh admin initial stocks cache for next guest visit
-    if (!localStorage.getItem('token')) {
-        fetch(`${BASE_URL}/api/user?action=initial-stocks`)
-            .then(r => r.ok ? r.json() : null)
-            .then(data => {
-                if (Array.isArray(data?.stocks) && data.stocks.length) {
-                    localStorage.setItem('dipfinder-initial-stocks', JSON.stringify(data.stocks));
-                }
-            }).catch(() => {});
-    }
 
     // 2. Bail if the dashboard DOM isn't loaded
     if (!document.getElementById('stocks-table')) return;
@@ -1438,12 +1400,7 @@ window.initializeDipfinder = function() {
 
         const validation = addStockWithValidation(newStock);
         if (!validation.success) {
-            const isGuest = !window.AuthManager || !window.AuthManager.isAuthenticated;
-            if (isGuest && validation.limitReached && window.showLimitModal) {
-                window.showLimitModal();
-            } else {
-                showAddError(validation.error);
-            }
+            showAddError(validation.error);
             return;
         }
 
@@ -1523,46 +1480,19 @@ window.initializeDipfinder = function() {
     });
 
 
-    // Inline "Save Watchlist" button — opens auth modal
-    $(document).on('click.dipfinder', '#save-watchlist-inline', function() {
-        const modal = document.getElementById('auth-modal');
-        if (modal) modal.classList.remove('hidden');
-    });
-
-    // Sample watchlist buttons
-    $(document).on('click.dipfinder', '.sample-watchlist', function() {
-        const period = $('#sma-period').val() || '200';
-        stocks = $(this).data('stocks').split(',');
-        window.umami?.track('dashboard_cta_sample_watchlist', { name: $(this).text().trim() });
-        saveStocks();
-        saveWatchlistToDb();
-        try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
-        updateTableAndChart(period);
-    });
-
     $(document).on('click.dipfinder', '.stock-row', function() {
         const stockSymbol = $(this).data('stock');
         if (stockSymbol) window.spaNavigate(`/screener?stock=${encodeURIComponent(stockSymbol)}`);
     });
 
-    // Auth change watcher
-    function updateGuestUI(isAuthenticated) {
-        const wrap = document.getElementById('guest-watchlist-wrap');
-        if (wrap) wrap.classList.toggle('hidden', !!isAuthenticated);
-        const sampleBox = document.getElementById('sample-watchlist-box');
-        if (sampleBox) sampleBox.classList.toggle('hidden', !!isAuthenticated);
-    }
-
-    let lastAuthStatus = false;
-    updateGuestUI(window.AuthManager && window.AuthManager.isAuthenticated);
+    let lastAuthStatus = !!(window.AuthManager && window.AuthManager.isAuthenticated);
     renderWatchlistTabs();
     initNewsletterPromo();
     dipfinderAuthCheckInterval = setInterval(() => {
         try {
-            const currentAuthStatus = window.AuthManager && window.AuthManager.isAuthenticated;
+            const currentAuthStatus = !!(window.AuthManager && window.AuthManager.isAuthenticated);
             if (currentAuthStatus !== lastAuthStatus) {
                 lastAuthStatus = currentAuthStatus;
-                updateGuestUI(currentAuthStatus);
                 initNewsletterPromo();
                 window.MAX_STOCKS = getCurrentStockLimit();
                 const wasModified = validateStocksArray();
@@ -1731,15 +1661,8 @@ function initNewsletterPromo() {
     const promo = document.getElementById('newsletter-promo');
     if (!promo) return;
 
-    const isAuth = window.AuthManager && window.AuthManager.isAuthenticated;
     const token = localStorage.getItem('token');
-
-    // Guest — show promo (editable email input)
-    if (!isAuth || !token) {
-        promo.style.display = '';
-        newsletterPromoInitialized = true;
-        return;
-    }
+    if (!token) return; // not logged in — app requires auth
 
     newsletterPromoInitialized = true;
 
