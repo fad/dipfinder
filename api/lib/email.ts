@@ -90,7 +90,6 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">We rank the stocks on your watchlist by how far they're trading below their moving average. Every Sunday morning, your brief shows you the best opportunities at a glance - the stocks you already want to own, on sale.</p>
 {{setPasswordBlock}}
 {{watchlistChartBlock}}
-<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 28px;">To make sure our emails land in your inbox, just reply with a quick "hello". It tells the email gods you want to hear from us.</p>
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0;">Talk to you on Sunday,<br><strong>The Dip Finder Team</strong></p>
 `,
   },
