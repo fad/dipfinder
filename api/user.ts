@@ -1332,37 +1332,42 @@ async function handleCreateCheckoutSession(req: VercelRequest, res: VercelRespon
 
   const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2026-04-22.dahlia' as any });
 
-  // Create or reuse Stripe customer
-  let customerId = (user.stripeCustomerId as string | undefined) || '';
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email,
-      name:  user.name || undefined,
-      metadata: { userId: user._id.toString() },
+  try {
+    // Create or reuse Stripe customer
+    let customerId = (user.stripeCustomerId as string | undefined) || '';
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name:  user.name || undefined,
+        metadata: { userId: user._id.toString() },
+      });
+      customerId = customer.id;
+      await db.collection('users').updateOne(
+        { _id: user._id },
+        { $set: { stripeCustomerId: customerId } }
+      );
+    }
+
+    const baseUrl = process.env.FRONTEND_URL || 'https://dipfinder.com';
+
+    const session = await stripe.checkout.sessions.create({
+      customer:    customerId,
+      mode:        'subscription',
+      line_items:  [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+      automatic_tax: { enabled: true },
+      success_url: `${baseUrl}/profile?upgraded=1`,
+      cancel_url:  `${baseUrl}/founding`,
+      metadata:    { userId: user._id.toString(), offer: 'founding_member' },
+      subscription_data: {
+        metadata: { userId: user._id.toString(), offer: 'founding_member' },
+      },
     });
-    customerId = customer.id;
-    await db.collection('users').updateOne(
-      { _id: user._id },
-      { $set: { stripeCustomerId: customerId } }
-    );
+
+    return res.status(200).json({ url: session.url });
+  } catch (err: any) {
+    console.error('Stripe checkout session error:', err.message);
+    return res.status(500).json({ error: err.message || 'Failed to create checkout session' });
   }
-
-  const baseUrl = process.env.FRONTEND_URL || 'https://dipfinder.com';
-
-  const session = await stripe.checkout.sessions.create({
-    customer:    customerId,
-    mode:        'subscription',
-    line_items:  [{ price: STRIPE_PRICE_ID, quantity: 1 }],
-    automatic_tax: { enabled: true },
-    success_url: `${baseUrl}/profile?upgraded=1`,
-    cancel_url:  `${baseUrl}/founding`,
-    metadata:    { userId: user._id.toString(), offer: 'founding_member' },
-    subscription_data: {
-      metadata: { userId: user._id.toString(), offer: 'founding_member' },
-    },
-  });
-
-  return res.status(200).json({ url: session.url });
 }
 
 // ── Create Stripe Customer Portal Session (auth required) ─────────────────────
