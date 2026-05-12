@@ -83,10 +83,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = await connectToDatabase();
 
     // Preview: use the target user (admin by default, or any user if previewEmail specified).
-    // Live send: all sundayBriefSubscribed users — filtered per-user by timezone below.
+    // Admin-triggered live send (non-cron): send only to admin account for testing.
+    // Cron live send: all sundayBriefSubscribed users — filtered per-user by timezone below.
     const query = isPreview
       ? { email: previewEmail }
-      : { sundayBriefSubscribed: true };
+      : isCronInvocation
+        ? { sundayBriefSubscribed: true }
+        : { email: ADMIN_EMAIL };
     const users = await db.collection('users').find(query).toArray();
 
     if (isPreview && users.length === 0) {
@@ -108,7 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Timezone check: only send when it's Sunday 7-9am in the user's local time.
       // Each of the 3 weekly cron windows covers a different region; lastNewsletterSentAt
       // prevents double-sends if a user's timezone falls near a window boundary.
-      if (!isPreview) {
+      // Admin-triggered sends (non-cron) bypass both checks so the button works any day.
+      if (!isPreview && isCronInvocation) {
         if (!isTimeToSend(user.timezone)) {
           skipped++;
           continue;
