@@ -247,7 +247,7 @@ async function handleSnapshot(req: VercelRequest, res: VercelResponse) {
     const run = await shouldCronRun(
       db,
       'newsletter-snapshot',
-      { enabled: true, dayOfWeek: 6, hour: 22 },
+      { enabled: true, dayOfWeek: 6, hour: 18 },
       isCronInvocation,
     );
     if (!run) return res.status(200).json({ skipped: true, reason: 'outside scheduled window' });
