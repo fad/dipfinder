@@ -236,6 +236,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('token', data.token);
                     const userData = data.user || { email: data.user?.email };
                     localStorage.setItem('lastAuthState', JSON.stringify({ isAuthenticated: true, user: userData }));
+                    // Close modal (it opened because checkAuthStatus ran before verification completed)
+                    const modal = document.getElementById('auth-modal');
+                    if (modal) modal.classList.add('hidden');
                     if (window.AuthManager) {
                         window.AuthManager.showLoggedInUI(userData);
                         window.AuthManager.checkAuthStatus();
