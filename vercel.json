@@ -1,7 +1,7 @@
 {
     "version": 2,
     "functions": {
-        "api/newsletter-snapshot.ts": { "maxDuration": 60 },
+        "api/newsletter.ts": { "maxDuration": 60 },
         "api/newsletter-send.ts": { "maxDuration": 60 },
         "api/admin.ts": { "maxDuration": 60 }
     },
@@ -23,11 +23,11 @@
             "schedule": "0 9 * * *"
         },
         {
-            "path": "/api/newsletter-onboarding",
+            "path": "/api/newsletter?action=onboarding",
             "schedule": "0 10 * * *"
         },
         {
-            "path": "/api/newsletter-snapshot",
+            "path": "/api/newsletter?action=snapshot",
             "schedule": "0 23 * * 6"
         },
         {
@@ -51,6 +51,8 @@
         { "source": "/api/stock-data/:symbol", "destination": "/api/stock-data?symbol=:symbol" },
         { "source": "/api/newsletter-unsubscribe", "destination": "/api/newsletter?action=unsubscribe" },
         { "source": "/api/check", "destination": "/api/admin?action=ping" },
+        { "source": "/api/newsletter-snapshot", "destination": "/api/newsletter?action=snapshot" },
+        { "source": "/api/newsletter-onboarding", "destination": "/api/newsletter?action=onboarding" },
         { "source": "/api/health-check", "destination": "/api/admin?action=health-check" },
         { "source": "/api/morning-report", "destination": "/api/admin?action=morning-report" },
         { "source": "/api/tickers", "destination": "/api/batch-stocks?action=tickers" },

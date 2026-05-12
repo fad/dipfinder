@@ -683,7 +683,7 @@ async function handleTriggerOnboarding(_req: VercelRequest, res: VercelResponse)
   const CRON_SECRET = process.env.CRON_SECRET;
   if (!CRON_SECRET) return res.status(500).json({ error: 'CRON_SECRET not set' });
   try {
-    const r = await fetch(`${FRONTEND_URL}/api/newsletter-onboarding`, {
+    const r = await fetch(`${FRONTEND_URL}/api/newsletter?action=onboarding`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${CRON_SECRET}` }
     });
@@ -732,7 +732,7 @@ const CRON_DEFS = [
     id: 'newsletter-onboarding',
     name: 'Onboarding Emails',
     description: 'Sends welcome emails to new Sunday Brief subscribers who have not yet received one.',
-    endpoint: '/api/newsletter-onboarding',
+    endpoint: '/api/newsletter?action=onboarding',
     method: 'POST',
     vercelSchedule: 'Daily at 10:00 UTC',
     defaultSchedule: { enabled: true, hour: 10 },
@@ -741,7 +741,7 @@ const CRON_DEFS = [
     id: 'newsletter-snapshot',
     name: 'Weekly Snapshot + AI Summaries',
     description: 'Snapshots each subscriber\'s watchlist SMA status (powers the personalised opener), then generates AI news summaries for all unique symbols via Claude Haiku. Admin reviews summaries in the AI Summaries tab before the Sunday send.',
-    endpoint: '/api/newsletter-snapshot',
+    endpoint: '/api/newsletter?action=snapshot',
     method: 'POST',
     vercelSchedule: 'Saturdays at 23:00 UTC',
     defaultSchedule: { enabled: true, dayOfWeek: 6, hour: 23 },
