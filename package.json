@@ -8,7 +8,7 @@
     "check": "tsc -p tsconfig.json",
     "local": "vercel dev --listen 3000 --yes",
     "watch:css": "tailwindcss -i ./public/styles/input.css -o ./public/styles/styles.css --watch",
-    "test": "npm run check",
+    "test": "npm run check && node --import tsx --test tests/**/*.test.ts",
     "setup-indexes": "node scripts/setup-indexes.js",
     "seed-tickers": "node scripts/seed-ticker-tags.js"
   },
@@ -29,6 +29,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@vercel/node": "^5.3.0",
     "tailwindcss": "^3.4.4",
+    "tsx": "^4.21.0",
     "vercel": "^48.12.1"
   }
 }
