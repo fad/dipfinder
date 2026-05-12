@@ -122,9 +122,14 @@
 
     <div class="relative z-10 mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
 
-        <!-- Authentication Modal -->
-        <div id="auth-modal" class="fixed inset-0 z-50 hidden items-start justify-center bg-black bg-opacity-60 px-4 py-8 flex overflow-y-auto">
-            <div id="auth-modal-content" class="relative flex w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl my-auto">
+        <div id="main-content">
+        </div>
+
+    </div>
+
+    <!-- Authentication Modal — direct child of body so z-index is root-level -->
+    <div id="auth-modal" class="fixed inset-0 z-[9999] hidden items-start justify-center bg-black bg-opacity-60 px-4 py-8 flex overflow-y-auto">
+        <div id="auth-modal-content" class="relative flex w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl my-auto">
 
                 <!-- Left panel — branding -->
                 <div class="hidden md:flex md:w-2/5 flex-col justify-between bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-8 text-white">
@@ -169,9 +174,6 @@
 
                 <!-- Right panel — forms -->
                 <div class="flex flex-1 flex-col p-8">
-                    <button id="auth-modal-close"
-                        class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 focus:outline-none"
-                        aria-label="Close">&times;</button>
 
                     <!-- Alerts -->
                     <div id="auth-error" class="mb-5 hidden rounded-xl border border-red-100 bg-red-50 px-4 py-3">
@@ -383,10 +385,6 @@
             </div>
         </div>
 
-        <div id="main-content">
-        </div>
-
-    </div>
     <!-- ── Disclaimer bar ──────────────────────────────────────────────────── -->
     <div class="relative z-10 border-t border-amber-100 bg-amber-50 px-6 py-4">
         <div class="mx-auto flex max-w-7xl items-center justify-center gap-3 text-sm text-amber-800 text-center">

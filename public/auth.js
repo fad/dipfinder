@@ -798,20 +798,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Close on backdrop click (but not on content click)
-    const authModal = document.getElementById('auth-modal');
-    const authModalContent = document.getElementById('auth-modal-content');
-    if (authModal) {
-        authModal.addEventListener('click', function(e) {
-            if (e.target === authModal) AuthManager.closeAuthModal();
-        });
-    }
-    if (authModalContent) {
-        authModalContent.addEventListener('click', function(e) { e.stopPropagation(); });
-    }
-
-    const authModalClose = document.getElementById('auth-modal-close');
-    if (authModalClose) authModalClose.addEventListener('click', AuthManager.closeAuthModal);
+    // Modal is not closeable — app requires authentication
 
     // ── Auth-options screen ───────────────────────────────────────────────────
     const authOptionsLogin    = document.getElementById('auth-options-login');
