@@ -33,7 +33,7 @@ public/               ← Frontend SPA
   styles/input.css    ← Tailwind source ← EDIT THIS
   styles/styles.css   ← Generated output ← DO NOT EDIT
 
-api/                  ← Serverless functions (one file = one route, 11 total — Hobby plan limit is 12)
+api/                  ← Serverless functions (one file = one route, 8 total — Hobby plan limit is 12)
   lib/
     mongodb.ts        ← Singleton DB connection (globalThis caching)
     auth.ts           ← bcrypt + JWT helpers
@@ -49,12 +49,14 @@ api/                  ← Serverless functions (one file = one route, 11 total �
   batch-stocks.ts     ← POST: multi-stock SMA fetch for dashboard; GET ?action=tickers for autocomplete
   stock-data.ts       ← All per-stock data: price+SMA (Yahoo→Finnhub fallback), news, fundamentals
   newsletter-send.ts  ← 3 cron triggers (Sat 23:00, Sun 07:00, Sun 14:00 UTC) + admin preview
-  newsletter.ts       ← GET ?action=view (tokenized view-online) + ?action=unsubscribe
-  newsletter-onboarding.ts ← Daily cron (10:00 UTC): sends welcome email to new brief subscribers
-  newsletter-snapshot.ts ← Weekly cron (Saturday 23:00 UTC): snapshots watchlist SMA status, generates AI summaries, generates macro recap
-  admin.ts            ← Admin: list users, template management, cron triggers
-  health-check.ts     ← System health check (MongoDB, Yahoo, Finnhub, Resend) + ping
-  morning-report.ts   ← Daily cron (07:00 UTC): emails admin a summary of user counts, subscriber totals, cron last-run statuses
+  newsletter.ts       ← Multi-action handler: ?action=view (tokenized view-online), ?action=unsubscribe,
+                         ?action=onboarding (daily cron 10:00 UTC — welcome emails),
+                         ?action=snapshot (Sat 18:00 UTC — per-user SMA snapshots + macro recap + Radar sweep),
+                         ?action=ai-summaries (Sat 18:15/18:30/18:45/19:00 UTC — AI stock summary generation, 50 symbols/run)
+  admin.ts            ← Admin: list users, template management, cron triggers,
+                         ?action=health-check (daily cron 09:00 UTC — checks MongoDB/Yahoo/Finnhub/Resend/Anthropic),
+                         ?action=morning-report (daily cron 07:00 UTC — user counts, subscriber totals, cron statuses),
+                         ?action=ping (public health ping)
 
 scripts/
   setup-indexes.js    ← One-time MongoDB index creation (run once per environment)
@@ -78,11 +80,19 @@ data/
 
 Then for each `sundayBriefSubscribed` user: checks `isTimeToSend(user.timezone)` (Sunday 6-10am local) and `lastNewsletterSentAt` (skip if sent within 7 days) → `buildStockResults()` (Yahoo Finance + Finnhub, cached in MongoDB) → `buildNewsletterEmailHtml()` (checks DB for `sunday-brief` template, renders all placeholder blocks, falls back to hardcoded) → Resend API. View-online link → `newsletter.ts?action=view`.
 
-**Data flow — Saturday snapshot cron (newsletter-snapshot.ts):**
+**Data flow — Saturday crons (`newsletter.ts`):**
+
+`?action=snapshot` (Sat 18:00 UTC):
 1. Saves per-user `weeklySnapshots` (SMA positions) — powers the personal opener delta sentence
-2. Generates AI stock summaries: unique symbols across all subscribers → Finnhub headlines → Claude Haiku → stored in `aiSummaries` with `reviewed:false`. Admin reviews in "AI Summaries" tab before Sunday send; only approved summaries are injected.
-3. Generates macro recap: fetches SPY/QQQ/IWM/^TNX weekly moves + 11 sector ETFs → builds mechanical sentence 1 (index moves) and sentence 3 (sector lead/lag) → fetches Finnhub general news → Claude Haiku generates sentence 2 (driver/theme, temp 0.2, max_tokens 60) → stored in `weeklyMacroRecaps` (idempotent). Falls back to neutral text if any step fails.
-4. On Your Radar universe sweep: loads all `ticker_tags` → fetches weekly price data for ~431 tagged tickers (15-concurrent batches via `fetchUniverseBatch`) → stores `weekly_radar_universe` → for each subscriber, runs `getRadarSuggestions()` → stores in `weekly_radar_suggestions`. Sunday send reads pre-computed suggestions per user.
+2. Generates macro recap: fetches SPY/QQQ/IWM/^TNX weekly moves + 11 sector ETFs → builds mechanical sentence 1 (index moves) and sentence 3 (sector lead/lag) → fetches Finnhub general news → Claude Haiku generates sentence 2 (driver/theme, temp 0.2, max_tokens 60) → stored in `weeklyMacroRecaps` (idempotent). Falls back to neutral text if any step fails.
+3. On Your Radar universe sweep: loads all `ticker_tags` → fetches weekly price data for ~431 tagged tickers (15-concurrent batches via `fetchUniverseBatch`) → stores `weekly_radar_universe` → for each subscriber, runs `getRadarSuggestions()` → stores in `weekly_radar_suggestions`. Sunday send reads pre-computed suggestions per user.
+
+`?action=ai-summaries` (Sat 18:15, 18:30, 18:45, 19:00 UTC — 4 runs):
+- Queries all subscribers, deduplicates symbols, skips any already generated this week
+- Processes up to 50 symbols per run (200 max across 4 runs) — Finnhub headlines → Claude Haiku → `aiSummaries` (reviewed:false)
+- Sends one alert email to admin per week (deduped via `settings` key `ai-summary-alert-{weekKey}`) listing pending symbols and estimated cost
+- Admin reviews in "AI Summaries" tab; only approved summaries are injected into Sunday send
+- `getApprovedSummaries()` returns all-time approved summaries deduped by symbol (most recent week wins)
 
 **Sunday Brief template placeholder blocks:**
 
@@ -126,7 +136,7 @@ Then for each `sundayBriefSubscribed` user: checks `isTimeToSend(user.timezone)`
 | `ticker_tags` | Static tag data for Radar scoring — sector/industry/factors/themes/market_cap_tier per ticker | permanent (seed once) |
 | `weekly_radar_universe` | Weekly price snapshot for all tagged tickers (Saturday night) — keyed by weekKey+ticker | permanent (weekly) |
 | `weekly_radar_suggestions` | Pre-computed per-user Radar suggestions (Saturday night) — keyed by userId+weekKey | permanent (weekly) |
-| `settings` | Key-value store: app config + cron last-run tracking + AI prompt template | permanent |
+| `settings` | Key-value store: app config + cron last-run tracking + AI prompt template + weekly AI alert dedup key (`ai-summary-alert-{weekKey}`) | permanent |
 
 TTL indexes are live on Atlas — MongoDB auto-deletes expired docs. App-level TTL checks at read time provide an additional fast-path guard.
 
@@ -169,10 +179,10 @@ Read these first:
 4. `api/lib/macro-recap.ts` — Saturday macro recap generation and Sunday retrieval
 5. `api/lib/radar.ts` — On Your Radar: scoring engine, `fetchUniverseBatch()`, `buildOnYourRadarBlock()`, DB helpers
 6. `api/batch-stocks.ts` — dashboard data fetch with two-level caching (memory + MongoDB)
-6. `public/dipfinder.js` — dashboard render, chart orientation toggle, SMA period persistence
-7. `public/screener.js` — race-condition-safe stock loading, timeframe slicing, chart lifecycle
-8. `public/auth.js` — AuthManager: token state, guest vs. authenticated UI, `window.MAX_STOCKS`
-9. `api/user.ts` — all auth endpoints: login lockout logic, password reset flow, captcha
+7. `public/dipfinder.js` — dashboard render, chart orientation toggle, SMA period persistence
+8. `public/screener.js` — race-condition-safe stock loading, timeframe slicing, chart lifecycle
+9. `public/auth.js` — AuthManager: token state, guest vs. authenticated UI, `window.MAX_STOCKS`
+10. `api/user.ts` — all auth endpoints: login lockout logic, password reset flow, captcha
 
 ## Conventions
 
@@ -237,8 +247,12 @@ curl "https://dipfinder.com/api/newsletter-send?preview=true" \
 curl -X POST https://dipfinder.com/api/newsletter-send \
   -H "Authorization: Bearer <CRON_SECRET>"
 
-# Trigger Saturday snapshot manually (generates snapshots + AI summaries + macro recap)
-curl -X POST https://dipfinder.com/api/newsletter-snapshot \
+# Trigger Saturday snapshot manually (snapshots + macro recap + Radar sweep)
+curl -X POST "https://dipfinder.com/api/newsletter?action=snapshot" \
+  -H "Authorization: Bearer <CRON_SECRET>"
+
+# Trigger AI summary generation manually (processes up to 50 pending symbols per call)
+curl -X POST "https://dipfinder.com/api/newsletter?action=ai-summaries" \
   -H "Authorization: Bearer <CRON_SECRET>"
 
 # Health check
@@ -299,11 +313,19 @@ Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 
 ### Debugging a missing macro recap
 
-1. Check Vercel logs for the Saturday 23:00 UTC `newsletter-snapshot` invocation.
+1. Check Vercel logs for the Saturday 18:00 UTC `newsletter?action=snapshot` invocation.
 2. Look for `generateMacroRecap` log lines — Yahoo Finance failures for SPY/QQQ/IWM will be logged and cause the fallback text to be stored.
 3. Query `weeklyMacroRecaps` in Atlas for the current ISO week (`getISOWeekKey(new Date())` in `macro-recap.ts`).
 4. `isFallback: true` means a failure occurred — check logs for which step failed (Yahoo, Finnhub general news, or Claude).
-5. Trigger the snapshot manually via `curl -X POST .../api/newsletter-snapshot -H "Authorization: Bearer <CRON_SECRET>"` to regenerate (idempotent — will skip if text already stored for this week).
+5. Trigger the snapshot manually via `curl -X POST "https://dipfinder.com/api/newsletter?action=snapshot" -H "Authorization: Bearer <CRON_SECRET>"` to regenerate (idempotent — will skip if text already stored for this week).
+
+### Debugging missing AI summaries
+
+1. Check Vercel logs for the Saturday 18:15–19:00 UTC `newsletter?action=ai-summaries` invocations (4 runs).
+2. Each run processes up to 50 symbols — check if all 4 ran and whether any timed out.
+3. Check `aiSummaries` collection in Atlas for `reviewed:false` docs with the current week key.
+4. If the admin alert email was not received, check `settings` for key `ai-summary-alert-{weekKey}` — if absent the alert was never sent (first run may have failed before alert logic).
+5. Trigger a run manually: `curl -X POST "https://dipfinder.com/api/newsletter?action=ai-summaries" -H "Authorization: Bearer <CRON_SECRET>"` — idempotent, skips already-generated symbols.
 
 ### Rolling back a bad deploy
 
@@ -346,14 +368,29 @@ Safe to re-run — existing indexes are skipped. Covers: `users.email` (unique),
 
 Users without a stored timezone default to UTC (Sunday 07:00 window). Preview (`?preview=true`) always uses the admin user regardless of timezone/subscription. A 300ms delay between sends respects Resend's free-plan rate limit (100 emails/day, 3,000/month).
 
-### Saturday snapshot — what runs
+### Saturday schedule — what runs when
 
-All three steps run in `newsletter-snapshot.ts` at Saturday 23:00 UTC:
+All Saturday processing runs in `newsletter.ts` (was previously split across `newsletter-snapshot.ts` and separate files). Schedule gives ~4 hours of admin review time before the first Sunday send (Asia/Pacific at 23:00 UTC).
 
-1. **Weekly snapshots** — per-user SMA positions saved to `weeklySnapshots`. Powers the personal opener sentence comparing this week vs. last week.
-2. **AI stock summaries** — unique symbols across all subscribers, Finnhub headlines → Claude Haiku → `aiSummaries` (reviewed:false). Admin reviews in the "AI Summaries" admin tab before Sunday. `getApprovedSummaries()` returns all-time approved summaries deduped by symbol (most recent week wins).
-3. **Macro recap** — SPY/QQQ/IWM/^TNX + 11 sector ETFs fetched via `dashboardStocks` cache → mechanical sentences 1 and 3 built → Finnhub general news fetched → Claude Haiku sentence 2 generated → stored in `weeklyMacroRecaps`. Idempotent (skips if current week already stored). Falls back to neutral text on any failure.
-4. **On Your Radar universe sweep** — loads all `ticker_tags` from DB → fetches weekly price data for ~431 tickers (15 concurrent via `fetchUniverseBatch`) → stores per-ticker snapshot in `weekly_radar_universe` → runs `getRadarSuggestions()` per subscriber → stores in `weekly_radar_suggestions`. Sunday send reads pre-computed suggestions. Non-fatal if sweep fails.
+| UTC | Cron | What it does |
+|---|---|---|
+| 18:00 | `?action=snapshot` | Per-user SMA snapshots, macro recap, Radar universe sweep |
+| 18:15 | `?action=ai-summaries` | AI summaries batch 1 (up to 50 symbols) |
+| 18:30 | `?action=ai-summaries` | AI summaries batch 2 (skips already done) |
+| 18:45 | `?action=ai-summaries` | AI summaries batch 3 |
+| 19:00 | `?action=ai-summaries` | AI summaries batch 4 |
+| 23:00 | `newsletter-send` | Sunday Brief — Asia/Pacific window |
+
+**`?action=snapshot`** runs:
+1. **Weekly snapshots** — per-user SMA positions saved to `weeklySnapshots`. Powers the personal opener sentence.
+2. **Macro recap** — SPY/QQQ/IWM/^TNX + 11 sector ETFs → mechanical sentences 1 and 3 → Finnhub general news → Claude Haiku sentence 2 → stored in `weeklyMacroRecaps`. Idempotent. Falls back to neutral text on any failure.
+3. **On Your Radar universe sweep** — ~431 tagged tickers fetched (15 concurrent) → `weekly_radar_universe` → per-subscriber `weekly_radar_suggestions`. Non-fatal if sweep fails.
+
+**`?action=ai-summaries`** (4 runs):
+- Deduplicates symbols across all subscribers, skips already-generated ones
+- Up to 50 symbols per run → Finnhub headlines → Claude Haiku → `aiSummaries` (reviewed:false)
+- Sends one admin alert email per week (deduped via `settings` key `ai-summary-alert-{weekKey}`)
+- Admin reviews in "AI Summaries" tab; only approved summaries appear in the Sunday send
 
 ### Seeding ticker tags (On Your Radar)
 
@@ -386,7 +423,7 @@ Minimum score to appear: 2.0. Only tickers that "moved" this week qualify (`|wee
 
 **Ticker tags live separately from the `tickers` collection.** `tickers` is the self-learning autocomplete store (seeded by successful fetches). `ticker_tags` is the curated Radar scoring store (seeded manually from `data/ticker-tags-seed.json`). Do not confuse them.
 
-**newsletter-snapshot.ts has `maxDuration: 60` in vercel.json.** The Hobby plan caps at 60s — do not set higher or deploys will fail silently. The 431-ticker universe sweep targets ~30-50s; if Yahoo Finance is slow it may time out.
+**`newsletter.ts` and `admin.ts` both have `maxDuration: 60` in vercel.json.** The Hobby plan caps at 60s — do not set higher or deploys will fail silently. The 431-ticker Radar universe sweep targets ~30-50s; if Yahoo Finance is slow the snapshot action may time out.
 
 **`styles/styles.css` is generated.** Always edit `public/styles/input.css`. Running `npm run build:css` overwrites `styles/styles.css` entirely.
 
