@@ -8,16 +8,38 @@ import { getEmailTemplate, saveEmailTemplate, listTemplateKeys, sendEmail, build
 import Anthropic from '@anthropic-ai/sdk';
 import { fetchStockData, fetchNewsForSymbol, NEWSLETTER_SMA_DEFAULT } from './lib/newsletter-data';
 import { generateAiSummary, upsertAiSummary, getAiPromptTemplate, DEFAULT_NEWS_SUMMARY_PROMPT, deduplicateNewsItems } from './lib/ai-summaries';
+import { verifyJWT } from './lib/auth';
+import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
+const ADMIN_EMAIL    = process.env.ADMIN_EMAIL?.toLowerCase();
+const CRON_SECRET    = process.env.CRON_SECRET;
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+const RESEND_API_KEY = process.env.EMAIL_NOREPLY_API_KEY;
+const FRONTEND_URL   = process.env.FRONTEND_URL || 'https://dipfinder.com';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Public ping — no auth required
+  if (req.query.action === 'ping') {
+    return res.status(200).json({ status: 'API is working correctly', timestamp: new Date().toISOString() });
+  }
+
   // Login action is unauthenticated (has its own credential check)
   if (req.query.action === 'login') {
     return await handleAdminLogin(req, res);
+  }
+
+  // Cron-secret auth — only for cron-invocable actions
+  if (CRON_SECRET && req.headers.authorization === `Bearer ${CRON_SECRET}`) {
+    const action = req.query.action as string;
+    if (action === 'health-check') return await handleHealthCheck(req, res);
+    if (action === 'morning-report') return await handleMorningReport(req, res);
   }
 
   // All other actions require a valid admin JWT
@@ -51,8 +73,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleClearStockCache(req, res);
       case 'cache-health':
         return await handleCacheHealth(req, res);
+      case 'health-check':
       case 'trigger-health-check':
-        return await handleTriggerHealthCheck(req, res);
+        return await handleHealthCheck(req, res);
+      case 'morning-report':
+        return await handleMorningReport(req, res);
       case 'list-templates':
         return await handleListTemplates(req, res);
       case 'get-template':
@@ -335,20 +360,216 @@ async function handleCacheHealth(_req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({ symbols: rows, total: rows.length, ttl_minutes: CACHE_TTL_MS / 60000 });
 }
 
-async function handleTriggerHealthCheck(_req: VercelRequest, res: VercelResponse) {
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dipfinder.com';
-  const CRON_SECRET = process.env.CRON_SECRET;
-  if (!CRON_SECRET) return res.status(500).json({ error: 'CRON_SECRET not set' });
+async function handleHealthCheck(req: VercelRequest, res: VercelResponse) {
+  const isCronInvocation = !!req.headers['x-vercel-cron'];
+  const db0 = await connectToDatabase();
+  const run = await shouldCronRun(db0, 'health-check', { enabled: true, hour: 9 }, isCronInvocation);
+  if (!run) return res.status(200).json({ skipped: true, reason: 'outside scheduled window' });
+
+  const results: Record<string, any> = { checkedAt: new Date().toISOString() };
+
+  // 1. MongoDB
   try {
-    const r = await fetch(`${FRONTEND_URL}/api/health-check`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${CRON_SECRET}` }
-    });
-    const data = await r.json();
-    return res.status(200).json(data);
+    const db = await connectToDatabase();
+    const userCount = await db.collection('users').countDocuments();
+    results.mongodb = { ok: true, userCount };
   } catch (err: any) {
-    return res.status(500).json({ error: err?.message });
+    results.mongodb = { ok: false, error: err?.message };
   }
+
+  // 2. Yahoo Finance
+  try {
+    const period1 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const chart = await yahooFinance.chart('AAPL', { period1, interval: '1d' });
+    const quotes: any[] = chart?.quotes ?? [];
+    results.yahooFinance = { ok: quotes.length > 0, quotesReturned: quotes.length, symbol: chart?.meta?.symbol };
+  } catch (err: any) {
+    results.yahooFinance = { ok: false, error: err?.message };
+  }
+
+  // 3. Finnhub
+  try {
+    if (!FINNHUB_API_KEY) throw new Error('FINNHUB_API_KEY not set');
+    const today    = new Date().toISOString().split('T')[0];
+    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const r = await axios.get(
+      `https://finnhub.io/api/v1/company-news?symbol=AAPL&from=${lastWeek}&to=${today}&token=${FINNHUB_API_KEY}`
+    );
+    results.finnhub = { ok: Array.isArray(r.data), itemsReturned: Array.isArray(r.data) ? r.data.length : 0 };
+  } catch (err: any) {
+    results.finnhub = { ok: false, error: err?.message };
+  }
+
+  // 4. Resend — 401 on /domains means send-only key (valid), 403/5xx = real problem
+  try {
+    if (!RESEND_API_KEY) throw new Error('EMAIL_NOREPLY_API_KEY not set');
+    const r = await fetch('https://api.resend.com/domains', {
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}` }
+    });
+    const ok = r.ok || r.status === 401;
+    results.resend = { ok, httpStatus: r.status, note: r.status === 401 ? 'send-only key (expected)' : undefined };
+  } catch (err: any) {
+    results.resend = { ok: false, error: err?.message };
+  }
+
+  const anyFailed = Object.entries(results)
+    .filter(([k]) => k !== 'checkedAt')
+    .some(([, v]) => v?.ok === false);
+  results.anyFailed = anyFailed;
+
+  const isCron = isCronInvocation;
+  const shouldEmail = !isCron || anyFailed;
+  let emailSent = false;
+
+  if (shouldEmail && ADMIN_EMAIL) {
+    const checks = ['mongodb', 'yahooFinance', 'finnhub', 'resend'];
+    const rows = checks.map(key => {
+      const v = results[key] ?? {};
+      const detail = v.error ?? v.httpStatus ?? v.quotesReturned ?? v.itemsReturned ?? v.userCount ?? '';
+      return `<tr>
+        <td style="padding:8px 16px;font-weight:600;text-transform:capitalize;">${key}</td>
+        <td style="padding:8px 16px;color:${v.ok ? '#16a34a' : '#dc2626'};font-weight:700;">${v.ok ? 'OK' : 'FAILED'}</td>
+        <td style="padding:8px 16px;font-family:monospace;font-size:12px;color:#6b7280;">${detail}</td>
+      </tr>`;
+    }).join('');
+
+    const subject = anyFailed
+      ? 'DipFinder Health Check - ISSUES DETECTED'
+      : 'DipFinder Health Check - All systems OK';
+
+    emailSent = await sendEmail({
+      to: ADMIN_EMAIL,
+      subject,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:24px;color:#111827;">
+          <h2 style="margin:0 0 4px;color:${anyFailed ? '#dc2626' : '#16a34a'};">
+            ${anyFailed ? '&#9888;&#65039; Issues detected' : '&#9989; All systems OK'}
+          </h2>
+          <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">${results.checkedAt}</p>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+            <thead>
+              <tr style="background:#f9fafb;">
+                <th style="padding:8px 16px;text-align:left;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Service</th>
+                <th style="padding:8px 16px;text-align:left;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Status</th>
+                <th style="padding:8px 16px;text-align:left;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Detail</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p style="margin-top:24px;">
+            <a href="${FRONTEND_URL}/admin" style="color:#3b82f6;">Open Admin &rarr;</a>
+          </p>
+        </div>
+      `
+    });
+  }
+
+  results.emailSent = emailSent;
+  await recordCronRun(db0, 'health-check', { anyFailed: results.anyFailed, emailSent }, !isCronInvocation);
+  return res.status(200).json(results);
+}
+
+// ── Morning Report (daily admin email) ────────────────────────────────────────
+
+const MORNING_REPORT_CRON_NAMES: Record<string, string> = {
+  'morning-report':        'Morning Report',
+  'health-check':          'Health Check',
+  'newsletter-onboarding': 'Onboarding Emails',
+  'newsletter-snapshot':   'Weekly Snapshot',
+  'newsletter-send':       'Weekly Newsletter',
+};
+
+async function handleMorningReport(req: VercelRequest, res: VercelResponse) {
+  const isCronInvocation = !!req.headers['x-vercel-cron'];
+  const db = await connectToDatabase();
+  const run = await shouldCronRun(db, 'morning-report', { enabled: true, hour: 7 }, isCronInvocation);
+  if (!run) return res.status(200).json({ skipped: true, reason: 'outside scheduled window' });
+
+  if (!ADMIN_EMAIL) return res.status(500).json({ error: 'ADMIN_EMAIL not set' });
+
+  const oneDayAgo    = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [totalUsers, newToday, newThisWeek, sundayBriefSubs, newsletterSubs, activeTickerCount] = await Promise.all([
+    db.collection('users').countDocuments({}),
+    db.collection('users').countDocuments({ createdDate: { $gte: oneDayAgo } }),
+    db.collection('users').countDocuments({ createdDate: { $gte: sevenDaysAgo } }),
+    db.collection('users').countDocuments({ sundayBriefSubscribed: true }),
+    db.collection('users').countDocuments({ newsletterSubscribed: true }),
+    db.collection('tickers').countDocuments({ active: true }),
+  ]);
+
+  const cronIds  = Object.keys(MORNING_REPORT_CRON_NAMES);
+  const cronDocs = await db.collection('settings')
+    .find({ key: { $in: cronIds.map(id => `cron-last-run-${id}`) } })
+    .toArray();
+  const cronByKey: Record<string, any> = {};
+  for (const doc of cronDocs) cronByKey[doc.key] = doc.value;
+
+  const dateLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+
+  const statItems = [
+    { label: 'Total Users',       value: totalUsers.toLocaleString() },
+    { label: 'New Today',         value: newToday.toLocaleString() },
+    { label: 'New This Week',     value: newThisWeek.toLocaleString() },
+    { label: 'Sunday Brief Subs', value: sundayBriefSubs.toLocaleString() },
+    { label: 'Newsletter Subs',   value: newsletterSubs.toLocaleString() },
+    { label: 'Active Tickers',    value: activeTickerCount.toLocaleString() },
+  ];
+
+  const statCells = statItems.map(s => `
+    <td style="padding:0 8px 0 0; vertical-align:top; min-width:90px;">
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px; text-align:center;">
+        <div style="font-size:1.5rem; font-weight:700; color:#1e293b; line-height:1;">${s.value}</div>
+        <div style="font-size:0.68rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px;">${s.label}</div>
+      </div>
+    </td>`).join('');
+
+  const cronRows = cronIds.map(id => {
+    const last = cronByKey[`cron-last-run-${id}`];
+    if (!last) {
+      return `<tr style="border-top:1px solid #f1f5f9;">
+        <td style="padding:9px 14px; font-size:0.875em; color:#1e293b; font-weight:600;">${MORNING_REPORT_CRON_NAMES[id]}</td>
+        <td style="padding:9px 14px; font-size:0.875em; color:#94a3b8;" colspan="2">Never run</td>
+      </tr>`;
+    }
+    const ranAt = new Date(last.ranAt).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      timeZone: 'UTC', timeZoneName: 'short',
+    });
+    const failed = last.result?.anyFailed === true;
+    const badge  = failed
+      ? '<span style="background:#FEE2E2;color:#DC2626;font-weight:700;font-size:0.75em;padding:2px 8px;border-radius:999px;">FAILED</span>'
+      : '';
+    return `<tr style="border-top:1px solid #f1f5f9;">
+      <td style="padding:9px 14px; font-size:0.875em; color:#1e293b; font-weight:600;">${MORNING_REPORT_CRON_NAMES[id]}</td>
+      <td style="padding:9px 14px; font-size:0.875em; color:#64748b;">${ranAt}${last.manual ? ' (manual)' : ''}</td>
+      <td style="padding:9px 14px; text-align:right;">${badge}</td>
+    </tr>`;
+  }).join('');
+
+  const bodyHtml = `
+<h2 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin:0 0 4px;">Good morning - daily report</h2>
+<p style="font-size:13px; color:#94a3b8; margin:0 0 22px;">${dateLabel}</p>
+<table style="border-collapse:collapse; margin-bottom:24px; width:100%;"><tr>${statCells}</tr></table>
+<h3 style="font-size:0.72em; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 8px;">Cron Last Run</h3>
+<table style="width:100%; border-collapse:collapse; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; font-family:Arial,Helvetica,sans-serif; margin-bottom:24px;">
+  <tbody>${cronRows}</tbody>
+</table>
+<div style="text-align:center; margin-top:8px;">
+  <a href="${FRONTEND_URL}/admin" style="display:inline-block; background:linear-gradient(135deg,#2563EB,#4F46E5); color:#FFFFFF; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:700; font-size:14px; font-family:Arial,Helvetica,sans-serif;">Open Admin &rarr;</a>
+</div>`;
+
+  const html      = buildEmailHtml(bodyHtml);
+  const shortDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const subject   = `DipFinder Morning Report - ${shortDate}`;
+
+  const emailSent = await sendEmail({ to: ADMIN_EMAIL, subject, html });
+  const result    = { totalUsers, newToday, newThisWeek, sundayBriefSubs, newsletterSubs, activeTickerCount, emailSent };
+  await recordCronRun(db, 'morning-report', result, !isCronInvocation);
+  return res.status(200).json(result);
 }
 
 // ── Email template management ─────────────────────────────────────────────────

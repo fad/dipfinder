@@ -19,7 +19,7 @@
             "schedule": "0 14 * * 0"
         },
         {
-            "path": "/api/health-check",
+            "path": "/api/admin?action=health-check",
             "schedule": "0 9 * * *"
         },
         {
@@ -31,7 +31,7 @@
             "schedule": "0 23 * * 6"
         },
         {
-            "path": "/api/morning-report",
+            "path": "/api/admin?action=morning-report",
             "schedule": "0 7 * * *"
         }
     ],
@@ -50,7 +50,9 @@
     "rewrites": [
         { "source": "/api/stock-data/:symbol", "destination": "/api/stock-data?symbol=:symbol" },
         { "source": "/api/newsletter-unsubscribe", "destination": "/api/newsletter?action=unsubscribe" },
-        { "source": "/api/check", "destination": "/api/health-check?action=ping" },
+        { "source": "/api/check", "destination": "/api/admin?action=ping" },
+        { "source": "/api/health-check", "destination": "/api/admin?action=health-check" },
+        { "source": "/api/morning-report", "destination": "/api/admin?action=morning-report" },
         { "source": "/api/tickers", "destination": "/api/batch-stocks?action=tickers" },
         { "source": "/api/(.*)", "destination": "/api/$1" },
 
