@@ -472,11 +472,12 @@ async function handleHealthCheck(req: VercelRequest, res: VercelResponse) {
 // ── Morning Report (daily admin email) ────────────────────────────────────────
 
 const MORNING_REPORT_CRON_NAMES: Record<string, string> = {
-  'morning-report':        'Morning Report',
-  'health-check':          'Health Check',
-  'newsletter-onboarding': 'Onboarding Emails',
-  'newsletter-snapshot':   'Weekly Snapshot',
-  'newsletter-send':       'Weekly Newsletter',
+  'morning-report':            'Morning Report',
+  'health-check':              'Health Check',
+  'newsletter-onboarding':     'Onboarding Emails',
+  'newsletter-snapshot':       'Weekly Snapshot',
+  'newsletter-ai-summaries':   'AI Summaries',
+  'newsletter-send':           'Weekly Newsletter',
 };
 
 async function handleMorningReport(req: VercelRequest, res: VercelResponse) {
@@ -739,11 +740,20 @@ const CRON_DEFS = [
   },
   {
     id: 'newsletter-snapshot',
-    name: 'Weekly Snapshot + AI Summaries',
-    description: 'Snapshots each subscriber\'s watchlist SMA status (powers the personalised opener), then generates AI news summaries for all unique symbols via Claude Haiku. Admin reviews summaries in the AI Summaries tab before the Sunday send.',
+    name: 'Weekly Snapshot',
+    description: 'Snapshots each subscriber\'s watchlist SMA status, generates macro recap, and runs the Radar universe sweep. Runs Saturday 22:45 UTC.',
     endpoint: '/api/newsletter?action=snapshot',
     method: 'POST',
-    vercelSchedule: 'Saturdays at 23:00 UTC',
+    vercelSchedule: 'Saturdays at 22:45 UTC',
+    defaultSchedule: { enabled: true, dayOfWeek: 6, hour: 22 },
+  },
+  {
+    id: 'newsletter-ai-summaries',
+    name: 'AI Summaries',
+    description: 'Generates AI news summaries for all subscriber watchlist symbols in batches of 50. Runs 4 times Saturday night (23:00-23:45 UTC). Each run skips already-generated symbols. Alert email sent after first successful run.',
+    endpoint: '/api/newsletter?action=ai-summaries',
+    method: 'POST',
+    vercelSchedule: 'Saturdays at 23:00, 23:15, 23:30, 23:45 UTC',
     defaultSchedule: { enabled: true, dayOfWeek: 6, hour: 23 },
   },
   {

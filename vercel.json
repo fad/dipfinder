@@ -28,7 +28,23 @@
         },
         {
             "path": "/api/newsletter?action=snapshot",
+            "schedule": "45 22 * * 6"
+        },
+        {
+            "path": "/api/newsletter?action=ai-summaries",
             "schedule": "0 23 * * 6"
+        },
+        {
+            "path": "/api/newsletter?action=ai-summaries",
+            "schedule": "15 23 * * 6"
+        },
+        {
+            "path": "/api/newsletter?action=ai-summaries",
+            "schedule": "30 23 * * 6"
+        },
+        {
+            "path": "/api/newsletter?action=ai-summaries",
+            "schedule": "45 23 * * 6"
         },
         {
             "path": "/api/admin?action=morning-report",
