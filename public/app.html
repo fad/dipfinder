@@ -398,6 +398,30 @@
         </div>
     </footer>
     <script src="turnstile-config.js"></script>
+
+    <!-- Stock Limit Modal — direct child of body so z-index is root-level -->
+    <div id="limit-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black bg-opacity-60 px-4" onclick="if(event.target===this)hideLimitModal()">
+        <div class="relative w-full max-w-md rounded-2xl bg-white shadow-2xl p-8">
+            <button onclick="hideLimitModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition" aria-label="Close">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-blue-50 mb-4">
+                    <i class="fas fa-layer-group text-2xl text-blue-600"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-900 mb-2">Watchlist full</h2>
+                <p class="text-gray-600 text-sm leading-relaxed">Free accounts track up to 10 stocks. Founding Members get unlimited watchlists and up to 50 tickers each - locked in at the early-access price, forever.</p>
+            </div>
+            <div class="space-y-3">
+                <a href="/founding" class="flex items-center justify-center gap-2 w-full rounded-xl py-3 px-6 font-semibold text-white text-sm transition" style="background:linear-gradient(135deg,#2563EB,#4F46E5)">
+                    <i class="fas fa-star"></i> Become a Founding Member
+                </a>
+                <button onclick="hideLimitModal()" class="w-full rounded-xl py-3 px-6 font-semibold text-gray-600 text-sm bg-gray-100 hover:bg-gray-200 transition">
+                    Maybe later
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

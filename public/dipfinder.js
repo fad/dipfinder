@@ -488,6 +488,18 @@ function stopLoadingDots(intervalId, elementId, finalText = '') {
     }
 }
 
+// ── Limit modal ───────────────────────────────────────────────────────────────
+
+function showLimitModal() {
+    const modal = document.getElementById('limit-modal');
+    if (modal) modal.classList.remove('hidden'), modal.classList.add('flex');
+}
+
+window.hideLimitModal = function() {
+    const modal = document.getElementById('limit-modal');
+    if (modal) modal.classList.add('hidden'), modal.classList.remove('flex');
+};
+
 // ── Stock limit helpers ───────────────────────────────────────────────────────
 
 function getCurrentStockLimit() {
@@ -1400,7 +1412,11 @@ window.initializeDipfinder = function() {
 
         const validation = addStockWithValidation(newStock);
         if (!validation.success) {
-            showAddError(validation.error);
+            if (validation.limitReached) {
+                showLimitModal();
+            } else {
+                showAddError(validation.error);
+            }
             return;
         }
 
@@ -1586,10 +1602,7 @@ window.initializeDipfinder = function() {
             if (stocks.length >= limit) {
                 dismissPending();
                 if (!window.IS_PRO) {
-                    showToast(
-                        `Watchlist full (${limit} stocks). Pro members track up to 50. <a href="/app?upgrade=1" style="color:#1d4ed8;font-weight:700;text-decoration:underline;">Upgrade &#x2192;</a>`,
-                        { type: 'error', html: true, duration: 8000 }
-                    );
+                    showLimitModal();
                 } else {
                     showToast(`Watchlist full (${limit} stocks). Remove a ticker to add ${rawTicker}.`, { type: 'error' });
                 }
