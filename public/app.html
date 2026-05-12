@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dip Finder – Find Dips in Stocks You Already Want to Own</title>
-    <meta name="description" content="Track your watchlist and instantly see which stocks are trading furthest below their moving average. Free, no account required.">
+    <meta name="description" content="Track your watchlist and instantly see which stocks are trading furthest below their moving average. Free account, no credit card.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Dip Finder">
     <meta property="og:title" content="Dip Finder – Find Dips in Stocks You Already Want to Own">
-    <meta property="og:description" content="Track your watchlist and instantly see which stocks are trading furthest below their moving average. Free, no account required.">
+    <meta property="og:description" content="Track your watchlist and instantly see which stocks are trading furthest below their moving average. Free account, no credit card.">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Dip Finder – Find Dips in Stocks You Already Want to Own">
-    <meta name="twitter:description" content="Track your watchlist and instantly see which stocks are trading furthest below their moving average. Free, no account required.">
+    <meta name="twitter:description" content="Track your watchlist and instantly see which stocks are trading furthest below their moving average. Free account, no credit card.">
     <link rel="icon" href="/favicon.png" type="image/png">
     <script>
         (function() {
@@ -122,66 +122,6 @@
 
     <div class="relative z-10 mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
 
-        <!-- Stock Limit Modal -->
-        <div id="limit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-60 px-4 flex">
-            <div class="relative flex w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-                <!-- Left panel -->
-                <div class="hidden md:flex md:w-2/5 flex-col justify-between bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-8 text-white">
-                    <div>
-                        <div class="mb-8 flex items-center gap-2.5">
-                            <picture>
-                                <source srcset="/img/logo.avif" type="image/avif">
-                                <img src="/img/logo.png" width="32" height="32" alt="Dip Finder logo" style="border-radius:7px;">
-                            </picture>
-                            <span class="text-base font-extrabold tracking-wide">Dip Finder</span>
-                        </div>
-                        <h2 class="mb-3 text-2xl font-extrabold leading-snug">Save your watchlist. Never lose your picks.</h2>
-                        <p class="text-sm leading-relaxed text-blue-100">A free account keeps your watchlist synced across devices and unlocks more stocks.</p>
-                    </div>
-                    <div class="mt-8 space-y-3">
-                        <div class="flex items-center gap-3 text-sm text-blue-100">
-                            <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white bg-opacity-20">
-                                <i class="fas fa-bookmark text-xs text-white"></i>
-                            </div>
-                            Sync watchlist across devices
-                        </div>
-                        <div class="flex items-center gap-3 text-sm text-blue-100">
-                            <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white bg-opacity-20">
-                                <i class="fas fa-list text-xs text-white"></i>
-                            </div>
-                            Track up to 10 stocks
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right panel -->
-                <div class="flex flex-1 flex-col justify-center p-8">
-                    <button id="limit-modal-close"
-                        class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 focus:outline-none"
-                        aria-label="Close">&times;</button>
-
-                    <p class="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
-                        <i class="fas fa-lock text-xs"></i> Stock limit reached (5 stocks)
-                    </p>
-                    <h3 class="mb-2 text-2xl font-extrabold text-gray-900">Double your limit!</h3>
-                    <p class="mb-8 text-sm text-gray-500">Free accounts track up to 10 stocks.<br>Sign up and claim your extra slots.</p>
-                    <div class="space-y-3">
-                        <button id="limit-modal-register"
-                            class="gradient-btn w-full rounded-xl px-4 py-3 font-semibold text-white transition-all hover:opacity-90">
-                            <i class="fas fa-user-plus mr-2"></i>Create Free Account
-                        </button>
-                        <button id="limit-modal-login"
-                            class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                            Already have an account? Sign in
-                        </button>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Authentication Modal -->
         <!-- Authentication Modal -->
         <div id="auth-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-60 px-4 flex">
             <div id="auth-modal-content" class="relative flex w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -196,21 +136,33 @@
                             </picture>
                             <span class="text-base font-extrabold tracking-wide">Dip Finder</span>
                         </div>
-                        <h2 class="mb-3 text-2xl font-extrabold leading-snug">Save your watchlist. Never lose your picks.</h2>
-                        <p class="text-sm leading-relaxed text-blue-100">A free account keeps your watchlist synced across devices and unlocks more stocks.</p>
+                        <h2 class="mb-3 text-2xl font-extrabold leading-snug">Know when your stocks go on sale.</h2>
+                        <p class="text-sm leading-relaxed text-blue-100">Add the stocks you'd buy. Dip Finder ranks them by how far they've dropped below their moving average.</p>
                     </div>
                     <div class="mt-8 space-y-3">
                         <div class="flex items-center gap-3 text-sm text-blue-100">
                             <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white bg-opacity-20">
-                                <i class="fas fa-bookmark text-xs text-white"></i>
+                                <i class="fas fa-chart-bar text-xs text-white"></i>
                             </div>
-                            Sync watchlist across devices
+                            Dip dashboard, ranked daily
+                        </div>
+                        <div class="flex items-center gap-3 text-sm text-blue-100">
+                            <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white bg-opacity-20">
+                                <i class="fas fa-envelope text-xs text-white"></i>
+                            </div>
+                            Sunday Brief - weekly email digest
+                        </div>
+                        <div class="flex items-center gap-3 text-sm text-blue-100">
+                            <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white bg-opacity-20">
+                                <i class="fas fa-search text-xs text-white"></i>
+                            </div>
+                            Stock screener with AI news
                         </div>
                         <div class="flex items-center gap-3 text-sm text-blue-100">
                             <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white bg-opacity-20">
                                 <i class="fas fa-list text-xs text-white"></i>
                             </div>
-                            Track up to 10 stocks
+                            Free for up to 10 stocks
                         </div>
                     </div>
                 </div>
@@ -404,7 +356,7 @@
                                     <input type="checkbox" id="register-sunday-brief" checked
                                         class="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                     <label for="register-sunday-brief" class="text-xs leading-relaxed text-gray-600">
-                                        Sign me up for the What the dip?! Sunday Brief.
+                                        Send me the Sunday Brief - my weekly watchlist digest.
                                     </label>
                                 </div>
                             </div>
