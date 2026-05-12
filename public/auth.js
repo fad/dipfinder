@@ -297,6 +297,9 @@ const AuthManager = (function() {
                     closeAuthModal();
                     showLoggedInUI(userData);
                     restoreWatchlistFromDb();
+                    // Handle postAuthRedirect (e.g. set by /founding page for unauthenticated visitors)
+                    const redirect = sessionStorage.getItem('postAuthRedirect');
+                    if (redirect) { sessionStorage.removeItem('postAuthRedirect'); window.location.href = redirect; }
                 }, 800);
             } else {
                 showAuthError(data.error || data.msg || "Login failed. Please try again.");
@@ -378,6 +381,9 @@ const AuthManager = (function() {
                         closeAuthModal();
                         showLoggedInUI(userData);
                         restoreWatchlistFromDb();
+                        // Handle postAuthRedirect (e.g. set by /founding page for unauthenticated visitors)
+                        const redirect = sessionStorage.getItem('postAuthRedirect');
+                        if (redirect) { sessionStorage.removeItem('postAuthRedirect'); window.location.href = redirect; }
                     }, 800);
                 } else {
                     // Existing email — notify but don't reveal account existence

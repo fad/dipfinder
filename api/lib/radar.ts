@@ -411,7 +411,7 @@ export function buildOnYourRadarBlock(candidates: RadarCandidate[], isPro: boole
   }).join('');
 
   const upgradeHint = !isPro
-    ? `<p style="margin:12px 0 0;padding-top:10px;border-top:1px solid #f1f5f9;font-size:0.75em;color:#94a3b8;text-align:center;">Pro members see 3 picks each week. <a href="${baseUrl}/app?upgrade=1" style="color:#6366f1;text-decoration:none;font-weight:600;">See Pro -&gt;</a></p>`
+    ? `<p style="margin:12px 0 0;padding-top:10px;border-top:1px solid #f1f5f9;font-size:0.75em;color:#94a3b8;text-align:center;">Pro members see 3 picks each week. <a href="${baseUrl}/founding" style="color:#6366f1;text-decoration:none;font-weight:600;">See Pro -&gt;</a></p>`
     : '';
 
   return `<div style="margin-top:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:4px 16px 14px;">${header}${cards}${upgradeHint}</div>`;

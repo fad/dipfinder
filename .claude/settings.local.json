@@ -5,7 +5,19 @@
       "Bash(ls -la /Users/fad/_repos/DipFinder/public/*.css)",
       "Bash(npm run:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m ':*)"
+      "Bash(git commit -m ':*)",
+      "Bash(vercel --prod)",
+      "Bash(git commit -m 'Auto sign-in after registration, use token returned by register API:*)",
+      "Bash(git commit -m 'Update CLAUDE.md: reflect newsletter 3-cron architecture, timezone delivery, users schema, live TTL indexes, morning-report endpoint, XSS escaping convention:*)",
+      "Bash(git commit -m 'Add IDEAS.md with functional improvement ideas:*)",
+      "Bash(git commit -m 'Admin: preview Sunday Brief for any user from the users table:*)",
+      "Bash(git commit -m 'Widen dashboard stock fetch window from 290 to 365 days to reliably cover 200-day SMA:*)",
+      "Bash(git commit -m 'batch-stocks: skip failed stocks instead of failing the whole batch:*)",
+      "Bash(npm install:*)",
+      "Bash(gh run:*)",
+      "Bash(node -e \"const data = require\\('/Users/fad/_repos/DipFinder/data/ticker-tags-seed.json'\\); console.log\\('Total tickers:', data.length\\); const sectors = {}; const industries = {}; const factors = {}; const themes = {}; data.forEach\\(t => { sectors[t.sector] = \\(sectors[t.sector]||0\\)+1; industries[t.industry] = \\(industries[t.industry]||0\\)+1; \\(t.factors||[]\\).forEach\\(f => factors[f]=\\(factors[f]||0\\)+1\\); \\(t.themes||[]\\).forEach\\(th => themes[th]=\\(themes[th]||0\\)+1\\); }\\); console.log\\('\\\\nBy sector:'\\); Object.entries\\(sectors\\).sort\\(\\(a,b\\)=>b[1]-a[1]\\).forEach\\(\\([k,v]\\)=>console.log\\(' ',k+':',v\\)\\); console.log\\('\\\\nFactors:'\\); Object.entries\\(factors\\).sort\\(\\(a,b\\)=>b[1]-a[1]\\).forEach\\(\\([k,v]\\)=>console.log\\(' ',k+':',v\\)\\); console.log\\('\\\\nThemes:'\\); Object.entries\\(themes\\).sort\\(\\(a,b\\)=>b[1]-a[1]\\).forEach\\(\\([k,v]\\)=>console.log\\(' ',k+':',v\\)\\);\")",
+      "Bash(git commit:*)",
+      "Bash(vercel deploy:*)"
     ]
   }
 }

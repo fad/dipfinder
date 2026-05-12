@@ -3,11 +3,16 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import { ObjectId } from 'mongodb';
+import Stripe from 'stripe';
 import { connectToDatabase } from './lib/mongodb';
 import { sendPasswordChangeNotification, sendPasswordResetEmail, sendMagicLinkEmail, sendOnboardingEmail, sendAccountExistsEmail } from './lib/email';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
+
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_PRICE_ID   = process.env.STRIPE_PRICE_ID   || '';
+const FOUNDING_MEMBER_LIMIT = 250;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = req.query.action as string;
@@ -66,6 +71,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       case 'set-initial-password':
         return await handleSetInitialPassword(req, res);
+
+      case 'founding-stats':
+        return await handleFoundingStats(req, res);
+
+      case 'subscription-status':
+        return await handleSubscriptionStatus(req, res);
+
+      case 'create-checkout-session':
+        return await handleCreateCheckoutSession(req, res);
+
+      case 'create-portal-session':
+        return await handleCreatePortalSession(req, res);
 
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
@@ -541,7 +558,13 @@ async function handleGetProfile(req: VercelRequest, res: VercelResponse) {
       createdDate: user.createdDate,
       timezone: user.timezone || null,
       newsletterSubscribed: user.newsletterSubscribed || false,
-      sundayBriefSubscribed: user.sundayBriefSubscribed || false
+      sundayBriefSubscribed: user.sundayBriefSubscribed || false,
+      isPro:                        !!user.isPro,
+      foundingMember:               !!user.foundingMember,
+      foundingMemberJoinedAt:       user.foundingMemberJoinedAt || null,
+      subscriptionStatus:           user.subscriptionStatus || null,
+      subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd || null,
+      hasStripeSubscription:        !!user.stripeSubscriptionId,
     });
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' });
@@ -1223,4 +1246,160 @@ async function cleanupStaleTokenMarkers(): Promise<void> {
   } catch (error) {
     console.error('Failed to cleanup stale token markers:', error);
   }
+}
+
+// ── Founding stats (public — no auth required) ────────────────────────────────
+async function handleFoundingStats(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  const db    = await connectToDatabase();
+  const count = await db.collection('users').countDocuments({ foundingMember: true });
+
+  const deadlineEnv = process.env.FOUNDING_DEADLINE;
+  let daysRemaining: number | null = null;
+  if (deadlineEnv) {
+    const deadline = new Date(deadlineEnv);
+    if (!isNaN(deadline.getTime())) {
+      daysRemaining = Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 86_400_000));
+    }
+  }
+
+  return res.status(200).json({ count, limit: FOUNDING_MEMBER_LIMIT, daysRemaining });
+}
+
+// ── Subscription status (auth required) ───────────────────────────────────────
+async function handleSubscriptionStatus(req: VercelRequest, res: VercelResponse) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET) as any;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const db   = await connectToDatabase();
+  const user = await db.collection('users').findOne(
+    { _id: new ObjectId(decoded.userId) },
+    { projection: { isPro: 1, foundingMember: 1, foundingMemberJoinedAt: 1, subscriptionStatus: 1, subscriptionCurrentPeriodEnd: 1, stripeSubscriptionId: 1 } }
+  );
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  return res.status(200).json({
+    isPro:                        !!user.isPro,
+    foundingMember:               !!user.foundingMember,
+    foundingMemberJoinedAt:       user.foundingMemberJoinedAt || null,
+    subscriptionStatus:           user.subscriptionStatus || null,
+    subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd || null,
+    hasStripeSubscription:        !!user.stripeSubscriptionId,
+  });
+}
+
+// ── Create Stripe Checkout Session (auth required) ────────────────────────────
+async function handleCreateCheckoutSession(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET) as any;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  if (!STRIPE_SECRET_KEY || !STRIPE_PRICE_ID) {
+    return res.status(500).json({ error: 'Payment system not configured' });
+  }
+
+  const db   = await connectToDatabase();
+  const user = await db.collection('users').findOne({ _id: new ObjectId(decoded.userId) });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  if (user.foundingMember) {
+    return res.status(400).json({ error: 'You are already a founding member.' });
+  }
+
+  // Enforce founding member cap
+  const foundingCount = await db.collection('users').countDocuments({ foundingMember: true });
+  if (foundingCount >= FOUNDING_MEMBER_LIMIT) {
+    return res.status(400).json({ error: 'The founding member offer is now closed.' });
+  }
+
+  const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2026-04-22.dahlia' as any });
+
+  // Create or reuse Stripe customer
+  let customerId = (user.stripeCustomerId as string | undefined) || '';
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      email: user.email,
+      name:  user.name || undefined,
+      metadata: { userId: user._id.toString() },
+    });
+    customerId = customer.id;
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { stripeCustomerId: customerId } }
+    );
+  }
+
+  const baseUrl = process.env.FRONTEND_URL || 'https://dipfinder.com';
+
+  const session = await stripe.checkout.sessions.create({
+    customer:    customerId,
+    mode:        'subscription',
+    line_items:  [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+    automatic_tax: { enabled: true },
+    success_url: `${baseUrl}/profile?upgraded=1`,
+    cancel_url:  `${baseUrl}/founding`,
+    metadata:    { userId: user._id.toString(), offer: 'founding_member' },
+    subscription_data: {
+      metadata: { userId: user._id.toString(), offer: 'founding_member' },
+    },
+  });
+
+  return res.status(200).json({ url: session.url });
+}
+
+// ── Create Stripe Customer Portal Session (auth required) ─────────────────────
+async function handleCreatePortalSession(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET) as any;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  if (!STRIPE_SECRET_KEY) return res.status(500).json({ error: 'Payment system not configured' });
+
+  const db   = await connectToDatabase();
+  const user = await db.collection('users').findOne(
+    { _id: new ObjectId(decoded.userId) },
+    { projection: { stripeCustomerId: 1 } }
+  );
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  if (!user.stripeCustomerId) {
+    return res.status(400).json({ error: 'No Stripe account linked to this user.' });
+  }
+
+  const stripe  = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2026-04-22.dahlia' as any });
+  const baseUrl = process.env.FRONTEND_URL || 'https://dipfinder.com';
+
+  const portalSession = await stripe.billingPortal.sessions.create({
+    customer:   user.stripeCustomerId as string,
+    return_url: `${baseUrl}/profile`,
+  });
+
+  return res.status(200).json({ url: portalSession.url });
 }

@@ -11,12 +11,10 @@
                             <i class="fas fa-cog mr-3"></i>
                             <span>Settings</span>
                         </button>
-                        <!--
                         <button id="subscribe-tab" class="w-full flex items-center text-left px-4 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-all">
                             <i class="fas fa-crown mr-3"></i>
                             <span>Subscription</span>
                         </button>
-                        -->
                     </nav>
                 </div>
                 
@@ -252,7 +250,114 @@
                     </div>
                 </div>
             </div>
-            
-            
+
+            <!-- ── Subscription panel ─────────────────────────────────────── -->
+            <div class="md:w-3/4 bg-white p-0 rounded-lg shadow-lg overflow-hidden hidden" id="subscribe-content-display">
+                <div class="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4">
+                    <h2 class="text-xl font-bold text-white">Subscription</h2>
+                </div>
+
+                <!-- Upgraded success banner (shown when ?upgraded=1 in URL) -->
+                <div id="upgraded-banner" class="hidden mx-6 mt-6 rounded-xl border border-green-100 bg-green-50 px-5 py-4 flex items-start gap-3">
+                    <i class="fas fa-check-circle text-green-500 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                        <p class="font-semibold text-green-800 text-sm">Welcome to DipFinder Pro - Founding Member!</p>
+                        <p class="text-green-700 text-xs mt-1">Your account is being upgraded. If the status below hasn't updated yet, refresh the page in a moment.</p>
+                    </div>
+                </div>
+
+                <div class="p-6 space-y-6" id="subscription-content">
+
+                    <!-- Loading state -->
+                    <div id="sub-loading" class="flex items-center gap-3 text-gray-500 text-sm py-4">
+                        <i class="fas fa-spinner fa-spin"></i> Loading subscription details...
+                    </div>
+
+                    <!-- Free tier -->
+                    <div id="sub-free" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <i class="fas fa-user text-gray-500"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-900">DipFinder Free</p>
+                                    <p class="text-xs text-gray-500">10 stocks tracked</p>
+                                </div>
+                            </div>
+                            <span class="inline-block rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">Free</span>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-sm text-gray-600 mb-5">Unlock Pro to track up to 50 stocks, use multiple watchlists, and get the full Sunday Brief with AI summaries and 3 Radar picks each week.</p>
+                            <a href="/founding" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">
+                                <i class="fas fa-crown"></i> See Founding Member offer
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Admin-granted Pro (no Stripe subscription) -->
+                    <div id="sub-pro-admin" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <i class="fas fa-crown text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-900">DipFinder Pro</p>
+                                    <p class="text-xs text-gray-500">50 stocks, multiple watchlists</p>
+                                </div>
+                            </div>
+                            <span class="inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">Pro</span>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-sm text-gray-600">Your account has Pro access. Contact support if you have any questions.</p>
+                        </div>
+                    </div>
+
+                    <!-- Founding member (active or canceled) -->
+                    <div id="sub-founding" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                    <i class="fas fa-crown text-indigo-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-900">DipFinder Pro <span id="founding-badge" class="ml-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">Founding Member</span></p>
+                                    <p class="text-xs text-gray-500">50 stocks, multiple watchlists, full Sunday Brief</p>
+                                </div>
+                            </div>
+                            <span id="sub-status-pill" class="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">Active</span>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Next billing date</p>
+                                    <p id="sub-period-end" class="font-semibold text-gray-900">-</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Annual price</p>
+                                    <p class="font-semibold text-gray-900">€49 / year <span class="text-xs font-normal text-gray-500">incl. VAT</span></p>
+                                </div>
+                            </div>
+                            <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                                <i class="fas fa-lock mr-1 text-amber-500"></i>
+                                <strong>Price locked:</strong> Your founding rate of €49/year is guaranteed for the first two renewals (3 years total).
+                            </div>
+                            <div id="sub-portal-wrap">
+                                <button id="sub-manage-btn" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700">
+                                    <i class="fas fa-external-link-alt text-xs"></i> Manage subscription
+                                </button>
+                                <p id="sub-manage-msg" class="hidden mt-2 text-xs text-red-600"></p>
+                            </div>
+                            <div id="sub-canceled-resubscribe" class="hidden">
+                                <p class="text-sm text-gray-600 mb-3">Your subscription has been canceled. Your founding member history is preserved. To resubscribe at standard pricing when available, visit the offer page.</p>
+                                <a href="/founding" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition">View offer page</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
             </div>
         </div>

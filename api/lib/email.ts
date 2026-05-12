@@ -120,6 +120,35 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
 </div>
 `,
   },
+  'founding-member-receipt': {
+    name: 'Founding Member Receipt',
+    subject: 'Welcome to DipFinder Pro - Founding Member confirmed',
+    body: `
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Hi {{name}},</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 20px;">Your DipFinder Founding Member subscription is confirmed. Here's what's unlocked:</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+  <tr><td style="padding:12px 16px;background:#F0FDF4;border-left:3px solid #16A34A;border-radius:0 8px 8px 0;">
+    <p style="font-family:Arial,sans-serif;font-size:14px;color:#15803D;font-weight:700;margin:0 0 8px;">DipFinder Pro - Founding Member</p>
+    <ul style="font-family:Arial,sans-serif;font-size:14px;color:#374151;margin:0;padding-left:18px;line-height:1.9;">
+      <li>Up to 50 stocks on your watchlist (vs. 10 on Free)</li>
+      <li>Multiple named watchlists</li>
+      <li>Full Sunday Brief - AI summaries, 3 Radar picks</li>
+      <li>Early access to upcoming features</li>
+    </ul>
+  </td></tr>
+</table>
+<div style="background:#FEF9C3;border-left:4px solid #EAB308;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 24px;">
+  <p style="font-family:Arial,sans-serif;font-size:13px;color:#713F12;margin:0;line-height:1.6;">
+    <strong>Your founding rate of €49/year is locked</strong> for the first two renewals (3 years total at €49). After that, we'll give you 30 days' notice before any pricing change.
+  </p>
+</div>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Your next billing date is <strong>{{nextBillingDate}}</strong>. You can view invoices and manage your subscription from your account page.</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="{{profileUrl}}" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Go to your account</a>
+</div>
+<p style="font-family:Arial,sans-serif;font-size:13px;color:#94A3B8;line-height:1.6;margin:0;">Dip Finder is a research tool, not financial advice. A dip can mean opportunity - or trouble. Always do your own research.</p>
+`,
+  },
   'sunday-brief': {
     name: 'Sunday Brief',
     subject: 'Your Weekly Dip Report - {{shortDate}}',
@@ -997,6 +1026,49 @@ export async function sendNewsletterEmail({
 }): Promise<boolean> {
   const { html, subject, text } = await buildNewsletterEmailHtml({ name, stocks, smaPeriod, unsubscribeUrl, viewOnlineUrl, chartOrientation, openerSummary, aiSummaries, weeklyEarnings, weekInMacroText, radarSuggestions, isPro, db });
   return sendEmail({ to, subject, html, text });
+}
+
+/**
+ * Send founding member receipt email after successful Stripe checkout
+ */
+export async function sendFoundingMemberReceiptEmail(
+  email: string,
+  name: string,
+  nextBillingDate: Date
+): Promise<boolean> {
+  const baseUrl = process.env.FRONTEND_URL || 'https://dipfinder.com';
+  const formatted = nextBillingDate.toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+
+  try {
+    const db       = await connectToDatabase();
+    const template = await getEmailTemplate(db, 'founding-member-receipt');
+    if (template) {
+      const html = renderTemplate(template.html, {
+        name:            escapeHtml(name),
+        nextBillingDate: escapeHtml(formatted),
+        profileUrl:      `${baseUrl}/profile`,
+      });
+      return sendEmail({ to: email, subject: template.subject, html });
+    }
+  } catch (err) {
+    console.error('sendFoundingMemberReceiptEmail DB error:', err);
+  }
+
+  // Fallback: hardcoded HTML if DB lookup fails
+  const fallbackBody = `
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Hi ${escapeHtml(name)},</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Your DipFinder Founding Member subscription is confirmed. Welcome to Pro.</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Your founding rate of €49/year is locked for the first two renewals. Next billing date: <strong>${escapeHtml(formatted)}</strong>.</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${baseUrl}/profile" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Go to your account</a>
+</div>`;
+  return sendEmail({
+    to:      email,
+    subject: 'Welcome to DipFinder Pro - Founding Member confirmed',
+    html:    buildEmailHtml(fallbackBody),
+  });
 }
 
 /**

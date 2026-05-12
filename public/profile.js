@@ -1,5 +1,5 @@
 // profile.js - Profile page functionality
-window.initializeProfile = function() {
+window.initializeProfile = function(params) {
 /*console.log('Initializing Profile page...');*/ 
     const BASE_URL = window.location.origin;
     let eventListeners = []; // To track event listeners for cleanup
@@ -423,6 +423,104 @@ window.initializeProfile = function() {
         { value: 'Australia/Sydney',     label: 'Sydney' },
     ];
 
+    // ── Subscription tab ──────────────────────────────────────────────────────
+    async function loadSubscriptionInfo() {
+        const token = window.AuthManager?.token || localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const res  = await fetch(`${BASE_URL}/api/user?action=subscription-status`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            const el = id => document.getElementById(id);
+            el('sub-loading')?.classList.add('hidden');
+
+            if (data.foundingMember) {
+                // Founding member — active or canceled
+                el('sub-founding')?.classList.remove('hidden');
+
+                const canceled = data.subscriptionStatus === 'canceled';
+                const pill = el('sub-status-pill');
+                if (pill) {
+                    pill.textContent = canceled ? 'Canceled' : 'Active';
+                    pill.className   = canceled
+                        ? 'inline-block rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700'
+                        : 'inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700';
+                }
+
+                const periodEndEl = el('sub-period-end');
+                if (periodEndEl && data.subscriptionCurrentPeriodEnd) {
+                    const d = new Date(data.subscriptionCurrentPeriodEnd);
+                    periodEndEl.textContent = d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+                }
+
+                if (canceled) {
+                    el('sub-portal-wrap')?.classList.add('hidden');
+                    el('sub-canceled-resubscribe')?.classList.remove('hidden');
+                } else if (data.hasStripeSubscription) {
+                    const manageBtn = el('sub-manage-btn');
+                    if (manageBtn) {
+                        manageBtn.addEventListener('click', async () => {
+                            manageBtn.disabled   = true;
+                            manageBtn.textContent = 'Opening...';
+                            try {
+                                const r = await fetch(`${BASE_URL}/api/user?action=create-portal-session`, {
+                                    method:  'POST',
+                                    headers: { Authorization: `Bearer ${token}` }
+                                });
+                                const d = await r.json();
+                                if (r.ok && d.url) {
+                                    window.location.href = d.url;
+                                } else {
+                                    const msg = el('sub-manage-msg');
+                                    if (msg) { msg.textContent = d.error || 'Could not open portal. Try again.'; msg.classList.remove('hidden'); }
+                                    manageBtn.disabled   = false;
+                                    manageBtn.textContent = 'Manage subscription';
+                                }
+                            } catch {
+                                manageBtn.disabled   = false;
+                                manageBtn.textContent = 'Manage subscription';
+                            }
+                        });
+                        eventListeners.push({ element: manageBtn, type: 'click', handler: null }); // cleaned by destroyProfile
+                    }
+                } else {
+                    el('sub-portal-wrap')?.classList.add('hidden');
+                }
+
+            } else if (data.isPro) {
+                // Admin-granted Pro
+                el('sub-pro-admin')?.classList.remove('hidden');
+            } else {
+                // Free
+                el('sub-free')?.classList.remove('hidden');
+            }
+        } catch (e) {
+            console.error('loadSubscriptionInfo error:', e);
+            document.getElementById('sub-loading')?.classList.add('hidden');
+            document.getElementById('sub-free')?.classList.remove('hidden');
+        }
+    }
+
+    // Show ?upgraded=1 banner and auto-navigate to Subscription tab
+    const upgraded = params instanceof URLSearchParams ? params.get('upgraded') : null;
+    if (upgraded === '1') {
+        // Strip param from URL without page reload
+        const cleanUrl = window.location.pathname;
+        history.replaceState(null, '', cleanUrl);
+
+        // Switch to Subscription tab after DOM settles
+        setTimeout(() => {
+            const subTab = document.getElementById('subscribe-tab');
+            if (subTab) subTab.click();
+            const banner = document.getElementById('upgraded-banner');
+            if (banner) banner.classList.remove('hidden');
+        }, 100);
+    }
+
     // Initial setup for the profile page
     setupTabSwitching();
     initTimezoneSelect(null);
@@ -431,6 +529,7 @@ window.initializeProfile = function() {
     setupEmailChange();
     setupEmailPreferences();
     loadEmailPreferences();
+    loadSubscriptionInfo();
 
     function initTimezoneSelect(currentTz) {
         const sel = document.getElementById('timezone-select');

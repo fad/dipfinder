@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founding Member – DipFinder Pro</title>
+    <meta name="description" content="Lock in DipFinder Pro at €49/year for the first three years. Limited to 250 founding members.">
+    <meta property="og:title" content="Founding Member – DipFinder Pro">
+    <meta property="og:description" content="Lock in DipFinder Pro at €49/year for the first three years. Limited to 250 founding members.">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="styles/start.css">
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="f347f270-ebbc-47e2-9eee-abda99ec906a"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 text-gray-900 antialiased">
+
+    <!-- ── Nav ──────────────────────────────────────────────────────────────── -->
+    <nav class="sticky top-0 z-40 border-b border-gray-200 bg-white bg-opacity-90" style="backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+            <a href="/start" class="flex items-center gap-3">
+                <picture>
+                    <source srcset="/img/logo.avif" type="image/avif">
+                    <img src="/img/logo.png" width="32" height="32" alt="Dip Finder logo" style="border-radius:7px;">
+                </picture>
+                <span class="text-base font-extrabold tracking-tight text-gray-900">Dip Finder</span>
+            </a>
+            <a href="/app" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                Open app <i class="fas fa-arrow-right text-xs"></i>
+            </a>
+        </div>
+    </nav>
+
+    <!-- ── Auth-state banners (shown/hidden by founding.js) ─────────────────── -->
+
+    <!-- Already a founding member -->
+    <div id="state-founding" class="hidden border-b border-indigo-100 bg-indigo-50 px-4 py-3">
+        <div class="mx-auto max-w-4xl flex items-center gap-3 text-sm text-indigo-800">
+            <i class="fas fa-crown text-indigo-500 flex-shrink-0"></i>
+            <span>You're already a Founding Member. <a href="/profile" class="font-semibold underline">View your subscription</a> or <a href="/app" class="font-semibold underline">go to the app</a>.</span>
+        </div>
+    </div>
+
+    <!-- Already Pro (admin-granted) -->
+    <div id="state-pro-admin" class="hidden border-b border-blue-100 bg-blue-50 px-4 py-3">
+        <div class="mx-auto max-w-4xl flex items-center gap-3 text-sm text-blue-800">
+            <i class="fas fa-check-circle text-blue-500 flex-shrink-0"></i>
+            <span>You already have DipFinder Pro. The Founding Member offer is for new paid signups. <a href="/app" class="font-semibold underline">Go to the app</a>.</span>
+        </div>
+    </div>
+
+    <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+    <section class="lp-hero-bg px-6 py-20 text-white sm:py-28">
+        <div class="mx-auto max-w-3xl text-center">
+            <p class="mb-3 text-xs font-bold uppercase tracking-widest text-blue-200">Limited offer</p>
+            <h1 class="mb-5 text-4xl font-extrabold tracking-tight sm:text-5xl" style="font-family:'Lora',Georgia,serif;">DipFinder Founding Member</h1>
+            <p class="mb-10 text-lg text-blue-100 leading-relaxed">Get full Pro access at a price that won't change for three years.<br>In exchange: you're in early, before pricing settles.</p>
+
+            <!-- Live counter -->
+            <div id="counter-wrap" class="inline-flex items-center gap-3 rounded-2xl border border-white border-opacity-20 bg-white bg-opacity-10 px-6 py-3 text-sm text-blue-100">
+                <i class="fas fa-users text-blue-300"></i>
+                <span id="counter-text">Loading...</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── What you get ───────────────────────────────────────────────────────── -->
+    <section class="px-6 py-20">
+        <div class="mx-auto max-w-4xl">
+            <div class="mb-12 text-center">
+                <p class="mb-2 text-xs font-bold uppercase tracking-widest text-blue-600">What's included</p>
+                <h2 class="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Everything in Pro. Locked price.</h2>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div class="flex gap-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                        <i class="fas fa-list-ul text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-1 font-bold text-gray-900">50 stocks on your watchlist</h3>
+                        <p class="text-sm leading-relaxed text-gray-500">Free accounts track 10. Pro tracks 50. Plus multiple named watchlists to organize your holdings.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                        <i class="fas fa-envelope text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-1 font-bold text-gray-900">Full Sunday Brief</h3>
+                        <p class="text-sm leading-relaxed text-gray-500">Your personal watchlist chart, AI news summaries for every stock that moved, and 3 Radar picks each week.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                        <i class="fas fa-search text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-1 font-bold text-gray-900">On Your Radar</h3>
+                        <p class="text-sm leading-relaxed text-gray-500">3 similar stocks each week that are dipping and match your watchlist themes. Free accounts see 2.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                        <i class="fas fa-rocket text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-1 font-bold text-gray-900">Early access to new features</h3>
+                        <p class="text-sm leading-relaxed text-gray-500">Custom dip alerts, daily digest option, and future features — included at no extra cost as they ship.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Offer + CTA ────────────────────────────────────────────────────────── -->
+    <section class="px-6 py-16 bg-white border-t border-b border-gray-100">
+        <div class="mx-auto max-w-2xl text-center">
+            <div class="mb-8">
+                <p class="text-4xl font-extrabold text-gray-900">€49 <span class="text-lg font-normal text-gray-500">/ year</span></p>
+                <p class="mt-1 text-sm text-gray-500">incl. VAT - billed annually</p>
+            </div>
+
+            <div class="mb-8 rounded-2xl border border-amber-100 bg-amber-50 px-6 py-5 text-left">
+                <p class="text-sm font-semibold text-amber-900 mb-2">Founding terms</p>
+                <p class="text-sm text-amber-800 leading-relaxed">
+                    The €49/year price is locked for your first two renewals — that's three years at €49 total.
+                    After that, we'll move you to standard pricing with 30 days' notice. Offer limited to the first 250 members or 60 days from launch, whichever comes first.
+                </p>
+            </div>
+
+            <!-- CTA: unauthenticated -->
+            <div id="cta-unauth">
+                <button id="cta-unauth-btn" class="w-full rounded-2xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-lg transition hover:bg-blue-700">
+                    <i class="fas fa-crown mr-2"></i> Become a founding member
+                </button>
+                <p class="mt-3 text-xs text-gray-400">You'll be asked to create a free account first. Takes 30 seconds.</p>
+            </div>
+
+            <!-- CTA: free user (authenticated) -->
+            <div id="cta-free" class="hidden">
+                <button id="cta-checkout-btn" class="w-full rounded-2xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-lg transition hover:bg-blue-700 disabled:opacity-60">
+                    <i class="fas fa-crown mr-2"></i> Become a founding member
+                </button>
+                <p id="cta-checkout-msg" class="mt-3 hidden text-sm text-red-600"></p>
+                <p class="mt-3 text-xs text-gray-400">You'll be redirected to Stripe's secure checkout. We never see your card details.</p>
+            </div>
+
+            <!-- CTA: already Pro (admin-granted) — no CTA shown -->
+            <div id="cta-admin-pro" class="hidden">
+                <p class="text-sm text-gray-500">You already have Pro. The Founding Member offer applies to new paid signups. Your subscription is managed separately.</p>
+            </div>
+
+            <!-- CTA: already founding member — no CTA shown -->
+            <div id="cta-is-founding" class="hidden">
+                <p class="text-sm text-gray-500">You're already a Founding Member. <a href="/profile" class="text-blue-600 font-semibold">View your subscription</a>.</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ── FAQ ───────────────────────────────────────────────────────────────── -->
+    <section class="px-6 py-20">
+        <div class="mx-auto max-w-2xl">
+            <div class="mb-12 text-center">
+                <h2 class="text-2xl font-extrabold tracking-tight text-gray-900">Questions</h2>
+            </div>
+            <div class="space-y-6">
+                <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <h3 class="mb-2 font-bold text-gray-900">What happens after three years?</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">After the two renewals at €49, we'll move you to whatever standard Pro pricing looks like at that point. You'll get 30 days' notice before anything changes. We're not locking you in blindly - you'll have a chance to decide.</p>
+                </div>
+                <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <h3 class="mb-2 font-bold text-gray-900">Can I cancel?</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">Yes, any time. Cancel from your account page and your Pro access continues through the end of the billing period. No partial refunds on annual subscriptions, consistent with Stripe's standard policy.</p>
+                </div>
+                <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <h3 class="mb-2 font-bold text-gray-900">What if you hit 250 members?</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">The founding offer closes. Standard pricing - when it exists - will be higher. We'll maintain a waitlist if there's interest. The counter above updates in real time.</p>
+                </div>
+                <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <h3 class="mb-2 font-bold text-gray-900">Is this financial advice?</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">No. DipFinder is a research trigger, not a buy signal. A stock below its moving average might be a buying opportunity or it might be in a downtrend. Do your own research before acting on anything you see here.</p>
+                </div>
+                <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <h3 class="mb-2 font-bold text-gray-900">What payment methods are accepted?</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">All major credit and debit cards via Stripe. Your card details never touch our server - Stripe handles everything. VAT is included in the displayed price where applicable.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Final CTA ──────────────────────────────────────────────────────────── -->
+    <section class="lp-hero-bg px-6 py-20 text-center text-white">
+        <div class="mx-auto max-w-xl" id="final-cta-wrap">
+            <h2 class="mb-4 text-3xl font-extrabold tracking-tight">Join the founding circle.</h2>
+            <p class="mb-8 text-blue-100">Lock in €49/year. Cancel anytime.</p>
+
+            <!-- Mirrors the same CTA logic — JS sets the right one visible -->
+            <div id="final-cta-unauth">
+                <button id="final-cta-unauth-btn" class="inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-bold text-blue-700 shadow-lg transition hover:bg-blue-50">
+                    <i class="fas fa-crown"></i> Become a founding member
+                </button>
+                <p class="mt-3 text-xs text-blue-200">Free account first, then checkout. Takes about a minute.</p>
+            </div>
+            <div id="final-cta-free" class="hidden">
+                <button id="final-cta-checkout-btn" class="inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-bold text-blue-700 shadow-lg transition hover:bg-blue-50 disabled:opacity-60">
+                    <i class="fas fa-crown"></i> Become a founding member
+                </button>
+            </div>
+            <div id="final-cta-other" class="hidden">
+                <a href="/app" class="inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-bold text-blue-700 shadow-lg transition hover:bg-blue-50">
+                    <i class="fas fa-arrow-right"></i> Go to the app
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Disclaimer ─────────────────────────────────────────────────────────── -->
+    <div class="border-t border-amber-100 bg-amber-50 px-6 py-4">
+        <div class="mx-auto flex max-w-5xl items-start gap-3 text-sm text-amber-800">
+            <i class="fas fa-exclamation-circle mt-0.5 flex-shrink-0 text-amber-500"></i>
+            <p>Dip Finder is a research tool, not financial advice. A dip can mean opportunity - or trouble. Always do your own research before making any investment decision.</p>
+        </div>
+    </div>
+
+    <!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+    <footer class="border-t border-gray-200 bg-white px-6 py-10">
+        <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
+            <div class="flex items-center gap-3">
+                <picture>
+                    <source srcset="/img/logo.avif" type="image/avif">
+                    <img src="/img/logo.png" width="28" height="28" alt="Dip Finder logo" style="border-radius:6px;">
+                </picture>
+                <span class="font-bold text-gray-800">Dip Finder</span>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
+                <a href="/about" class="transition hover:text-gray-900">About</a>
+                <a href="/contact" class="transition hover:text-gray-900">Contact</a>
+                <a href="/privacy" class="transition hover:text-gray-900">Privacy</a>
+                <a href="/terms" class="transition hover:text-gray-900">Terms</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="founding.js"></script>
+</body>
+</html>

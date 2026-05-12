@@ -75,6 +75,7 @@
         { "source": "/profile", "destination": "/app.html" },
         { "source": "/contact", "destination": "/contact.html" },
         { "source": "/privacy", "destination": "/privacy.html" },
+        { "source": "/founding", "destination": "/founding.html" },
         { "source": "/((?!api/|.*\\..*).*)", "destination": "/app.html" }
     ]
 }
