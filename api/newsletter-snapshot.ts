@@ -283,6 +283,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const result = { saved, failed, weekOf, aiGenerated, aiSkipped, totalInputTokens, totalOutputTokens, radarTickers, radarErrors };
     await recordCronRun(db, 'newsletter-snapshot', result, !isCronInvocation);
+
+    // Alert admin to review pending summaries before Sunday send
+    if (aiGenerated > 0 && ADMIN_EMAIL) {
+      try {
+        const bodyHtml = `
+<h2 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin:0 0 4px;">Saturday snapshot complete</h2>
+<p style="font-size:14px; color:#374151; margin:0 0 20px; line-height:1.75;">
+  ${aiGenerated} AI ${aiGenerated === 1 ? 'summary was' : 'summaries were'} generated and ${aiGenerated === 1 ? 'is' : 'are'} waiting for your review before the Sunday newsletter send.
+</p>
+<div style="background:#FEF9C3; border-left:4px solid #EAB308; border-radius:6px; padding:12px 16px; margin-bottom:24px;">
+  <strong style="color:#92400E;">Review before Sunday send.</strong>
+  <span style="color:#78350F;"> Only approved summaries appear in the brief.</span>
+</div>
+<div style="text-align:center;">
+  <a href="${FRONTEND_URL}/admin" style="display:inline-block; background:linear-gradient(135deg,#2563EB,#4F46E5); color:#FFFFFF; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:700; font-size:14px; font-family:Arial,Helvetica,sans-serif;">Review AI Summaries &rarr;</a>
+</div>`;
+        await sendEmail({
+          to: ADMIN_EMAIL,
+          subject: `DipFinder - ${aiGenerated} AI ${aiGenerated === 1 ? 'summary' : 'summaries'} ready for review`,
+          html: buildEmailHtml(bodyHtml),
+        });
+      } catch (err) {
+        console.error('Failed to send snapshot alert email:', err);
+      }
+    }
+
     return res.status(200).json(result);
   } catch (error) {
     console.error('Newsletter snapshot error:', error);

@@ -490,13 +490,16 @@ async function handleMorningReport(req: VercelRequest, res: VercelResponse) {
   const oneDayAgo    = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const [totalUsers, newToday, newThisWeek, sundayBriefSubs, newsletterSubs, activeTickerCount] = await Promise.all([
+  const isSunday = new Date().getUTCDay() === 0;
+
+  const [totalUsers, newToday, newThisWeek, sundayBriefSubs, newsletterSubs, activeTickerCount, pendingSummaries] = await Promise.all([
     db.collection('users').countDocuments({}),
     db.collection('users').countDocuments({ createdDate: { $gte: oneDayAgo } }),
     db.collection('users').countDocuments({ createdDate: { $gte: sevenDaysAgo } }),
     db.collection('users').countDocuments({ sundayBriefSubscribed: true }),
     db.collection('users').countDocuments({ newsletterSubscribed: true }),
     db.collection('tickers').countDocuments({ active: true }),
+    isSunday ? db.collection('aiSummaries').countDocuments({ reviewed: false }) : Promise.resolve(0),
   ]);
 
   const cronIds  = Object.keys(MORNING_REPORT_CRON_NAMES);
@@ -517,6 +520,7 @@ async function handleMorningReport(req: VercelRequest, res: VercelResponse) {
     { label: 'Sunday Brief Subs', value: sundayBriefSubs.toLocaleString() },
     { label: 'Newsletter Subs',   value: newsletterSubs.toLocaleString() },
     { label: 'Active Tickers',    value: activeTickerCount.toLocaleString() },
+    ...(isSunday ? [{ label: 'Pending Summaries', value: pendingSummaries.toLocaleString() }] : []),
   ];
 
   const statCells = statItems.map(s => `
@@ -550,9 +554,17 @@ async function handleMorningReport(req: VercelRequest, res: VercelResponse) {
     </tr>`;
   }).join('');
 
+  const pendingBanner = isSunday && pendingSummaries > 0 ? `
+<div style="background:#FEF9C3; border-left:4px solid #EAB308; border-radius:6px; padding:12px 16px; margin-bottom:20px;">
+  <strong style="color:#92400E;">Action required:</strong>
+  <span style="color:#78350F;"> ${pendingSummaries} AI ${pendingSummaries === 1 ? 'summary needs' : 'summaries need'} review before today's newsletter send.</span>
+  <a href="${FRONTEND_URL}/admin" style="color:#1d4ed8; font-weight:700; margin-left:6px;">Review now &rarr;</a>
+</div>` : '';
+
   const bodyHtml = `
 <h2 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin:0 0 4px;">Good morning - daily report</h2>
 <p style="font-size:13px; color:#94a3b8; margin:0 0 22px;">${dateLabel}</p>
+${pendingBanner}
 <table style="border-collapse:collapse; margin-bottom:24px; width:100%;"><tr>${statCells}</tr></table>
 <h3 style="font-size:0.72em; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 8px;">Cron Last Run</h3>
 <table style="width:100%; border-collapse:collapse; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; font-family:Arial,Helvetica,sans-serif; margin-bottom:24px;">
