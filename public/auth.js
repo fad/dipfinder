@@ -8,9 +8,29 @@ const AuthManager = (function() {
     // Authentication state management
     let currentUser = null;
     let isAuthenticated = false;
-    
+
+    // Pending deep-link form to open after auth check (read synchronously from URL params)
+    let _pendingInitForm  = null; // 'login' | 'register' | null
+    let _pendingInitEmail = '';
+
     // Initialize authentication on page load
     function init() {
+        // Read deep-link params synchronously so we can open the right form immediately
+        // after the auth check completes — no setTimeout flash.
+        const _urlParams = new URLSearchParams(window.location.search);
+        if (_urlParams.get('register') === '1') {
+            _pendingInitForm  = 'register';
+            _pendingInitEmail = decodeURIComponent(_urlParams.get('email') || '');
+        } else if (_urlParams.get('signin') === '1') {
+            _pendingInitForm = 'login';
+        }
+        if (_pendingInitForm) {
+            const _cp = new URLSearchParams(_urlParams);
+            _cp.delete('register'); _cp.delete('signin'); _cp.delete('email');
+            const _qs = _cp.toString();
+            history.replaceState(null, '', _qs ? `?${_qs}` : window.location.pathname);
+        }
+
         // Pre-check authentication state to minimize flicker
         const token = localStorage.getItem("token");
         const lastAuthState = localStorage.getItem("lastAuthState");
@@ -39,6 +59,27 @@ const AuthManager = (function() {
         checkAuthStatus();
     }
     
+    // Open the auth modal to the right form based on _pendingInitForm (no setTimeout flash)
+    function openModalWithInitialForm() {
+        const modal = document.getElementById('auth-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        if (_pendingInitForm === 'login') {
+            showLoginForm();
+        } else {
+            showRegisterForm();
+            if (_pendingInitEmail) {
+                const emailInput = document.getElementById('register-email');
+                if (emailInput) {
+                    emailInput.value = _pendingInitEmail;
+                    emailInput.style.borderColor = '#10b981';
+                }
+                _pendingInitEmail = '';
+            }
+        }
+        _pendingInitForm = null;
+    }
+
     // Enhanced authentication check with fast client-side validation and instant UI
     async function checkAuthStatus() {
         const token = localStorage.getItem("token");
@@ -51,10 +92,9 @@ const AuthManager = (function() {
             localStorage.setItem("lastAuthState", JSON.stringify({ isAuthenticated: false }));
             showGuestUI();
             updateGlobalAuthState(false, null);
-            // App requires login — open auth modal so user can sign in/register
+            // App requires login — open auth modal to the appropriate form
             if (window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/screener') || window.location.pathname.startsWith('/profile')) {
-                const modal = document.getElementById('auth-modal');
-                if (modal) modal.classList.remove('hidden');
+                openModalWithInitialForm();
             }
             return false;
         }
@@ -71,8 +111,7 @@ const AuthManager = (function() {
                 showGuestUI();
                 updateGlobalAuthState(false, null);
                 if (window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/screener') || window.location.pathname.startsWith('/profile')) {
-                    const modal = document.getElementById('auth-modal');
-                    if (modal) modal.classList.remove('hidden');
+                    openModalWithInitialForm();
                 }
                 return false;
             }
@@ -478,7 +517,6 @@ const AuthManager = (function() {
     }
     
     function resetAuthForms() {
-        document.getElementById("auth-options").classList.remove("hidden");
         document.getElementById("login-form").classList.add("hidden");
         document.getElementById("register-form").classList.add("hidden");
         document.getElementById("forgot-form").classList.add("hidden");
@@ -510,7 +548,6 @@ const AuthManager = (function() {
     
     function showLoginForm() {
         resetAuthForms();
-        document.getElementById("auth-options").classList.add("hidden");
         document.getElementById("login-form").classList.remove("hidden");
         
         // Position CAPTCHA before the login button
@@ -525,7 +562,6 @@ const AuthManager = (function() {
     
     function showRegisterForm() {
         resetAuthForms();
-        document.getElementById("auth-options").classList.add("hidden");
         document.getElementById("register-form").classList.remove("hidden");
         
         // Position CAPTCHA before the register button
@@ -543,7 +579,6 @@ const AuthManager = (function() {
     
     function showForgotForm() {
         resetAuthForms();
-        document.getElementById("auth-options").classList.add("hidden");
         document.getElementById("forgot-form").classList.remove("hidden");
 
         // Position CAPTCHA before the forgot button
@@ -558,7 +593,6 @@ const AuthManager = (function() {
 
     function showMagicForm() {
         resetAuthForms();
-        document.getElementById("auth-options").classList.add("hidden");
         document.getElementById("magic-form").classList.remove("hidden");
 
         // Position CAPTCHA before the magic button
@@ -800,12 +834,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Modal is not closeable — app requires authentication
 
-    // ── Auth-options screen ───────────────────────────────────────────────────
-    const authOptionsLogin    = document.getElementById('auth-options-login');
-    const authOptionsRegister = document.getElementById('auth-options-register');
-    if (authOptionsLogin)    authOptionsLogin.addEventListener('click', AuthManager.showLoginForm);
-    if (authOptionsRegister) authOptionsRegister.addEventListener('click', AuthManager.showRegisterForm);
-
     // ── Login form ────────────────────────────────────────────────────────────
     const loginForm      = document.getElementById('login-form');
     const loginBtn       = document.getElementById('login-btn');
@@ -846,41 +874,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', AuthManager.logout);
 
-    // ── ?signin=1 / ?register=1&email=... deep links ─────────────────────────
-    // ?signin=1  — from landing page "Sign In" nav button
-    // ?register=1&email=... — from landing page "Subscribe free" form
-    (function handleAuthParam() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const doRegister = urlParams.get('register') === '1';
-        const doSignin   = urlParams.get('signin')   === '1';
-        if (!doRegister && !doSignin) return;
-        const emailFromUrl = decodeURIComponent(urlParams.get('email') || '');
-        // Clean URL immediately
-        const cleanParams = new URLSearchParams(urlParams);
-        cleanParams.delete('register');
-        cleanParams.delete('signin');
-        cleanParams.delete('email');
-        const qs = cleanParams.toString();
-        history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname);
-        // Open the right form after auth check has had a chance to run
-        setTimeout(() => {
-            if (AuthManager.isAuthenticated) return;
-            const modal = document.getElementById('auth-modal');
-            if (modal) modal.classList.remove('hidden');
-            if (doRegister) {
-                AuthManager.showRegisterForm();
-                if (emailFromUrl) {
-                    const emailInput = document.getElementById('register-email');
-                    if (emailInput) {
-                        emailInput.value = emailFromUrl;
-                        emailInput.style.borderColor = '#10b981';
-                    }
-                }
-            } else {
-                AuthManager.showLoginForm();
-            }
-        }, 200);
-    })();
 });
 
 // Export for module usage if needed
