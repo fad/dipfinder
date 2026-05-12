@@ -1351,10 +1351,11 @@ async function handleCreateCheckoutSession(req: VercelRequest, res: VercelRespon
     const baseUrl = process.env.FRONTEND_URL || 'https://dipfinder.com';
 
     const session = await stripe.checkout.sessions.create({
-      customer:    customerId,
-      mode:        'subscription',
-      line_items:  [{ price: STRIPE_PRICE_ID, quantity: 1 }],
-      automatic_tax: { enabled: true },
+      customer:         customerId,
+      customer_update:  { address: 'auto' },
+      mode:             'subscription',
+      line_items:       [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+      automatic_tax:    { enabled: true },
       success_url: `${baseUrl}/profile?upgraded=1`,
       cancel_url:  `${baseUrl}/founding`,
       metadata:    { userId: user._id.toString(), offer: 'founding_member' },
