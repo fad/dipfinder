@@ -412,6 +412,22 @@ async function handleHealthCheck(req: VercelRequest, res: VercelResponse) {
     results.resend = { ok: false, error: err?.message };
   }
 
+  // 5. Anthropic AI
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
+    const start  = Date.now();
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const msg    = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 20,
+      messages: [{ role: 'user', content: 'Reply with just: ok' }],
+    });
+    const reply = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '';
+    results.anthropic = { ok: true, reply, latencyMs: Date.now() - start };
+  } catch (err: any) {
+    results.anthropic = { ok: false, error: err?.message };
+  }
+
   const anyFailed = Object.entries(results)
     .filter(([k]) => k !== 'checkedAt')
     .some(([, v]) => v?.ok === false);
@@ -422,7 +438,7 @@ async function handleHealthCheck(req: VercelRequest, res: VercelResponse) {
   let emailSent = false;
 
   if (shouldEmail && ADMIN_EMAIL) {
-    const checks = ['mongodb', 'yahooFinance', 'finnhub', 'resend'];
+    const checks = ['mongodb', 'yahooFinance', 'finnhub', 'resend', 'anthropic'];
     const rows = checks.map(key => {
       const v = results[key] ?? {};
       const detail = v.error ?? v.httpStatus ?? v.quotesReturned ?? v.itemsReturned ?? v.userCount ?? '';

@@ -233,8 +233,13 @@
           </div>
 
           <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.85rem 1rem;">
-            <button class="btn" id="test-ai-btn" style="background:#2d1657; color:#c4b5fd; border:1px solid #6d28d9; width:100%; margin-bottom:0.5rem;" onclick="testAiConnection()">Test AI Connection</button>
-            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Sends a ping to Claude Haiku and checks ANTHROPIC_API_KEY is set and working.</p>
+            <button class="btn" style="background:#2d1657; color:#c4b5fd; border:1px solid #6d28d9; width:100%; margin-bottom:0.5rem;" onclick="runCronFromDashboard('newsletter-snapshot')">Run Snapshot</button>
+            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Runs the Saturday snapshot now: watchlist positions, macro recap, radar sweep.</p>
+          </div>
+
+          <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:0.85rem 1rem;">
+            <button class="btn" style="background:#2d1657; color:#c4b5fd; border:1px solid #6d28d9; width:100%; margin-bottom:0.5rem;" onclick="runCronFromDashboard('newsletter-ai-summaries')">Run AI Summaries</button>
+            <p style="color:#64748b; font-size:0.72rem; margin:0; line-height:1.5;">Generates AI news summaries for all subscriber watchlist symbols (up to 50 per run).</p>
           </div>
 
         </div>
@@ -974,16 +979,16 @@
       }
     }
 
-    // ── Health Check ─────────────────────────────────────────────────────────
+    // ── Health Check (includes AI connection test) ────────────────────────────
     async function triggerHealthCheck() {
       const out = document.getElementById('test-stocks-output');
       out.style.display = 'block';
-      out.textContent = 'Running health check + sending email…';
+      out.textContent = 'Running health check…';
       out.style.borderColor = '#1e40af';
       out.style.color = '#7dd3fc';
       const token = localStorage.getItem('token');
       try {
-        const res = await fetch('/api/admin?action=trigger-health-check', {
+        const res = await fetch('/api/admin?action=health-check', {
           headers: { Authorization: 'Bearer ' + token }
         });
         const data = await res.json();
@@ -991,6 +996,31 @@
         const anyFailed = data.anyFailed;
         out.style.borderColor = anyFailed ? '#dc2626' : '#166534';
         out.style.color = anyFailed ? '#fca5a5' : '#86efac';
+      } catch (e) {
+        out.textContent = 'Network error: ' + e.message;
+        out.style.borderColor = '#dc2626';
+        out.style.color = '#fca5a5';
+      }
+    }
+
+    // ── Run cron from dashboard ───────────────────────────────────────────────
+    async function runCronFromDashboard(id) {
+      const out = document.getElementById('test-stocks-output');
+      out.style.display = 'block';
+      out.textContent = `Running ${id}…`;
+      out.style.borderColor = '#6d28d9';
+      out.style.color = '#c4b5fd';
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=trigger-cron', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+        out.style.borderColor = data.error ? '#dc2626' : '#166534';
+        out.style.color = data.error ? '#fca5a5' : '#86efac';
       } catch (e) {
         out.textContent = 'Network error: ' + e.message;
         out.style.borderColor = '#dc2626';
