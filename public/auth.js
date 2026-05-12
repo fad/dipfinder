@@ -812,7 +812,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginCancelBtn = document.getElementById('login-cancel-btn');
     if (loginForm)      loginForm.addEventListener('submit', function(e) { e.preventDefault(); AuthManager.login(); });
     if (loginBtn)       loginBtn.addEventListener('click', AuthManager.login);
-    if (loginCancelBtn) loginCancelBtn.addEventListener('click', AuthManager.closeAuthModal);
+    if (loginCancelBtn) loginCancelBtn.addEventListener('click', AuthManager.showRegisterForm);
 
     // ── Forgot password form ──────────────────────────────────────────────────
     const forgotForm    = document.getElementById('forgot-form');
@@ -830,7 +830,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerCancelBtn = document.getElementById('register-cancel-btn');
     if (registerForm)      registerForm.addEventListener('submit', function(e) { e.preventDefault(); AuthManager.register(); });
     if (registerBtn)       registerBtn.addEventListener('click', AuthManager.register);
-    if (registerCancelBtn) registerCancelBtn.addEventListener('click', AuthManager.closeAuthModal);
+    if (registerCancelBtn) registerCancelBtn.addEventListener('click', AuthManager.showLoginForm);
 
     // ── Magic link form ───────────────────────────────────────────────────────
     const magicLinkBtn   = document.getElementById('magic-link-btn');
@@ -846,30 +846,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', AuthManager.logout);
 
-    // ── ?register=1&email=... deep link (from landing page subscribe form) ────
-    // Redirects user to the register form with email pre-filled.
-    (function handleRegisterParam() {
+    // ── ?signin=1 / ?register=1&email=... deep links ─────────────────────────
+    // ?signin=1  — from landing page "Sign In" nav button
+    // ?register=1&email=... — from landing page "Subscribe free" form
+    (function handleAuthParam() {
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('register') !== '1') return;
+        const doRegister = urlParams.get('register') === '1';
+        const doSignin   = urlParams.get('signin')   === '1';
+        if (!doRegister && !doSignin) return;
         const emailFromUrl = decodeURIComponent(urlParams.get('email') || '');
         // Clean URL immediately
         const cleanParams = new URLSearchParams(urlParams);
         cleanParams.delete('register');
+        cleanParams.delete('signin');
         cleanParams.delete('email');
         const qs = cleanParams.toString();
         history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname);
-        // Open register form after auth check has had a chance to run
+        // Open the right form after auth check has had a chance to run
         setTimeout(() => {
             if (AuthManager.isAuthenticated) return;
             const modal = document.getElementById('auth-modal');
             if (modal) modal.classList.remove('hidden');
-            AuthManager.showRegisterForm();
-            if (emailFromUrl) {
-                const emailInput = document.getElementById('register-email');
-                if (emailInput) {
-                    emailInput.value = emailFromUrl;
-                    emailInput.style.borderColor = '#10b981';
+            if (doRegister) {
+                AuthManager.showRegisterForm();
+                if (emailFromUrl) {
+                    const emailInput = document.getElementById('register-email');
+                    if (emailInput) {
+                        emailInput.value = emailFromUrl;
+                        emailInput.style.borderColor = '#10b981';
+                    }
                 }
+            } else {
+                AuthManager.showLoginForm();
             }
         }, 200);
     })();
