@@ -5,7 +5,7 @@ import { verifyJWT } from './lib/auth';
 import { getActiveTickers, upsertTicker } from './lib/tickers';
 
 const GUEST_STOCK_LIMIT = 5;
-const AUTH_STOCK_LIMIT = 10;
+const AUTH_STOCK_LIMIT = 50;
 const TICKER_RE = /^[A-Z0-9.\-]{1,10}$/;
 
 type DashboardStockCache = {
