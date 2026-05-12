@@ -21,6 +21,12 @@ DipFinder is a stock watchlist monitor that ranks user-selected equities by how 
 ## Architecture
 
 ```
+tests/                ← Unit tests (node:test + tsx, no framework)
+  send-schedule.test.ts ← isTimeToSendAt, getSendQuery, shouldSkipUser (27 cases)
+  stocks.test.ts        ← calculateSma, calculateSmaTimeSeries (12 cases)
+  personal-opener.test.ts ← buildOpenerSummary (14 cases)
+  radar.test.ts         ← getRadarSuggestions scoring + filtering (16 cases)
+
 public/               ← Frontend SPA
   app.html            ← SPA shell (loads for /app, /screener, /profile)
   *-content.html      ← Content fragments, dynamically loaded by router.js
@@ -209,7 +215,7 @@ See `.env.example` for all required vars.
 
 **Git workflow:** After every change, commit and push to `origin master`. Do not leave changes uncommitted. Vercel auto-deploys on push.
 
-**No test suite.** `npm test` runs `tsc --noEmit` (type check only).
+**Test suite:** `npm test` runs type check then 69 unit tests via Node's built-in test runner + `tsx`. Tests live in `tests/`. No external test framework — just `node:test` + `node:assert/strict`.
 
 ## Common tasks
 
@@ -449,7 +455,7 @@ Minimum score to appear: 2.0. Only tickers that "moved" this week qualify (`|wee
 
 ## What "done" looks like
 
-- `npm run check` passes with no type errors
+- `npm test` passes (type check + unit tests)
 - `npm run build:css` run if any HTML/JS class names changed
 - Tested locally via `npm run local`
 - For newsletter changes: admin preview endpoint (`?preview=true`) verified visually
