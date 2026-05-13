@@ -73,7 +73,9 @@ data/
 ```
 
 **Data flow — dashboard:**
-`dipfinder.js` → POST `/batch-stocks` → `batch-stocks.ts` checks memory cache → MongoDB `dashboardStocks` cache → Yahoo Finance → returns ranked list → Chart.js bar chart + table render.
+`dipfinder.js` → POST `/batch-stocks` → `batch-stocks.ts` checks memory cache → MongoDB `dashboardStocks` cache → Yahoo Finance → returns ranked list → **`stockDataArray.push({...})` in dipfinder.js maps each batch result into a local object** → `renderDashboardData()` → Chart.js bar chart + table render.
+
+**Critical:** every field that needs to reach the render template must be explicitly included in the `stockDataArray.push({...})` call (~line 788 in dipfinder.js). The API response is not passed directly — it is mapped. If a field is present in the API response but missing from the render, check this mapping first, before touching the API.
 
 **Data flow — stock price:**
 `stock-data.ts` → check MongoDB `stocks` cache → miss: try Yahoo Finance → fail: try Finnhub `/stock/candle` → fail: `markTickerFailed()` + 404. On success: `upsertTicker()` (self-learning autocomplete) + cache result.
