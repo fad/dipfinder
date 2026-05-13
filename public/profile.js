@@ -419,6 +419,8 @@ window.initializeProfile = function(params) {
 
     // ── Subscription tab ──────────────────────────────────────────────────────
     async function loadSubscriptionInfo() {
+        console.count('loadSubscriptionInfo calls');
+        console.trace('loadSubscriptionInfo called from');
         const token = window.AuthManager?.token || localStorage.getItem('token');
         if (!token) return;
 
