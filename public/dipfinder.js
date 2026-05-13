@@ -306,13 +306,13 @@ function renderStockTableRows(tableBody, stockDataArray) {
                 <td class="min-w-0">
                     <div class="flex items-baseline gap-2">
                         <div class="text-sm font-medium text-gray-900">${escapeHtml(data.stock)}</div>
-                        <div class="text-sm font-medium text-gray-900">${formatCurrency(data.currentPrice)}</div>
+                        ${data.peRatio != null ? `<div class="text-xs text-gray-400 font-normal">P/E ${data.peRatio}</div>` : ''}
                     </div>
                     <div class="truncate text-sm text-gray-500">${escapeHtml(truncateString(data.companyName, 30))}</div>
                 </td>
                 <td class="whitespace-nowrap text-right">
+                    <div class="text-sm font-medium text-gray-900">${formatCurrency(data.currentPrice)}</div>
                     <div class="text-xs text-gray-500">SMA ${formatCurrency(data.sma)}</div>
-                    ${data.peRatio != null ? `<div class="text-xs text-gray-500">P/E ${data.peRatio}</div>` : ''}
                     <div class="mt-1 rounded px-2 py-1 text-xs font-semibold ${diffClasses}">
                         ${formatPercent(diffPercent)}
                     </div>
