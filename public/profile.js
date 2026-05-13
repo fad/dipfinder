@@ -83,7 +83,8 @@ window.initializeProfile = function(params) {
 
         if (!window.AuthManager) {
             console.error('AuthManager not available after waiting');
-            document.getElementById('profile-page-email').textContent = 'Auth system error.';
+            const el = document.getElementById('profile-page-email');
+            if (el) el.textContent = 'Auth system error.';
             return;
         }
 
@@ -91,25 +92,21 @@ window.initializeProfile = function(params) {
         await window.AuthManager.checkAuthStatus();
 
         if (!window.AuthManager.isAuthenticated || !window.AuthManager.currentUser) {
-/*console.log('User not authenticated, redirecting to home.');*/ 
-            document.getElementById('profile-page-email').textContent = 'Not logged in';
-            document.getElementById('profile-member-since').textContent = '-';
-            // Use SPA router to navigate
-            setTimeout(() => {
-                if (window.router) {
-                    window.router.navigateTo('/');
-                }
-            }, 1500);
+/*console.log('User not authenticated, redirecting to home.');*/
+            const emailEl = document.getElementById('profile-page-email');
+            const sinceEl = document.getElementById('profile-member-since');
+            if (emailEl) emailEl.textContent = 'Not logged in';
+            if (sinceEl) sinceEl.textContent = '-';
+            setTimeout(() => { if (window.router) window.router.navigateTo('/'); }, 1500);
             return;
         }
 
         const user = window.AuthManager.currentUser;
         if (user && user.email) {
-            document.getElementById('profile-page-email').textContent = user.email;
+            const emailEl = document.getElementById('profile-page-email');
+            if (emailEl) emailEl.textContent = user.email;
             const dropdownEmail = document.getElementById('dropdown-profile-email');
-            if (dropdownEmail) {
-                dropdownEmail.textContent = user.email;
-            }
+            if (dropdownEmail) dropdownEmail.textContent = user.email;
         }
 
         const token = window.AuthManager.token;
@@ -119,17 +116,13 @@ window.initializeProfile = function(params) {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const data = await res.json();
+                const sinceEl = document.getElementById('profile-member-since');
                 if (res.ok) {
-                    document.getElementById('profile-page-email').textContent = data.email || user.email || '-';
+                    const emailEl = document.getElementById('profile-page-email');
+                    if (emailEl) emailEl.textContent = data.email || user.email || '-';
                     const dropdownEmail = document.getElementById('dropdown-profile-email');
-                    if (dropdownEmail) {
-                        dropdownEmail.textContent = data.email || user.email || '-';
-                    }
-                    if (data.createdDate) {
-                        document.getElementById('profile-member-since').textContent = formatDateWithMonthName(data.createdDate);
-                    } else {
-                        document.getElementById('profile-member-since').textContent = '-';
-                    }
+                    if (dropdownEmail) dropdownEmail.textContent = data.email || user.email || '-';
+                    if (sinceEl) sinceEl.textContent = data.createdDate ? formatDateWithMonthName(data.createdDate) : '-';
                     const tzSel = document.getElementById('timezone-select');
                     if (tzSel && data.timezone) {
                         const match = TIMEZONES.find(t => t.value === data.timezone);
@@ -137,11 +130,12 @@ window.initializeProfile = function(params) {
                     }
                 } else {
                     console.error('Profile API error:', data);
-                    document.getElementById('profile-member-since').textContent = 'Error loading date';
+                    if (sinceEl) sinceEl.textContent = 'Error loading date';
                 }
             } catch (e) {
                 console.error('Profile loading error:', e);
-                document.getElementById('profile-member-since').textContent = 'Error loading date';
+                const sinceEl = document.getElementById('profile-member-since');
+                if (sinceEl) sinceEl.textContent = 'Error loading date';
             }
         }
     }
