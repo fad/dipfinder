@@ -1504,12 +1504,14 @@ window.initializeDipfinder = function() {
     let lastAuthStatus = !!(window.AuthManager && window.AuthManager.isAuthenticated);
     renderWatchlistTabs();
     initNewsletterPromo();
+    initFounderBanner();
     dipfinderAuthCheckInterval = setInterval(() => {
         try {
             const currentAuthStatus = !!(window.AuthManager && window.AuthManager.isAuthenticated);
             if (currentAuthStatus !== lastAuthStatus) {
                 lastAuthStatus = currentAuthStatus;
                 initNewsletterPromo();
+                initFounderBanner();
                 window.MAX_STOCKS = getCurrentStockLimit();
                 const wasModified = validateStocksArray();
                 if (wasModified && document.getElementById('stocks-table')) {
@@ -1716,6 +1718,46 @@ function initNewsletterPromo() {
                 });
                 const errorEl = document.getElementById('newsletter-email-error');
                 if (errorEl) errorEl.insertAdjacentElement('afterend', editLink);
+            }
+        })
+        .catch(() => {});
+}
+
+// ── Founder banner: show for free users who haven't dismissed ────────────────
+
+let founderBannerInitialized = false;
+
+function initFounderBanner() {
+    if (founderBannerInitialized) return;
+    const banner = document.getElementById('founder-banner');
+    if (!banner) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    founderBannerInitialized = true;
+
+    fetch('/api/user?action=subscription-status', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(data => {
+            // Don't show to Pro or founding members
+            if (data.isPro || data.foundingMember) return;
+            // Don't show if already dismissed
+            if (data.founderBannerDismissedAt) return;
+
+            const banner = document.getElementById('founder-banner');
+            if (!banner) return;
+            banner.classList.remove('hidden');
+
+            const dismissBtn = document.getElementById('founder-banner-dismiss');
+            if (dismissBtn) {
+                dismissBtn.addEventListener('click', () => {
+                    banner.remove();
+                    fetch('/api/user?action=dismiss-founder-banner', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}` },
+                    }).catch(() => {});
+                });
             }
         })
         .catch(() => {});

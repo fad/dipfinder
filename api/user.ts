@@ -84,6 +84,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'create-portal-session':
         return await handleCreatePortalSession(req, res);
 
+      case 'dismiss-founder-banner':
+        return await handleDismissFounderBanner(req, res);
+
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -1283,7 +1286,7 @@ async function handleSubscriptionStatus(req: VercelRequest, res: VercelResponse)
   const db   = await connectToDatabase();
   const user = await db.collection('users').findOne(
     { _id: new ObjectId(decoded.userId) },
-    { projection: { isPro: 1, foundingMember: 1, foundingMemberJoinedAt: 1, subscriptionStatus: 1, subscriptionCurrentPeriodEnd: 1, stripeSubscriptionId: 1 } }
+    { projection: { isPro: 1, foundingMember: 1, foundingMemberJoinedAt: 1, subscriptionStatus: 1, subscriptionCurrentPeriodEnd: 1, stripeSubscriptionId: 1, founderBannerDismissedAt: 1 } }
   );
   if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -1294,6 +1297,7 @@ async function handleSubscriptionStatus(req: VercelRequest, res: VercelResponse)
     subscriptionStatus:           user.subscriptionStatus || null,
     subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd || null,
     hasStripeSubscription:        !!user.stripeSubscriptionId,
+    founderBannerDismissedAt:     user.founderBannerDismissedAt || null,
   });
 }
 
@@ -1408,4 +1412,27 @@ async function handleCreatePortalSession(req: VercelRequest, res: VercelResponse
   });
 
   return res.status(200).json({ url: portalSession.url });
+}
+
+// ── Dismiss founder banner (auth required) ────────────────────────────────────
+async function handleDismissFounderBanner(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET) as any;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const db = await connectToDatabase();
+  await db.collection('users').updateOne(
+    { _id: new ObjectId(decoded.userId) },
+    { $set: { founderBannerDismissedAt: new Date() } }
+  );
+
+  return res.status(200).json({ ok: true });
 }
