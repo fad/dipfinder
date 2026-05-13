@@ -142,7 +142,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Batch fetch PE ratios via quote() — chart() meta doesn't include trailingPE
     const peRatios: Record<string, number | null> = {};
     try {
-      const quotes = await yahooFinance.quote(validatedStocks.map((s: string) => s.toUpperCase()));
+      const quotes = await yahooFinance.quote(validatedStocks.map((s: string) => s.toUpperCase()), {}, { validateResult: false });
       const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
       for (const q of quoteArray) {
         if (q?.symbol) {
