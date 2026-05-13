@@ -838,8 +838,8 @@ function renderWatchlistTabs() {
             ? `<button class="wl-tab-del" data-id="${escapeHtml(tab.id)}" title="Delete watchlist" style="margin-left:4px;line-height:1;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;padding:0;">&#215;</button>`
             : '';
         const draggable = !tab.isPrimary ? 'draggable="true"' : '';
-        return `<div class="wl-tab" data-id="${escapeHtml(tab.id)}" data-primary="${tab.isPrimary}" title="Double-click to rename" ${draggable}
-            style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:${tab.isPrimary ? 'pointer' : 'grab'};user-select:none;border:1px solid ${isActive ? '#bfdbfe' : 'transparent'};background:${isActive ? '#eff6ff' : 'transparent'};color:${isActive ? '#1d4ed8' : '#6b7280'};transition:background 0.1s,color 0.1s;">
+        return `<div class="wl-tab${isActive ? ' wl-tab--active' : ''}" data-id="${escapeHtml(tab.id)}" data-primary="${tab.isPrimary}" title="Double-click to rename" ${draggable}
+            style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:${tab.isPrimary ? 'pointer' : 'grab'};user-select:none;transition:background 0.1s,color 0.1s,border-color 0.1s;">
             ${starHtml}<span class="wl-tab-name">${escapeHtml(tab.name)}</span>${deleteHtml}
         </div>`;
     }).join('');
@@ -889,9 +889,8 @@ function renderWatchlistTabs() {
         // ── Tab is a drop target (stock-move OR tab-reorder) ──────────────
         const restoreTabStyle = () => {
             const isActive = tabId === activeWatchlistId;
-            tabEl.style.background = isActive ? '#eff6ff' : '';
-            tabEl.style.color = isActive ? '#1d4ed8' : '#6b7280';
-            tabEl.style.borderColor = isActive ? '#bfdbfe' : 'transparent';
+            tabEl.classList.toggle('wl-tab--active', isActive);
+            tabEl.classList.remove('wl-tab--draghover');
             tabEl.style.boxShadow = '';
         };
 
@@ -915,9 +914,7 @@ function renderWatchlistTabs() {
             if (tabId === activeWatchlistId) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            tabEl.style.background = '#dbeafe';
-            tabEl.style.color = '#1d4ed8';
-            tabEl.style.borderColor = '#93c5fd';
+            tabEl.classList.add('wl-tab--draghover');
         });
 
         tabEl.addEventListener('dragleave', () => {

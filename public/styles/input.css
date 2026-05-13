@@ -221,6 +221,63 @@ html.dark-mode .ticker-name {
     color: #9ca3af !important;
 }
 
+/* ── Watchlist tabs ──────────────────────────────────────────────────────── */
+
+.wl-tab {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #6b7280;
+}
+.wl-tab--active {
+    border-color: #bfdbfe !important;
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+}
+.wl-tab--draghover {
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
+    border-color: #93c5fd !important;
+}
+
+html.dark-mode .wl-tab {
+    color: #94a3b8 !important;
+}
+html.dark-mode .wl-tab--active {
+    border-color: #1d4ed8 !important;
+    background: #172554 !important;
+    color: #93c5fd !important;
+}
+html.dark-mode .wl-tab--draghover {
+    background: #1e3a5f !important;
+    color: #93c5fd !important;
+    border-color: #1d4ed8 !important;
+}
+
+/* ── AI Summary card (screener) ──────────────────────────────────────────── */
+
+html.dark-mode #ai-summary-container > div {
+    background: #1e1b4b !important;
+    border-color: #312e81 !important;
+}
+html.dark-mode #ai-summary-container .text-indigo-400 {
+    color: #a5b4fc !important;
+}
+
+/* ── Profile nav buttons ─────────────────────────────────────────────────── */
+
+html.dark-mode #profile-tab:not(.gradient-btn),
+html.dark-mode #settings-tab:not(.gradient-btn),
+html.dark-mode #subscribe-tab:not(.gradient-btn) {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+}
+html.dark-mode #profile-tab:not(.gradient-btn):hover,
+html.dark-mode #settings-tab:not(.gradient-btn):hover,
+html.dark-mode #subscribe-tab:not(.gradient-btn):hover {
+    background: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
 /* ── Custom select component ─────────────────────────────────────────────── */
 
 .custom-select-wrapper {
