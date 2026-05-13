@@ -453,6 +453,8 @@ Minimum score to appear: 2.0. Only tickers that "moved" this week qualify (`|wee
 
 **`getApprovedSummaries()` returns all-time approved summaries**, not just this week's. It deduplicates by symbol keeping the most recent week's approved version. This means a symbol approved in a prior week still appears in the brief if no new summary exists for the current week.
 
+**Profile plan status has two display points.** `profile-status` (Profile tab "Account Status" row) and `sub-free`/`sub-pro-admin`/`sub-founding` (Subscribe tab cards) are both driven by `loadSubscriptionInfo` in `profile.js`. If you add another place that displays plan status, wire it up there too. When diagnosing a display bug, grep the HTML template for the element first — the bug is often a hardcoded value in the template, not a JS logic error.
+
 ## What "done" looks like
 
 - `npm test` passes (type check + unit tests)
