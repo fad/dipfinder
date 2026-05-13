@@ -13,7 +13,6 @@ type DashboardStockCache = {
   currentPrice: number;
   previousPrice: number;
   closes: number[];
-  peRatio: number | null;
 };
 
 type MemoryCacheEntry = {
@@ -43,7 +42,6 @@ function getCachedDashboardStock(data: any): DashboardStockCache | null {
     currentPrice: closes[closes.length - 1],
     previousPrice: closes[closes.length - 2],
     closes,
-    peRatio: typeof meta.trailingPE === 'number' && meta.trailingPE > 0 ? Math.round(meta.trailingPE * 10) / 10 : null,
   };
 }
 
@@ -141,6 +139,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return stockCollectionPromise;
     };
 
+    // Batch fetch PE ratios via quote() — chart() meta doesn't include trailingPE
+    const peRatios: Record<string, number | null> = {};
+    try {
+      const quotes = await yahooFinance.quote(validatedStocks.map((s: string) => s.toUpperCase()));
+      const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
+      for (const q of quoteArray) {
+        if (q?.symbol) {
+          peRatios[q.symbol.toUpperCase()] = typeof q.trailingPE === 'number' && Number.isFinite(q.trailingPE) ? Math.round(q.trailingPE * 10) / 10 : null;
+        }
+      }
+    } catch {
+      // PE fetch is best-effort — don't fail the whole request
+    }
+
     const stockResults = (await Promise.all(stocks.map(async (symbol: string) => {
       const normalizedSymbol = symbol.toUpperCase();
       const stockCacheKey = `dashboard-stock-${normalizedSymbol}`;
@@ -201,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           previousPrice: dashboardStock.previousPrice,
           sma,
           relativePrice,
-          peRatio: dashboardStock.peRatio ?? null,
+          peRatio: peRatios[normalizedSymbol] ?? null,
         };
       } catch (err) {
         console.error(`batch-stocks: failed to fetch ${symbol}:`, err);
