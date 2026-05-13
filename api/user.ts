@@ -13,6 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET as string;
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_PRICE_ID   = process.env.STRIPE_PRICE_ID   || '';
 const FOUNDING_MEMBER_LIMIT = 250;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.toLowerCase();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = req.query.action as string;
@@ -157,14 +158,16 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  await usersCollection.updateOne(
-    { _id: new ObjectId(user._id) },
-    {
-      $unset: { failedLoginAttempts: 1, accountLockedUntil: 1, lockoutCount: 1 },
-      $set: { lastLoginAt: new Date(), lastLoginIP: getClientIP(req) },
-      $inc: { totalLoginCount: 1 }
-    } as any
-  );
+  const loginUpdate: any = {
+    $unset: { failedLoginAttempts: 1, accountLockedUntil: 1, lockoutCount: 1 },
+    $set: { lastLoginAt: new Date(), lastLoginIP: getClientIP(req) },
+    $inc: { totalLoginCount: 1 }
+  };
+  // Ensure admin account always has isPro set
+  if (ADMIN_EMAIL && user.email?.toLowerCase() === ADMIN_EMAIL) {
+    loginUpdate.$set.isPro = true;
+  }
+  await usersCollection.updateOne({ _id: new ObjectId(user._id) }, loginUpdate);
 
   const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
 
