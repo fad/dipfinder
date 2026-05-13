@@ -135,6 +135,20 @@
                 </section>
             </div>
 
+            <!-- ── Admin: Dip vs Valuation scatter ────────────────────────────── -->
+            <section id="admin-scatter-section" class="hidden rounded-xl border border-gray-100 bg-white shadow-sm p-4">
+                <div class="mb-3 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-gray-800">Dip vs Valuation</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Distance from SMA (X) vs trailing P/E (Y). Admin only.</p>
+                    </div>
+                </div>
+                <div class="relative rounded-lg bg-gray-50 border border-gray-100" style="height:340px;">
+                    <canvas id="scatter-chart" style="position:absolute;inset:12px;width:calc(100% - 24px);height:calc(100% - 24px);"></canvas>
+                </div>
+                <p id="scatter-excluded" class="mt-2 text-xs text-gray-400 hidden"></p>
+            </section>
+
             <!-- ── What The Dip? newsletter promo ──────────────────────────────── -->
             <div id="newsletter-promo" class="rounded-xl border border-teal-200 bg-teal-50 shadow-sm overflow-hidden" style="position:relative;display:none;">
 

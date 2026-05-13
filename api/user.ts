@@ -1290,6 +1290,7 @@ async function handleSubscriptionStatus(req: VercelRequest, res: VercelResponse)
   );
   if (!user) return res.status(404).json({ error: 'User not found' });
 
+  const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
   return res.status(200).json({
     isPro:                        !!user.isPro,
     foundingMember:               !!user.foundingMember,
@@ -1298,6 +1299,7 @@ async function handleSubscriptionStatus(req: VercelRequest, res: VercelResponse)
     subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd || null,
     hasStripeSubscription:        !!user.stripeSubscriptionId,
     founderBannerDismissedAt:     user.founderBannerDismissedAt || null,
+    isAdmin:                      !!(adminEmail && decoded.email?.toLowerCase() === adminEmail),
   });
 }
 

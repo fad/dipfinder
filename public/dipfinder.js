@@ -3,6 +3,7 @@
 // ── Shared globals (var so other scripts can access via window scope) ─────────
 var stocks = [];  // populated from localStorage in initializeDipfinder
 var chart;        // Chart.js instance; created/destroyed in renderDashboardData
+var scatterChart; // Admin-only scatter chart instance
 var chartOrientation = 'y'; // 'y' = horizontal bars, 'x' = vertical bars
 var lastRenderCache = { data: null, period: null, tableBody: null };
 var aiSummariesCache = {};  // symbol → { summary, weekOf, companyName }
@@ -615,6 +616,160 @@ function attachStockRowEvents() {
     attachRemoveStockListeners();
 }
 
+// ── Admin scatter: Dip vs Valuation ──────────────────────────────────────────
+
+function renderScatterChart(stockDataArray) {
+    const section = document.getElementById('admin-scatter-section');
+    if (!section) return;
+
+    if (!window.IS_ADMIN) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    const included = [];
+    const excluded = [];
+
+    for (const d of stockDataArray) {
+        const diffPercent = getSmaDiffPercent(d);
+        if (!Number.isFinite(diffPercent)) continue;
+        const pe = d.peRatio;
+        if (pe === null || pe === undefined || pe <= 0) {
+            excluded.push({ stock: d.stock, reason: (typeof pe === 'number' && pe <= 0) ? 'negative' : 'null' });
+            continue;
+        }
+        included.push({ d, diffPercent, pe: Math.min(pe, 50), clipped: pe > 50 });
+    }
+
+    // Show/hide excluded note
+    const excludedEl = document.getElementById('scatter-excluded');
+    if (excludedEl) {
+        if (excluded.length) {
+            excludedEl.textContent = `Not shown: ${excluded.map(e => e.stock).join(', ')} - no PE data or negative earnings`;
+            excludedEl.classList.remove('hidden');
+        } else {
+            excludedEl.classList.add('hidden');
+        }
+    }
+
+    section.classList.remove('hidden');
+
+    const isDark   = document.documentElement.classList.contains('dark-mode');
+    const axisColor = isDark ? '#9ca3af' : '#6b7280';
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+    const refColor  = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.25)';
+    const labelBg   = isDark ? 'rgba(31,41,55,0.85)' : 'rgba(255,255,255,0.85)';
+
+    const pointColors = included.map(({ diffPercent }) => getBarColor(diffPercent).bg);
+
+    const canvasEl = document.getElementById('scatter-chart');
+    if (!canvasEl) return;
+
+    if (scatterChart) scatterChart.destroy();
+
+    // Quadrant label plugin
+    const quadrantPlugin = {
+        id: 'quadrantLabels',
+        afterDraw(ch) {
+            const { ctx, chartArea: { left, right, top, bottom }, scales: { x, y } } = ch;
+            const cx = x.getPixelForValue(0);
+            const cy = y.getPixelForValue(15);
+            const labels = [
+                { text: 'Dipping + Cheap',     px: (left + cx) / 2,    py: (cy + bottom) / 2 },
+                { text: 'Dipping + Expensive', px: (left + cx) / 2,    py: (top + cy) / 2    },
+                { text: 'Hot + Cheap',         px: (cx + right) / 2,   py: (cy + bottom) / 2 },
+                { text: 'Hot + Expensive',     px: (cx + right) / 2,   py: (top + cy) / 2    },
+            ];
+            ctx.save();
+            ctx.font = '10px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = isDark ? 'rgba(156,163,175,0.45)' : 'rgba(100,116,139,0.4)';
+            labels.forEach(({ text, px, py }) => ctx.fillText(text, px, py));
+            ctx.restore();
+        }
+    };
+
+    scatterChart = new Chart(canvasEl.getContext('2d'), {
+        type: 'scatter',
+        plugins: [quadrantPlugin],
+        data: {
+            datasets: [{
+                data: included.map(({ diffPercent, pe, clipped }) => ({
+                    x: Number(diffPercent.toFixed(2)),
+                    y: pe,
+                    clipped,
+                })),
+                pointBackgroundColor: pointColors,
+                pointBorderColor:     pointColors.map(c => c + 'cc'),
+                pointRadius:          7,
+                pointHoverRadius:     9,
+                pointBorderWidth:     1.5,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const { x, y, clipped } = ctx.raw;
+                            const ticker = included[ctx.dataIndex]?.d?.stock || '';
+                            return `${ticker}  ${x > 0 ? '+' : ''}${x}% vs SMA  |  P/E ${clipped ? '>50' : y}`;
+                        }
+                    }
+                },
+                // Ticker labels via datalabels would need a plugin; use afterDraw instead
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: '% vs SMA', color: axisColor, font: { size: 11 } },
+                    grid: {
+                        color: ctx => ctx.tick.value === 0 ? refColor : gridColor,
+                        lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1,
+                    },
+                    ticks: { color: axisColor, font: { size: 11 }, callback: v => `${v > 0 ? '+' : ''}${v}%` },
+                },
+                y: {
+                    title: { display: true, text: 'Trailing P/E', color: axisColor, font: { size: 11 } },
+                    min: 0,
+                    max: 52,
+                    grid: {
+                        color: ctx => ctx.tick.value === 15 ? refColor : gridColor,
+                        lineWidth: ctx => ctx.tick.value === 15 ? 2 : 1,
+                    },
+                    ticks: { color: axisColor, font: { size: 11 } },
+                },
+            },
+        },
+    });
+
+    // Draw ticker labels manually via afterDraw
+    const labelPlugin = {
+        id: 'tickerLabels',
+        afterDatasetsDraw(ch) {
+            const { ctx, scales: { x, y } } = ch;
+            ctx.save();
+            ctx.font = 'bold 10px system-ui, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            included.forEach(({ d, diffPercent, pe }, i) => {
+                const px = x.getPixelForValue(Number(diffPercent.toFixed(2))) + 9;
+                const py = y.getPixelForValue(Math.min(pe, 50));
+                ctx.fillStyle = isDark ? '#e5e7eb' : '#374151';
+                ctx.fillText(d.stock, px, py);
+            });
+            ctx.restore();
+        }
+    };
+
+    // Re-register label plugin on this instance
+    scatterChart.config.plugins.push(labelPlugin);
+    scatterChart.update();
+}
+
 // ── Chart build ───────────────────────────────────────────────────────────────
 
 function renderDashboardData(stockDataArray, period, tableBody) {
@@ -622,6 +777,7 @@ function renderDashboardData(stockDataArray, period, tableBody) {
     tableBody.empty();
     renderSummaryMetrics(stockDataArray, period);
     renderStockTableRows(tableBody, stockDataArray);
+    renderScatterChart(stockDataArray);
 
     const chartLabels      = [];
     const relativePrices   = [];
@@ -1741,7 +1897,13 @@ function initFounderBanner() {
     fetch('/api/user?action=subscription-status', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(data => {
-            // Don't show to Pro or founding members
+            // Set admin flag and re-render scatter if data already loaded
+            window.IS_ADMIN = !!data.isAdmin;
+            if (window.IS_ADMIN && lastRenderCache.data) {
+                renderScatterChart(lastRenderCache.data);
+            }
+
+            // Don't show founder banner to Pro or founding members
             if (data.isPro || data.foundingMember) return;
             // Don't show if already dismissed
             if (data.founderBannerDismissedAt) return;
