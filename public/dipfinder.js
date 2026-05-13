@@ -309,7 +309,7 @@ function renderStockTableRows(tableBody, stockDataArray) {
                 </td>
                 <td class="whitespace-nowrap text-right">
                     <div class="text-sm font-medium text-gray-900">${formatCurrency(data.currentPrice)}</div>
-                    <div class="text-xs text-gray-500">SMA ${formatCurrency(data.sma)}</div>
+                    <div class="text-xs text-gray-500">SMA ${formatCurrency(data.sma)}${data.peRatio != null ? ` &middot; P/E ${data.peRatio}` : ''}</div>
                     <div class="mt-1 rounded px-2 py-1 text-xs font-semibold ${diffClasses}">
                         ${formatPercent(diffPercent)}
                     </div>

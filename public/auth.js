@@ -118,18 +118,26 @@ const AuthManager = (function() {
             
             // Token seems valid, show logged-in UI immediately with cached user info
             if (payload.email) {
-                const userData = { 
-                    email: payload.email, 
-                    name: payload.name || payload.email.split('@')[0] 
+                // Carry isPro forward from the last server-verified state so IS_PRO is
+                // correct before initializeDipfinder() runs (JWT payload doesn't include it)
+                let cachedIsPro = false;
+                try {
+                    const prev = lastAuthState ? JSON.parse(lastAuthState) : null;
+                    if (prev?.isAuthenticated && prev.user?.isPro) cachedIsPro = true;
+                } catch (e) {}
+
+                const userData = {
+                    email: payload.email,
+                    name: payload.name || payload.email.split('@')[0],
+                    isPro: cachedIsPro,
                 };
-/*console.log("Token valid, showing logged in UI with cached data");*/ 
-                
+
                 // Cache the authenticated state
-                localStorage.setItem("lastAuthState", JSON.stringify({ 
-                    isAuthenticated: true, 
-                    user: userData 
+                localStorage.setItem("lastAuthState", JSON.stringify({
+                    isAuthenticated: true,
+                    user: userData
                 }));
-                
+
                 showLoggedInUI(userData);
                 updateGlobalAuthState(true, userData);
                 
