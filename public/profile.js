@@ -419,8 +419,6 @@ window.initializeProfile = function(params) {
 
     // ── Subscription tab ──────────────────────────────────────────────────────
     async function loadSubscriptionInfo() {
-        console.count('loadSubscriptionInfo calls');
-        console.trace('loadSubscriptionInfo called from');
         const token = window.AuthManager?.token || localStorage.getItem('token');
         if (!token) return;
 
@@ -430,10 +428,21 @@ window.initializeProfile = function(params) {
             });
             if (!res.ok) { console.warn('subscription-status non-ok:', res.status); return; }
             const data = await res.json();
-            console.log('subscription-status response:', data);
 
             const el = id => document.getElementById(id);
             el('sub-loading')?.classList.add('hidden');
+
+            // Update the Account Status pill in the Profile tab
+            const statusEl = el('profile-status');
+            if (statusEl) {
+                if (data.foundingMember || data.isPro) {
+                    statusEl.textContent = 'Pro';
+                    statusEl.classList.add('text-purple-600');
+                    statusEl.classList.remove('text-gray-900');
+                } else {
+                    statusEl.textContent = 'Free Plan';
+                }
+            }
 
             if (data.foundingMember) {
                 // Founding member — active or canceled
@@ -490,12 +499,9 @@ window.initializeProfile = function(params) {
 
             } else if (data.isPro) {
                 // Admin-granted Pro
-                const proEl = el('sub-pro-admin');
-                console.log('isPro=true, sub-pro-admin element:', proEl);
-                if (proEl) proEl.classList.remove('hidden');
+                el('sub-pro-admin')?.classList.remove('hidden');
             } else {
                 // Free
-                console.log('showing free plan');
                 el('sub-free')?.classList.remove('hidden');
             }
         } catch (e) {
