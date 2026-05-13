@@ -488,9 +488,12 @@ window.initializeProfile = function(params) {
 
             } else if (data.isPro) {
                 // Admin-granted Pro
-                el('sub-pro-admin')?.classList.remove('hidden');
+                const proEl = el('sub-pro-admin');
+                console.log('isPro=true, sub-pro-admin element:', proEl);
+                if (proEl) proEl.classList.remove('hidden');
             } else {
                 // Free
+                console.log('showing free plan');
                 el('sub-free')?.classList.remove('hidden');
             }
         } catch (e) {
