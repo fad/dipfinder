@@ -21,6 +21,17 @@ export interface CronLastRun {
   manual: boolean;
 }
 
+/**
+ * Pure schedule check — does the given UTC time match this schedule?
+ * Extracted for testability; called by shouldCronRun.
+ */
+export function matchesSchedule(schedule: CronSchedule, at: Date): boolean {
+  if (schedule.enabled === false) return false;
+  if (schedule.dayOfWeek !== undefined && schedule.dayOfWeek !== at.getUTCDay()) return false;
+  if (schedule.hour !== at.getUTCHours()) return false;
+  return true;
+}
+
 /** Returns true when the cron job should execute its real work. */
 export async function shouldCronRun(
   db: any,
@@ -37,11 +48,7 @@ export async function shouldCronRun(
   if (schedule.enabled === false) return false;
 
   const now = new Date();
-  const currentHour = now.getUTCHours();
-  const currentDay  = now.getUTCDay();
-
-  if (schedule.dayOfWeek !== undefined && schedule.dayOfWeek !== currentDay) return false;
-  if (schedule.hour !== currentHour) return false;
+  if (!matchesSchedule(schedule, now)) return false;
 
   // Deduplicate: skip if already ran in the past 60 minutes
   const lastRun = await db.collection('settings').findOne({ key: `cron-last-run-${cronId}` });
