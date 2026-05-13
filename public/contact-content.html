@@ -17,9 +17,7 @@
                         <div>
                             <h3 class="font-semibold text-gray-800">Email Support</h3>
                             <p class="text-gray-600 text-sm mb-2">Get help with your account, technical issues, or general questions</p>
-                            <a href="mailto:info@dipfinder.com" class="text-blue-600 hover:text-blue-800 font-medium transition-colors">
-                                info@dipfinder.com
-                            </a>
+                            <a data-v="aW5mb0BkaXBmaW5kZXIuY29t" class="contact-email text-blue-600 hover:text-blue-800 font-medium transition-colors"></a>
                         </div>
                     </div>
 
@@ -35,6 +33,13 @@
                 </div>
             </div>
         </div>
+        <script>
+            document.querySelectorAll('a.contact-email[data-v]').forEach(function(el) {
+                var e = atob(el.dataset.v);
+                el.textContent = e;
+                el.href = 'mailto:' + e;
+            });
+        </script>
 
         <!-- FAQ Section -->
         <div class="mt-12 bg-white p-8 rounded-lg shadow-md">
