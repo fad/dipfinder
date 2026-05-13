@@ -426,8 +426,9 @@ window.initializeProfile = function(params) {
             const res  = await fetch(`${BASE_URL}/api/user?action=subscription-status`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (!res.ok) return;
+            if (!res.ok) { console.warn('subscription-status non-ok:', res.status); return; }
             const data = await res.json();
+            console.log('subscription-status response:', data);
 
             const el = id => document.getElementById(id);
             el('sub-loading')?.classList.add('hidden');
