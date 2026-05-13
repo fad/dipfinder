@@ -791,7 +791,8 @@ async function updateTableAndChart(period) {
             currentPrice,
             dailyChange:  ((currentPrice - previousPrice) / previousPrice) * 100,
             sma:          batch.sma,
-            relativePrice: Number.isFinite(batch.relativePrice) ? batch.relativePrice : currentPrice / batch.sma - 1
+            relativePrice: Number.isFinite(batch.relativePrice) ? batch.relativePrice : currentPrice / batch.sma - 1,
+            peRatio:      batch.peRatio ?? null,
         });
     }
 
