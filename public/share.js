@@ -569,6 +569,7 @@
             { label: 'Facebook',  bg: '#1877F2',  icon: 'fab fa-facebook-f',       href: 'https://www.facebook.com/sharer/sharer.php?u=' + enc },
             { label: 'Reddit',    bg: '#FF4500',  icon: 'fab fa-reddit-alien',     href: 'https://reddit.com/submit?url=' + enc },
             { label: 'Telegram',  bg: '#2CA5E0',  icon: 'fab fa-telegram-plane',   href: 'https://t.me/share/url?url=' + enc },
+            { label: 'Bluesky',   bg: '#0085ff',  icon: 'fas fa-cloud',            href: 'https://bsky.app/intent/compose?text=' + encodeURIComponent(window.location.href) },
             { label: 'Email',     bg: '#6B7280',  icon: 'fas fa-envelope',         href: 'mailto:?body=' + enc },
         ];
 

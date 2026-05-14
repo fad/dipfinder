@@ -2304,6 +2304,7 @@ function _buildShareLinkArea(shareUrl, body) {
             <a href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" target="_blank" rel="noopener" style="${linkStyle}background:#1877F2;color:#fff;"><i class="fab fa-facebook-f"></i> Facebook</a>
             <a href="https://www.reddit.com/submit?url=${encodedUrl}&title=${text}" target="_blank" rel="noopener" style="${linkStyle}background:#FF4500;color:#fff;"><i class="fab fa-reddit-alien"></i> Reddit</a>
             <a href="https://t.me/share/url?url=${encodedUrl}&text=${text}" target="_blank" rel="noopener" style="${linkStyle}background:#2AABEE;color:#fff;"><i class="fab fa-telegram-plane"></i> Telegram</a>
+            <a href="https://bsky.app/intent/compose?text=${text}%20${encodedUrl}" target="_blank" rel="noopener" style="${linkStyle}background:#0085ff;color:#fff;"><i class="fas fa-cloud"></i> Bluesky</a>
             <a href="mailto:?subject=${encodeURIComponent('Check out this watchlist on Dip Finder')}&body=${text}%0A%0A${encodedUrl}" rel="noopener" style="${linkStyle}background:#f3f4f6;color:#374151;"><i class="fas fa-envelope"></i> Email</a>
         </div>`;
     body.querySelector('#_share-copy-btn').addEventListener('click', async () => {
