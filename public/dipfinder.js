@@ -953,9 +953,23 @@ function initAdminTools() {
     async function refreshDashboardSummaries() {
         const data = lastRenderCache.data || [];
         if (!data.length) return;
-        const fresh = await fetchAiSummaries(data.map(d => d.stock));
-        Object.assign(aiSummariesCache, fresh);
+        // Add timestamp to bust both browser and CDN cache — old max-age=300
+        // responses may still be cached despite the server-side no-store header
+        const params = new URLSearchParams({
+            action: 'ai-summaries',
+            symbols: data.map(d => d.stock).join(','),
+            _t: String(Date.now()),
+        });
+        try {
+            const res = await fetch(`${BASE_URL}/api/batch-stocks?${params}`, { cache: 'no-store' });
+            if (res.ok) {
+                const json = await res.json();
+                const fresh = json.summaries || {};
+                Object.assign(aiSummariesCache, fresh);
+            }
+        } catch { /* best-effort */ }
         renderAiSummaries($('#news-feed'), data);
+        saveDipfinderContentState();
     }
 
     window.wlApprove = async function(idx) {
