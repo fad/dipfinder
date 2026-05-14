@@ -1734,9 +1734,15 @@ window.initializeDipfinder = function() {
                 if (activeWl) activeStocks = activeWl.stocks || [];
             }
 
+            // Always persist the active watchlist stocks to localStorage so that a
+            // hard reload picks up the right watchlist. auth.js overwrites
+            // localStorage.stocks with primary stocks on every server verify;
+            // if stocks in memory were already correct we'd skip this and leave
+            // localStorage pointing at primary, breaking the next hard reload.
+            localStorage.setItem('stocks', JSON.stringify(activeStocks));
+
             if (JSON.stringify(activeStocks) !== JSON.stringify(stocks)) {
                 stocks = activeStocks;
-                localStorage.setItem('stocks', JSON.stringify(stocks));
                 const period = $('#sma-period').val() || '200';
                 try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
                 if (document.getElementById('stocks-table')) updateTableAndChart(period);
