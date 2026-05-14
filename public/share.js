@@ -97,13 +97,132 @@
         return '/screener?symbol=' + encodeURIComponent(symbol);
     }
 
-    // ── Main ──────────────────────────────────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────────
 
     document.getElementById('share-year').textContent = new Date().getFullYear();
 
-    // Store share data for subscribe button
-    let _shareStocks = [];
-    let _sharePeriod = 50;
+    let _shareStocks    = [];
+    let _shareOwnerPeriod = 50;
+    let _activePeriod   = 50;
+    let _cachedSummaries = {};
+    let _barChart       = null;
+    let _scatterChart   = null;
+    let _isRefetching   = false;
+
+    // ── SMA pills ─────────────────────────────────────────────────────────────
+
+    const SMA_OPTIONS = [20, 50, 100, 200];
+
+    function setupSmaPills(ownerPeriod) {
+        const container = document.getElementById('share-sma-pills');
+        const ownerSpan = document.getElementById('share-owner-period');
+        if (!container) return;
+        if (ownerSpan) ownerSpan.textContent = ownerPeriod;
+
+        container.innerHTML = SMA_OPTIONS.map(p => {
+            const isActive = p === _activePeriod;
+            return `<button data-period="${p}"
+                class="rounded-full px-3 py-1 text-xs font-semibold border transition ${isActive
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
+                }">${p}-day</button>`;
+        }).join('');
+
+        container.addEventListener('click', e => {
+            const btn = e.target.closest('button[data-period]');
+            if (!btn) return;
+            const period = Number(btn.dataset.period);
+            if (period !== _activePeriod) changeSmaPeriod(period);
+        });
+    }
+
+    function updateSmaPills(activePeriod) {
+        const container = document.getElementById('share-sma-pills');
+        if (!container) return;
+        container.querySelectorAll('button[data-period]').forEach(btn => {
+            const isActive = Number(btn.dataset.period) === activePeriod;
+            btn.className = `rounded-full px-3 py-1 text-xs font-semibold border transition ${isActive
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
+            }`;
+        });
+    }
+
+    async function changeSmaPeriod(period) {
+        if (_isRefetching) return;
+        _activePeriod = period;
+        updateSmaPills(period);
+        updatePeriodLabels(period);
+
+        _isRefetching = true;
+        // Show subtle loading on chart area
+        const chartWrap = document.getElementById('share-chart-wrap');
+        if (chartWrap) chartWrap.style.opacity = '0.4';
+
+        try {
+            const stockResults = await fetchStockData(_shareStocks, period);
+            renderDynamic(stockResults, period);
+        } finally {
+            _isRefetching = false;
+            if (chartWrap) chartWrap.style.opacity = '1';
+        }
+    }
+
+    // ── Period labels ─────────────────────────────────────────────────────────
+
+    function updatePeriodLabels(period) {
+        const chartTitle = document.getElementById('share-chart-title');
+        if (chartTitle) chartTitle.textContent = `Distance from ${period}-day SMA`;
+
+        const chartCaption = document.getElementById('share-chart-caption');
+        if (chartCaption) chartCaption.textContent =
+            `Bars show how far each stock is trading below (negative) or above (positive) its ${period}-day SMA.`;
+
+        const scatterCaption = document.getElementById('share-scatter-caption');
+        if (scatterCaption) scatterCaption.textContent =
+            `Distance from ${period}-day SMA (X) vs trailing P/E ratio (Y). Stocks without P/E data are excluded.`;
+
+        const thSma = document.getElementById('share-th-sma');
+        if (thSma) thSma.textContent = `${period}d SMA`;
+
+        const thVsSma = document.getElementById('share-th-vs-sma');
+        if (thVsSma) thVsSma.textContent = `vs ${period}d SMA`;
+    }
+
+    // ── Data fetching ─────────────────────────────────────────────────────────
+
+    async function fetchStockData(stocks, period) {
+        try {
+            const r = await fetch('/api/batch-stocks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stocks: stocks.slice(0, 20), period }),
+            });
+            if (r.ok) {
+                const json = await r.json();
+                return json.results || [];
+            }
+        } catch { /* non-fatal */ }
+        return [];
+    }
+
+    async function fetchSummaries(stocks) {
+        try {
+            const params = new URLSearchParams({
+                action: 'ai-summaries',
+                symbols: stocks.slice(0, 20).join(','),
+                _t: String(Date.now()),
+            });
+            const r = await fetch('/api/batch-stocks?' + params, { cache: 'no-store' });
+            if (r.ok) {
+                const json = await r.json();
+                return json.summaries || {};
+            }
+        } catch { /* non-fatal */ }
+        return {};
+    }
+
+    // ── Main ──────────────────────────────────────────────────────────────────
 
     async function loadShare() {
         const token = getShareToken();
@@ -120,58 +239,42 @@
         const { watchlistName, ownerName, stocks, smaPeriod } = shareData;
         if (!Array.isArray(stocks) || !stocks.length) { showError(); return; }
 
-        _shareStocks = stocks;
-        _sharePeriod = smaPeriod;
+        _shareStocks      = stocks;
+        _shareOwnerPeriod = smaPeriod;
+        _activePeriod     = smaPeriod;
 
-        // 2. Fetch live stock data
-        let stockResults = [];
-        try {
-            const r = await fetch('/api/batch-stocks', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stocks: stocks.slice(0, 20), period: smaPeriod }),
-            });
-            if (r.ok) {
-                const json = await r.json();
-                stockResults = json.results || [];
-            }
-        } catch { /* non-fatal */ }
+        // 2. Render static header parts
+        document.getElementById('share-title').textContent = watchlistName;
+        document.getElementById('share-subtitle').textContent =
+            ownerName + '\'s watchlist - ranked by distance from their moving average';
+        updatePeriodLabels(smaPeriod);
+        setupSmaPills(smaPeriod);
+        setupShareButton();
 
-        // 3. Fetch AI summaries (best-effort)
-        let summaries = {};
-        try {
-            const params = new URLSearchParams({
-                action: 'ai-summaries',
-                symbols: stocks.slice(0, 20).join(','),
-                _t: String(Date.now()),
-            });
-            const r = await fetch('/api/batch-stocks?' + params, { cache: 'no-store' });
-            if (r.ok) {
-                const json = await r.json();
-                summaries = json.summaries || {};
-            }
-        } catch { /* non-fatal */ }
+        // 3. Fetch live stock data + summaries in parallel
+        const [stockResults, summaries] = await Promise.all([
+            fetchStockData(stocks, smaPeriod),
+            fetchSummaries(stocks),
+        ]);
+        _cachedSummaries = summaries;
 
-        // 4. Render
-        renderShare(ownerName, watchlistName, smaPeriod, stockResults, summaries);
+        // 4. Render dynamic content
+        const sorted = renderDynamic(stockResults, smaPeriod);
+        renderSummaries(sorted, summaries);
+
         showContent();
         setupAuthUI(stocks, smaPeriod, watchlistName);
     }
 
-    function renderShare(ownerName, watchlistName, smaPeriod, stockResults, summaries) {
-        document.getElementById('share-title').textContent = watchlistName;
-        document.getElementById('share-subtitle').textContent =
-            ownerName + '\'s watchlist - ranked by distance from ' + smaPeriod + '-day SMA';
-        document.getElementById('share-chart-caption').textContent =
-            'Bars show how far each stock is trading below (negative) or above (positive) its ' + smaPeriod + '-day SMA.';
+    // ── Dynamic render (re-used on period change) ─────────────────────────────
 
+    function renderDynamic(stockResults, period) {
         const sorted = [...stockResults].sort((a, b) => a.relativePrice - b.relativePrice);
-
         renderMetrics(sorted);
-        renderChart(sorted, smaPeriod);
-        renderScatter(sorted);
-        renderTable(sorted);
-        renderSummaries(sorted, summaries);
+        renderChart(sorted, period);
+        renderScatter(sorted, period);
+        renderTable(sorted, period);
+        return sorted;
     }
 
     function renderMetrics(sorted) {
@@ -200,16 +303,17 @@
         `).join('');
     }
 
-    function renderChart(sorted, smaPeriod) {
+    function renderChart(sorted, period) {
+        if (_barChart) { _barChart.destroy(); _barChart = null; }
         const canvas = document.getElementById('share-chart');
         if (!canvas || !window.Chart) return;
-        const labels = sorted.map(s => s.stock);
-        const values = sorted.map(s => Number.isFinite(s.relativePrice) ? +(s.relativePrice * 100).toFixed(2) : null);
+        const labels   = sorted.map(s => s.stock);
+        const values   = sorted.map(s => Number.isFinite(s.relativePrice) ? +(s.relativePrice * 100).toFixed(2) : null);
         const bgColors = sorted.map(s => getBarColor(s.relativePrice * 100).bg);
         const bdColors = sorted.map(s => getBarColor(s.relativePrice * 100).border);
-        const height = Math.max(200, labels.length * 32 + 60);
+        const height   = Math.max(200, labels.length * 32 + 60);
         canvas.parentElement.style.height = height + 'px';
-        new Chart(canvas.getContext('2d'), {
+        _barChart = new Chart(canvas.getContext('2d'), {
             type: 'bar',
             data: { labels, datasets: [{ data: values, backgroundColor: bgColors, borderColor: bdColors, borderWidth: 1, borderRadius: 4 }] },
             options: {
@@ -220,7 +324,7 @@
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: ctx => (ctx.parsed.x >= 0 ? '+' : '') + ctx.parsed.x.toFixed(1) + '% vs SMA' + smaPeriod,
+                            label: ctx => (ctx.parsed.x >= 0 ? '+' : '') + ctx.parsed.x.toFixed(1) + '% vs ' + period + '-day SMA',
                             title: ctx => {
                                 const s = sorted[ctx[0].dataIndex];
                                 return s ? s.stock + (s.companyName ? ' - ' + s.companyName : '') : ctx[0].label;
@@ -245,10 +349,14 @@
         });
     }
 
-    function renderScatter(sorted) {
+    function renderScatter(sorted, period) {
+        if (_scatterChart) { _scatterChart.destroy(); _scatterChart = null; }
         const section = document.getElementById('share-scatter-section');
         const canvas  = document.getElementById('share-scatter-chart');
         if (!section || !canvas || !window.Chart) return;
+
+        // Hide section first; show only if enough data
+        section.classList.add('hidden');
 
         const included = sorted.filter(s =>
             Number.isFinite(s.relativePrice) &&
@@ -263,7 +371,7 @@
 
         const excluded = sorted.filter(s => !Number.isFinite(s.peRatio) || s.peRatio <= 0);
 
-        if (included.length < 2) return; // not enough data to be useful
+        if (included.length < 2) return;
 
         section.classList.remove('hidden');
 
@@ -271,11 +379,12 @@
         if (excludedEl && excluded.length) {
             excludedEl.textContent = 'Not shown: ' + excluded.map(e => e.stock).join(', ') + ' - no P/E data or negative earnings';
             excludedEl.classList.remove('hidden');
+        } else if (excludedEl) {
+            excludedEl.classList.add('hidden');
         }
 
         const pointColors = included.map(p => getBarColor(p.diffPercent).bg);
 
-        // Custom label plugin
         const labelPlugin = {
             id: 'tickerLabels',
             afterDatasetsDraw(ch) {
@@ -295,7 +404,7 @@
             },
         };
 
-        new Chart(canvas.getContext('2d'), {
+        _scatterChart = new Chart(canvas.getContext('2d'), {
             type: 'scatter',
             plugins: [labelPlugin],
             data: {
@@ -316,14 +425,14 @@
                         callbacks: {
                             label: ctx => {
                                 const p = included[ctx.dataIndex];
-                                return p.stock + ': SMA ' + (p.x >= 0 ? '+' : '') + p.x + '%, P/E ' + p.y.toFixed(1) + 'x';
+                                return p.stock + ': ' + (p.x >= 0 ? '+' : '') + p.x + '% vs ' + period + 'd SMA, P/E ' + p.y.toFixed(1) + 'x';
                             },
                         },
                     },
                 },
                 scales: {
                     x: {
-                        title: { display: true, text: '% vs SMA', color: '#6b7280', font: { size: 11 } },
+                        title: { display: true, text: '% vs ' + period + '-day SMA', color: '#6b7280', font: { size: 11 } },
                         ticks: { callback: v => (v >= 0 ? '+' : '') + v + '%', color: '#6b7280', font: { size: 11 } },
                         grid: { color: 'rgba(0,0,0,0.06)' },
                     },
@@ -343,7 +452,7 @@
         });
     }
 
-    function renderTable(sorted) {
+    function renderTable(sorted, period) {
         const tbody = document.getElementById('share-table-body');
         if (!tbody) return;
         tbody.innerHTML = sorted.map(s => {
@@ -355,8 +464,8 @@
                 ? `<span class="ml-1 text-xs ${dayChange >= 0 ? 'text-green-600' : 'text-red-500'}">(${dayChange >= 0 ? '+' : ''}${dayChange.toFixed(1)}%)</span>`
                 : '';
             const badge = `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold" style="${getBadgeStyle(pct)}">${formatPct(pct)}</span>`;
-            const pe = s.peRatio ? s.peRatio.toFixed(1) + 'x' : '<span class="text-gray-400">-</span>';
-            const name = s.companyName ? `<span class="ml-2 hidden sm:inline text-xs text-gray-400">${escHtml(s.companyName)}</span>` : '';
+            const pe    = s.peRatio ? s.peRatio.toFixed(1) + 'x' : '<span class="text-gray-400">-</span>';
+            const name  = s.companyName ? `<span class="ml-2 hidden sm:inline text-xs text-gray-400">${escHtml(s.companyName)}</span>` : '';
             return `<tr class="hover:bg-gray-50 cursor-pointer" onclick="window.open('${escHtml(screenerUrl(s.stock))}','_blank')">
                 <td class="px-4 py-3">
                     <a href="${escHtml(screenerUrl(s.stock))}" target="_blank" rel="noopener"
@@ -364,7 +473,7 @@
                        onclick="event.stopPropagation();">${escHtml(s.stock)}</a>${name}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-700 whitespace-nowrap">${formatPrice(s.currentPrice)}${dayHtml}</td>
-                <td class="px-4 py-3 text-right text-gray-500">${formatPrice(s.sma)}</td>
+                <td class="px-4 py-3 text-right text-gray-500" title="${period}-day SMA">${formatPrice(s.sma)}</td>
                 <td class="px-4 py-3 text-right">${badge}</td>
                 <td class="px-4 py-3 text-right text-gray-500 hidden sm:table-cell">${pe}</td>
             </tr>`;
@@ -390,6 +499,95 @@
                 <p class="text-sm text-gray-700 leading-relaxed">${escHtml(e.summary)}</p>
             </div>
         `).join('');
+    }
+
+    // ── Share modal ───────────────────────────────────────────────────────────
+
+    function setupShareButton() {
+        const btn = document.getElementById('share-share-btn');
+        if (!btn) return;
+        btn.addEventListener('click', showShareModal);
+    }
+
+    function showShareModal() {
+        const url = window.location.href;
+        const existing = document.getElementById('_share-modal-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = '_share-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:white;border-radius:16px;padding:24px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+        modal.addEventListener('click', e => e.stopPropagation());
+
+        const enc = encodeURIComponent(url);
+        const socials = [
+            { label: 'X',         bg: '#000',     icon: 'fab fa-x-twitter',       href: 'https://x.com/intent/tweet?url=' + enc },
+            { label: 'WhatsApp',  bg: '#25D366',  icon: 'fab fa-whatsapp',         href: 'https://wa.me/?text=' + enc },
+            { label: 'LinkedIn',  bg: '#0A66C2',  icon: 'fab fa-linkedin-in',      href: 'https://www.linkedin.com/sharing/share-offsite/?url=' + enc },
+            { label: 'Facebook',  bg: '#1877F2',  icon: 'fab fa-facebook-f',       href: 'https://www.facebook.com/sharer/sharer.php?u=' + enc },
+            { label: 'Reddit',    bg: '#FF4500',  icon: 'fab fa-reddit-alien',     href: 'https://reddit.com/submit?url=' + enc },
+            { label: 'Telegram',  bg: '#2CA5E0',  icon: 'fab fa-telegram-plane',   href: 'https://t.me/share/url?url=' + enc },
+            { label: 'Email',     bg: '#6B7280',  icon: 'fas fa-envelope',         href: 'mailto:?body=' + enc },
+        ];
+
+        // Header
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
+        const title = document.createElement('h3');
+        title.style.cssText = 'font-size:16px;font-weight:700;color:#111827;margin:0;';
+        title.textContent = 'Share this watchlist';
+        const closeBtn = document.createElement('button');
+        closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;padding:4px;';
+        closeBtn.textContent = '×';
+        closeBtn.addEventListener('click', () => overlay.remove());
+        header.append(title, closeBtn);
+
+        // URL row
+        const urlRow = document.createElement('div');
+        urlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;';
+        const urlInput = document.createElement('input');
+        urlInput.type = 'text';
+        urlInput.value = url;
+        urlInput.readOnly = true;
+        urlInput.style.cssText = 'flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:13px;color:#374151;background:#f9fafb;outline:none;min-width:0;';
+        const copyBtn = document.createElement('button');
+        copyBtn.style.cssText = 'background:linear-gradient(135deg,#2563EB,#4F46E5);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;';
+        copyBtn.textContent = 'Copy';
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(url).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+            }).catch(() => {
+                urlInput.select();
+                document.execCommand('copy');
+            });
+        });
+        urlRow.append(urlInput, copyBtn);
+
+        // Social grid
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:8px;';
+        socials.forEach(s => {
+            const a = document.createElement('a');
+            a.href = s.href;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:10px;background:${s.bg};color:white;text-decoration:none;font-size:11px;font-weight:600;`;
+            const ico = document.createElement('i');
+            ico.className = s.icon;
+            ico.style.cssText = 'font-size:18px;';
+            const lbl = document.createTextNode(s.label);
+            a.append(ico, lbl);
+            grid.appendChild(a);
+        });
+
+        modal.append(header, urlRow, grid);
+        overlay.appendChild(modal);
+        overlay.addEventListener('click', () => overlay.remove());
+        document.body.appendChild(overlay);
     }
 
     // ── Auth-sensitive UI ─────────────────────────────────────────────────────
