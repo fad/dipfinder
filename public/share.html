@@ -149,28 +149,102 @@
             <!-- Promo (visitors only, hidden for logged-in users) -->
             <div id="share-promo-section" class="rounded-xl overflow-hidden shadow-sm" style="background:linear-gradient(135deg,#1e3a8a 0%,#4338ca 60%,#6d28d9 100%);">
                 <div class="px-6 py-8 sm:px-10 sm:py-10 text-white">
-                    <div class="max-w-xl">
-                        <p class="text-xs font-semibold uppercase tracking-widest text-indigo-300 mb-2">Dip Finder</p>
-                        <h2 class="text-2xl font-bold leading-snug mb-3">Know when your stocks go on sale</h2>
-                        <p class="text-sm text-indigo-100 leading-relaxed mb-6">
-                            Build your own watchlist, track how far each stock has dipped below its moving average, and get a weekly Sunday Brief with personalised insights - straight to your inbox.
-                        </p>
-                        <div class="flex flex-wrap gap-3">
-                            <button id="share-promo-cta"
-                               data-umami-event="share_page_cta_promo"
-                               class="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-indigo-700 shadow transition hover:bg-indigo-50">
-                                Create free account <i class="fas fa-arrow-right text-xs"></i>
-                            </button>
-                            <a href="/start"
-                               class="inline-flex items-center gap-2 rounded-xl border border-indigo-400 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white hover:bg-opacity-10">
-                                Learn more
-                            </a>
+                    <div class="flex items-center gap-10 lg:gap-14">
+
+                        <!-- Left: CTA text -->
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-semibold uppercase tracking-widest text-indigo-300 mb-2">Dip Finder</p>
+                            <h2 class="text-2xl font-bold leading-snug mb-3">Know when your stocks go on sale</h2>
+                            <p class="text-sm text-indigo-100 leading-relaxed mb-6">
+                                Build your own watchlist, track how far each stock has dipped below its moving average, and get a weekly Sunday Brief with personalised insights - straight to your inbox.
+                            </p>
+                            <div class="flex flex-wrap gap-3">
+                                <button id="share-promo-cta"
+                                   data-umami-event="share_page_cta_promo"
+                                   class="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-indigo-700 shadow transition hover:bg-indigo-50">
+                                    Create free account <i class="fas fa-arrow-right text-xs"></i>
+                                </button>
+                                <a href="/start"
+                                   class="inline-flex items-center gap-2 rounded-xl border border-indigo-400 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white hover:bg-opacity-10">
+                                    Learn more
+                                </a>
+                            </div>
+                            <ul class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-indigo-200">
+                                <li><i class="fas fa-check mr-1"></i> Free forever</li>
+                                <li><i class="fas fa-check mr-1"></i> No credit card</li>
+                                <li><i class="fas fa-check mr-1"></i> Weekly email digest</li>
+                            </ul>
                         </div>
-                        <ul class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-indigo-200">
-                            <li><i class="fas fa-check mr-1"></i> Free forever</li>
-                            <li><i class="fas fa-check mr-1"></i> No credit card</li>
-                            <li><i class="fas fa-check mr-1"></i> Weekly email digest</li>
-                        </ul>
+
+                        <!-- Right: Sunday Brief email mockup (hidden on mobile) -->
+                        <div class="hidden lg:flex justify-center flex-shrink-0">
+                            <div style="background:#e2e8f0;border-radius:20px;padding:18px;max-width:310px;width:100%;box-shadow:0 16px 56px rgba(0,0,0,0.3);transform:rotate(1.5deg);">
+                                <div style="background:white;border-radius:12px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;">
+                                    <!-- Header -->
+                                    <div style="background:linear-gradient(135deg,#2563EB,#4F46E5,#7C3AED);padding:16px 20px;text-align:center;">
+                                        <div style="font-size:16px;font-weight:800;color:white;letter-spacing:-0.3px;">Dip Finder</div>
+                                        <div style="color:#c7d2fe;font-size:10px;margin-top:3px;">What The Dip? &middot; Sunday, May 11, 2025</div>
+                                    </div>
+                                    <!-- Body -->
+                                    <div style="padding:16px 18px;">
+                                        <!-- Opener -->
+                                        <p style="font-size:11.5px;color:#374151;line-height:1.65;margin:0 0 12px;">Hi Alex - <strong>3 of your 8 stocks are dipping</strong> vs their 200-day average this week, including ASML which crossed below for the first time in months.</p>
+                                        <!-- Tier counts -->
+                                        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:13px;">
+                                            <span style="background:#0F766E;color:#f0fdfa;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;">Deep Dip 1</span>
+                                            <span style="background:#CCFBF1;color:#0F766E;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;">Dipping 2</span>
+                                            <span style="background:#F1F5F9;color:#475569;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;">Fair 3</span>
+                                            <span style="background:#FFEDD5;color:#c2410c;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;">Hot 2</span>
+                                        </div>
+                                        <!-- Bar chart -->
+                                        <div style="margin-bottom:13px;">
+                                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+                                                <span style="width:34px;font-size:9.5px;color:#64748b;flex-shrink:0;text-align:right;">ASML</span>
+                                                <div style="flex:1;background:#f1f5f9;border-radius:3px;height:9px;"><div style="width:80%;height:100%;background:#0F766E;border-radius:3px;"></div></div>
+                                                <span style="font-size:9.5px;color:#0F766E;width:38px;text-align:right;">-14.2%</span>
+                                            </div>
+                                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+                                                <span style="width:34px;font-size:9.5px;color:#64748b;flex-shrink:0;text-align:right;">SHOP</span>
+                                                <div style="flex:1;background:#f1f5f9;border-radius:3px;height:9px;"><div style="width:55%;height:100%;background:#14B8A6;border-radius:3px;"></div></div>
+                                                <span style="font-size:9.5px;color:#0F766E;width:38px;text-align:right;">-8.1%</span>
+                                            </div>
+                                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+                                                <span style="width:34px;font-size:9.5px;color:#64748b;flex-shrink:0;text-align:right;">MSFT</span>
+                                                <div style="flex:1;background:#f1f5f9;border-radius:3px;height:9px;"><div style="width:28%;height:100%;background:#94A3B8;border-radius:3px;"></div></div>
+                                                <span style="font-size:9.5px;color:#64748b;width:38px;text-align:right;">-2.3%</span>
+                                            </div>
+                                            <div style="display:flex;align-items:center;gap:6px;">
+                                                <span style="width:34px;font-size:9.5px;color:#64748b;flex-shrink:0;text-align:right;">NVDA</span>
+                                                <div style="flex:1;background:#f1f5f9;border-radius:3px;height:9px;"><div style="width:44%;height:100%;background:#F97316;border-radius:3px;"></div></div>
+                                                <span style="font-size:9.5px;color:#F97316;width:38px;text-align:right;">+7.4%</span>
+                                            </div>
+                                        </div>
+                                        <!-- News summary -->
+                                        <div style="border-top:1px solid #f1f5f9;padding-top:10px;margin-bottom:10px;">
+                                            <div style="font-size:9px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">This Week's News</div>
+                                            <p style="font-size:10.5px;color:#4b5563;line-height:1.55;margin:0;">ASML crossed below its 200-day average for the first time in 14 months. Despite beating earnings, guidance softened on China export restrictions.</p>
+                                        </div>
+                                        <!-- On Your Radar -->
+                                        <div style="border-top:1px solid #f1f5f9;padding-top:10px;">
+                                            <div style="font-size:9px;font-weight:700;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:7px;">On Your Radar</div>
+                                            <div style="display:flex;gap:6px;">
+                                                <div style="flex:1;border:1px solid #ede9fe;border-radius:8px;padding:7px 9px;background:#faf5ff;">
+                                                    <div style="font-size:10px;font-weight:700;color:#7c3aed;">SMCI</div>
+                                                    <div style="font-size:9px;color:#8b5cf6;margin-top:2px;">-11.3% vs 50d SMA</div>
+                                                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;line-height:1.4;">Similar to NVDA, AAPL in your list</div>
+                                                </div>
+                                                <div style="flex:1;border:1px solid #ede9fe;border-radius:8px;padding:7px 9px;background:#faf5ff;">
+                                                    <div style="font-size:10px;font-weight:700;color:#7c3aed;">AMD</div>
+                                                    <div style="font-size:9px;color:#8b5cf6;margin-top:2px;">-9.7% vs 50d SMA</div>
+                                                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;line-height:1.4;">Semis - matches your watchlist</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
