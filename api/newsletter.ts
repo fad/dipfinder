@@ -371,17 +371,28 @@ async function handleAiSummaries(req: VercelRequest, res: VercelResponse) {
   try {
     const db = await connectToDatabase();
 
-    // Collect unique symbols across all subscribers
-    const users = await db.collection('users')
-      .find({ sundayBriefSubscribed: true, watchlist: { $exists: true, $not: { $size: 0 } } })
-      .project({ watchlist: 1, smaPeriod: 1 })
-      .toArray();
+    // Optional: admin can scope to specific symbols (comma-separated query param)
+    const symbolsParam = typeof req.query.symbols === 'string' ? req.query.symbols.trim() : '';
+    const targetSymbols = symbolsParam
+      ? symbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length > 0)
+      : null;
 
     const allSymbols = new Map<string, number>(); // symbol → smaPeriod
-    for (const user of users) {
-      const smaPeriod: number = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
-      for (const sym of (user.watchlist as string[])) {
-        if (!allSymbols.has(sym)) allSymbols.set(sym, smaPeriod);
+
+    if (targetSymbols) {
+      // Admin manual trigger: use provided symbols, default SMA period
+      for (const sym of targetSymbols) allSymbols.set(sym, NEWSLETTER_SMA_DEFAULT);
+    } else {
+      // Scheduled run: collect unique symbols across all subscribers
+      const users = await db.collection('users')
+        .find({ sundayBriefSubscribed: true, watchlist: { $exists: true, $not: { $size: 0 } } })
+        .project({ watchlist: 1, smaPeriod: 1 })
+        .toArray();
+      for (const user of users) {
+        const smaPeriod: number = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
+        for (const sym of (user.watchlist as string[])) {
+          if (!allSymbols.has(sym)) allSymbols.set(sym, smaPeriod);
+        }
       }
     }
 

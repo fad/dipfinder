@@ -629,6 +629,9 @@ function renderScatterChart(stockDataArray) {
         return;
     }
 
+    // Re-show admin tools panel if it was hidden by an empty-watchlist transition
+    document.getElementById('admin-tools-section')?.classList.remove('hidden');
+
     const included = [];
     const excluded = [];
 
@@ -778,6 +781,81 @@ function renderScatterChart(stockDataArray) {
     // Re-register label plugin on this instance
     scatterChart.config.plugins.push(labelPlugin);
     scatterChart.update();
+}
+
+// ── Admin tools panel ─────────────────────────────────────────────────────────
+
+let adminToolsInitialized = false;
+
+function initAdminTools() {
+    const section = document.getElementById('admin-tools-section');
+    if (!section || adminToolsInitialized) return;
+    adminToolsInitialized = true;
+    section.classList.remove('hidden');
+
+    const statusEl = document.getElementById('admin-tools-status');
+
+    function setStatus(msg, isError) {
+        if (!statusEl) return;
+        statusEl.textContent = msg;
+        statusEl.classList.remove('hidden', 'text-red-600', 'text-gray-600');
+        statusEl.classList.add(isError ? 'text-red-600' : 'text-gray-600');
+    }
+
+    const snapshotBtn = document.getElementById('admin-snapshot-btn');
+    if (snapshotBtn) {
+        snapshotBtn.addEventListener('click', async () => {
+            snapshotBtn.disabled = true;
+            snapshotBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-400"></i> Running...';
+            try {
+                const token = localStorage.getItem('token');
+                const r = await fetch('/api/newsletter?action=snapshot', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await r.json();
+                setStatus(r.ok ? 'Snapshot complete.' : `Error: ${data.error || 'Unknown error'}`, !r.ok);
+            } catch (e) {
+                setStatus('Network error — snapshot failed.', true);
+            }
+            snapshotBtn.disabled = false;
+            snapshotBtn.innerHTML = '<i class="fas fa-camera text-gray-400"></i> Run Snapshot';
+        });
+    }
+
+    const aiBtn = document.getElementById('admin-ai-btn');
+    if (aiBtn) {
+        aiBtn.addEventListener('click', async () => {
+            const currentSymbols = stocks.slice();
+            if (!currentSymbols.length) { setStatus('No stocks in watchlist.', true); return; }
+            aiBtn.disabled = true;
+            aiBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-400"></i> Generating...';
+            try {
+                const token = localStorage.getItem('token');
+                const r = await fetch(`/api/newsletter?action=ai-summaries&symbols=${encodeURIComponent(currentSymbols.join(','))}`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await r.json();
+                if (!r.ok) {
+                    setStatus(`Error: ${data.error || 'Unknown error'}`, true);
+                } else if (data.skipped) {
+                    setStatus(`AI summaries: ${data.reason || 'all already done this week'}.`, false);
+                } else {
+                    const parts = [];
+                    if (data.aiGenerated > 0) parts.push(`${data.aiGenerated} generated`);
+                    if (data.aiSkipped > 0) parts.push(`${data.aiSkipped} skipped (no news)`);
+                    const alreadyDone = currentSymbols.length - (data.aiGenerated + data.aiSkipped);
+                    if (alreadyDone > 0) parts.push(`${alreadyDone} already had summaries`);
+                    setStatus(`AI summaries: ${parts.join(', ') || 'nothing to do'}.`, false);
+                }
+            } catch (e) {
+                setStatus('Network error — AI summaries failed.', true);
+            }
+            aiBtn.disabled = false;
+            aiBtn.innerHTML = '<i class="fas fa-magic text-gray-400"></i> Generate AI Summaries';
+        });
+    }
 }
 
 // ── Chart build ───────────────────────────────────────────────────────────────
@@ -1221,6 +1299,7 @@ async function switchWatchlist(id) {
         if (chart) { chart.destroy(); chart = null; }
         if (scatterChart) { scatterChart.destroy(); scatterChart = null; }
         document.getElementById('admin-scatter-section')?.classList.add('hidden');
+        document.getElementById('admin-tools-section')?.classList.add('hidden');
         lastRenderCache = { data: [], period, tableBody: $('#stocks-table tbody') };
         renderSummaryMetrics([], period);
         hideChartLoading();
@@ -1290,6 +1369,7 @@ async function deleteWatchlist(id) {
                 if (chart) { chart.destroy(); chart = null; }
                 if (scatterChart) { scatterChart.destroy(); scatterChart = null; }
                 document.getElementById('admin-scatter-section')?.classList.add('hidden');
+                document.getElementById('admin-tools-section')?.classList.add('hidden');
                 hideChartLoading();
             }
         }
@@ -1952,8 +2032,9 @@ function initFounderBanner() {
         .then(data => {
             // Set admin flag and re-render scatter if data already loaded
             window.IS_ADMIN = !!data.isAdmin;
-            if (window.IS_ADMIN && lastRenderCache.data) {
-                renderScatterChart(lastRenderCache.data);
+            if (window.IS_ADMIN) {
+                if (lastRenderCache.data) renderScatterChart(lastRenderCache.data);
+                initAdminTools();
             }
 
             // Don't show founder banner to Pro or founding members
