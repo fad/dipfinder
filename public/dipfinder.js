@@ -1007,10 +1007,12 @@ function renderWatchlistTabs() {
         const deleteHtml = !tab.isPrimary
             ? `<button class="wl-tab-del" data-id="${escapeHtml(tab.id)}" title="Delete watchlist" style="margin-left:4px;line-height:1;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;padding:0;">&#215;</button>`
             : '';
-        const draggable = !tab.isPrimary ? 'draggable="true"' : '';
-        return `<div class="wl-tab${isActive ? ' wl-tab--active' : ''}" data-id="${escapeHtml(tab.id)}" data-primary="${tab.isPrimary}" title="Double-click to rename" ${draggable}
-            style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:${tab.isPrimary ? 'pointer' : 'grab'};user-select:none;transition:background 0.1s,color 0.1s,border-color 0.1s;">
-            ${starHtml}<span class="wl-tab-name">${escapeHtml(tab.name)}</span>${deleteHtml}
+        const dragHandleHtml = !tab.isPrimary
+            ? `<span class="wl-tab-drag-handle" title="Drag to reorder" style="cursor:grab;margin-right:4px;color:#9ca3af;font-size:11px;line-height:1;">&#8942;</span>`
+            : '';
+        return `<div class="wl-tab${isActive ? ' wl-tab--active' : ''}" data-id="${escapeHtml(tab.id)}" data-primary="${tab.isPrimary}" title="Double-click to rename"
+            style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;user-select:none;transition:background 0.1s,color 0.1s,border-color 0.1s;">
+            ${dragHandleHtml}${starHtml}<span class="wl-tab-name">${escapeHtml(tab.name)}</span>${deleteHtml}
         </div>`;
     }).join('');
 
@@ -1036,9 +1038,15 @@ function renderWatchlistTabs() {
             startRenameTab(tabEl, tabId);
         });
 
-        // ── Tab is a drag source (named tabs only) ────────────────────────
+        // ── Tab is a drag source (named tabs only, via handle) ────────────
         if (!isPrimary) {
+            const handle = tabEl.querySelector('.wl-tab-drag-handle');
+            if (handle) {
+                handle.addEventListener('mousedown', () => { tabEl.draggable = true; });
+                handle.addEventListener('mouseup', () => { tabEl.draggable = false; });
+            }
             tabEl.addEventListener('dragstart', e => {
+                if (!tabEl.draggable) { e.preventDefault(); return; }
                 tabDragSrc = tabEl;
                 e.dataTransfer.effectAllowed = 'move';
                 e.dataTransfer.setData('application/wl-tab', tabId);
@@ -1047,6 +1055,7 @@ function renderWatchlistTabs() {
                 setTimeout(() => { tabEl.style.opacity = '0.4'; }, 0);
             });
             tabEl.addEventListener('dragend', () => {
+                tabEl.draggable = false;
                 tabEl.style.opacity = '';
                 container.querySelectorAll('.wl-tab').forEach(t => {
                     t.style.boxShadow = '';
