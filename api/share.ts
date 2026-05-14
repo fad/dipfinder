@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Defaults
   let title       = 'Shared Watchlist - Dip Finder';
   let description = 'See which stocks on this watchlist are trading below their moving average.';
-  const image     = 'https://dipfinder.com/img/preview.png';
+  const image     = token ? `https://dipfinder.com/api/og?token=${encodeURIComponent(token)}` : 'https://dipfinder.com/img/preview.png';
   const isShortToken = /^[A-Za-z0-9]{6}$/.test(token);
   const isLongToken  = /^[a-f0-9]{24}$/.test(token);
   const sharePrefix  = isShortToken ? '/s/' : '/share/';
