@@ -139,7 +139,7 @@ const DEFAULT_TEMPLATES: Record<string, { name: string; subject: string; body: s
 </table>
 <div style="background:#FEF9C3;border-left:4px solid #EAB308;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 24px;">
   <p style="font-family:Arial,sans-serif;font-size:13px;color:#713F12;margin:0;line-height:1.6;">
-    <strong>Your founding rate of €49/year is locked</strong> for the first two renewals (3 years total at €49). After that, we'll give you 30 days' notice before any pricing change.
+    <strong>Your founding rate of $49/year is locked</strong> for the first two renewals (3 years total at $49). After that, we'll give you 30 days' notice before any pricing change.
   </p>
 </div>
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Your next billing date is <strong>{{nextBillingDate}}</strong>. You can view invoices and manage your subscription from your account page.</p>
@@ -1060,7 +1060,7 @@ export async function sendFoundingMemberReceiptEmail(
   const fallbackBody = `
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Hi ${escapeHtml(name)},</p>
 <p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Your DipFinder Founding Member subscription is confirmed. Welcome to Pro.</p>
-<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Your founding rate of €49/year is locked for the first two renewals. Next billing date: <strong>${escapeHtml(formatted)}</strong>.</p>
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#374151;line-height:1.75;margin:0 0 16px;">Your founding rate of $49/year is locked for the first two renewals. Next billing date: <strong>${escapeHtml(formatted)}</strong>.</p>
 <div style="text-align:center;margin:28px 0;">
   <a href="${baseUrl}/profile" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#FFFFFF;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;font-family:Arial,sans-serif;">Go to your account</a>
 </div>`;
