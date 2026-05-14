@@ -40,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ownerName: share.ownerName,
         stocks: share.stocks,
         smaPeriod: share.smaPeriod,
+        notes: share.notes || '',
       });
     } catch (err) {
       console.error('get-share error:', err);
@@ -61,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const db = await connectToDatabase();
   const user = await db.collection('users').findOne(
     { _id: new ObjectId(decoded.userId) },
-    { projection: { watchlist: 1, isPro: 1, namedWatchlists: 1, activeWatchlistId: 1, primaryWatchlistName: 1, smaPeriod: 1, chartOrientation: 1, name: 1 } }
+    { projection: { watchlist: 1, isPro: 1, namedWatchlists: 1, activeWatchlistId: 1, primaryWatchlistName: 1, primaryWatchlistNotes: 1, smaPeriod: 1, chartOrientation: 1, name: 1 } }
   );
   if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -74,6 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       stocks: user.watchlist || [],
       isPro,
       primaryWatchlistName: user.primaryWatchlistName || 'Main',
+      primaryWatchlistNotes: (user as any).primaryWatchlistNotes || '',
       namedWatchlists: user.namedWatchlists || [],
       activeWatchlistId: user.activeWatchlistId || 'primary',
       smaPeriod: user.smaPeriod,
@@ -183,6 +185,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true });
     }
 
+    // Save notes for a watchlist (primary or named)
+    if (action === 'save-notes') {
+      const { watchlistId: wlId, notes: rawNotes } = req.body;
+      const notes = typeof rawNotes === 'string' ? rawNotes.slice(0, 500) : '';
+      if (!wlId || wlId === 'primary') {
+        await db.collection('users').updateOne(
+          { _id: new ObjectId(decoded.userId) },
+          { $set: { primaryWatchlistNotes: notes } }
+        );
+      } else {
+        const existing: any[] = user.namedWatchlists || [];
+        const idx = existing.findIndex((w: any) => w.id === wlId);
+        if (idx === -1) return res.status(404).json({ error: 'Watchlist not found' });
+        existing[idx].notes = notes;
+        await db.collection('users').updateOne(
+          { _id: new ObjectId(decoded.userId) },
+          { $set: { namedWatchlists: existing } }
+        );
+      }
+      return res.status(200).json({ success: true });
+    }
+
     // Create or refresh a public share link for the current watchlist
     if (action === 'create-share') {
       const { watchlistName: wlNameRaw, stocks: wlStocks, smaPeriod: wlPeriod } = req.body;
@@ -196,6 +220,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const watchlistName = typeof wlNameRaw === 'string' ? wlNameRaw.slice(0, 60) : 'My Watchlist';
       const smaPeriod = Number.isFinite(Number(wlPeriod)) && Number(wlPeriod) > 0 ? Number(wlPeriod) : 50;
       const ownerName = (user as any).name?.split(' ')[0] || 'Someone';
+      const notes = typeof req.body.notes === 'string' ? req.body.notes.slice(0, 500) : '';
 
       // Upsert: stable token per user+watchlistId so existing links keep working
       const existingShare = await db.collection('sharedWatchlists').findOne({
@@ -207,7 +232,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await db.collection('sharedWatchlists').updateOne(
         { ownerId: decoded.userId, watchlistId: shareWatchlistId },
         {
-          $set: { token: shareToken, ownerName, watchlistName, stocks: sanitized, smaPeriod, updatedAt: new Date() },
+          $set: { token: shareToken, ownerName, watchlistName, stocks: sanitized, smaPeriod, notes, updatedAt: new Date() },
           $setOnInsert: { createdAt: new Date(), viewCount: 0 },
         },
         { upsert: true }

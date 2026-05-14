@@ -493,6 +493,7 @@ const AuthManager = (function() {
                     stocks: data.stocks || [],
                     isPro: !!data.isPro,
                     primaryWatchlistName: data.primaryWatchlistName || 'Main',
+                    primaryWatchlistNotes: data.primaryWatchlistNotes || '',
                     namedWatchlists: data.namedWatchlists || [],
                     activeWatchlistId: data.activeWatchlistId || 'primary',
                 }

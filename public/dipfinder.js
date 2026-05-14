@@ -15,6 +15,10 @@ var primaryWatchlistName = 'Main';
 // Cache of primary stocks separately so tab-switches can restore them
 var primaryStocksCache = [];
 
+// Watchlist notes state
+var primaryWatchlistNotes = '';
+var activeWatchlistNotes = '';
+
 // Drag-and-drop state (suppresses click-to-navigate on dragend)
 var isDragging = false;
 
@@ -1492,6 +1496,15 @@ async function switchWatchlist(id) {
         hideChartLoading();
     }
 
+    // Load notes for the new active watchlist
+    if (id === 'primary') {
+        activeWatchlistNotes = primaryWatchlistNotes;
+    } else {
+        const wl = namedWatchlists.find(w => w.id === id);
+        activeWatchlistNotes = (wl && wl.notes) || '';
+    }
+    loadNotesIntoTextarea();
+
     // Refresh admin summary panel for the new watchlist
     window._reloadAdminWlSummaries?.();
 }
@@ -2008,6 +2021,16 @@ window.initializeDipfinder = function() {
             if (detail.primaryWatchlistName) primaryWatchlistName = detail.primaryWatchlistName;
             if (detail.activeWatchlistId) activeWatchlistId = detail.activeWatchlistId;
 
+            // Load notes for the active watchlist
+            primaryWatchlistNotes = detail.primaryWatchlistNotes || '';
+            if (activeWatchlistId === 'primary') {
+                activeWatchlistNotes = primaryWatchlistNotes;
+            } else {
+                const activeWl = (detail.namedWatchlists || []).find(w => w.id === activeWatchlistId);
+                activeWatchlistNotes = (activeWl && activeWl.notes) || '';
+            }
+            loadNotesIntoTextarea();
+
             // Cache primary stocks so tab-switches can restore them
             const primaryStocks = detail.stocks || [];
             primaryStocksCache = primaryStocks.slice();
@@ -2225,9 +2248,12 @@ function initFounderBanner() {
             if (lastRenderCache.data) renderScatterChart(lastRenderCache.data);
             if (window.IS_ADMIN) initAdminTools();
 
-            // Show share button for all authenticated users
+            // Show share + notes buttons for all authenticated users
             const shareBtn = document.getElementById('share-watchlist-btn');
             if (shareBtn) shareBtn.classList.remove('hidden');
+            const notesBtn = document.getElementById('notes-watchlist-btn');
+            if (notesBtn) notesBtn.classList.remove('hidden');
+            setupNotesArea();
 
             // Don't show founder banner to Pro or founding members
             if (data.isPro || data.foundingMember) return;
@@ -2381,6 +2407,7 @@ async function shareWatchlist() {
                 watchlistName,
                 stocks: data.map(d => d.stock),
                 smaPeriod: period,
+                notes: activeWatchlistNotes,
             }),
         });
 
@@ -2401,6 +2428,82 @@ async function shareWatchlist() {
     }
 }
 window.shareWatchlist = shareWatchlist;
+
+// ── Watchlist notes ───────────────────────────────────────────────────────────
+
+function loadNotesIntoTextarea() {
+    const ta = document.getElementById('watchlist-notes-input');
+    if (ta) ta.value = activeWatchlistNotes;
+}
+
+let _notesSaveTimeout = null;
+let _notesAreaSetup = false;
+
+function setupNotesArea() {
+    if (_notesAreaSetup) return;
+    _notesAreaSetup = true;
+    const ta = document.getElementById('watchlist-notes-input');
+    if (!ta) return;
+    ta.addEventListener('blur', saveWatchlistNotes);
+    ta.addEventListener('input', () => {
+        clearTimeout(_notesSaveTimeout);
+        _notesSaveTimeout = setTimeout(saveWatchlistNotes, 1500);
+    });
+}
+
+function toggleWatchlistNotes() {
+    const section = document.getElementById('watchlist-notes-section');
+    if (!section) return;
+    const opening = section.classList.contains('hidden');
+    section.classList.toggle('hidden');
+    if (opening) {
+        const ta = document.getElementById('watchlist-notes-input');
+        if (ta) ta.focus();
+    }
+    // Update button label
+    const btn = document.getElementById('notes-watchlist-btn');
+    if (btn) {
+        btn.innerHTML = opening
+            ? '<i class="fas fa-sticky-note text-xs"></i> Notes'
+            : '<i class="fas fa-sticky-note text-xs"></i> Notes';
+    }
+}
+window.toggleWatchlistNotes = toggleWatchlistNotes;
+
+async function saveWatchlistNotes() {
+    const ta = document.getElementById('watchlist-notes-input');
+    if (!ta) return;
+    const notes = ta.value;
+    if (notes === activeWatchlistNotes) return;
+    activeWatchlistNotes = notes;
+
+    // Update local state
+    if (activeWatchlistId === 'primary') {
+        primaryWatchlistNotes = notes;
+    } else {
+        const wl = namedWatchlists.find(w => w.id === activeWatchlistId);
+        if (wl) wl.notes = notes;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const status = document.getElementById('notes-save-status');
+    if (status) status.textContent = 'Saving...';
+    try {
+        await fetch('/api/watchlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ action: 'save-notes', watchlistId: activeWatchlistId, notes }),
+        });
+        if (status) {
+            status.textContent = 'Saved';
+            setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+        }
+    } catch {
+        if (status) status.textContent = 'Save failed';
+    }
+}
 
 // ── Newsletter empty-state toggle ─────────────────────────────────────────────
 

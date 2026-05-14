@@ -68,6 +68,17 @@
             .replace(/"/g, '&quot;');
     }
 
+    // Convert plain-text notes to safe HTML: URLs become clickable links, newlines become <br>
+    function linkifyText(text) {
+        return text.split(/(https?:\/\/[^\s<>"]+)/).map((part, i) => {
+            if (i % 2 === 1) {
+                const safe = escHtml(part);
+                return `<a href="${safe}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 underline hover:text-indigo-800 break-all">${safe}</a>`;
+            }
+            return escHtml(part).replace(/\n/g, '<br>');
+        }).join('');
+    }
+
     // ── Token extraction ──────────────────────────────────────────────────────
 
     function getShareToken() {
@@ -257,7 +268,7 @@
             shareData = await r.json();
         } catch { showError(); return; }
 
-        const { watchlistName, ownerName, stocks, smaPeriod } = shareData;
+        const { watchlistName, ownerName, stocks, smaPeriod, notes } = shareData;
         if (!Array.isArray(stocks) || !stocks.length) { showError(); return; }
 
         _shareStocks      = stocks;
@@ -266,8 +277,15 @@
 
         // 2. Render static header parts
         document.getElementById('share-title').textContent = watchlistName;
-        document.getElementById('share-subtitle').textContent =
-            ownerName + '\'s watchlist - ranked by distance from their moving average';
+        const subtitleEl = document.getElementById('share-subtitle');
+        if (subtitleEl) {
+            if (notes && notes.trim()) {
+                subtitleEl.innerHTML = linkifyText(notes);
+                subtitleEl.className = 'mt-2 text-sm text-gray-700 leading-relaxed';
+            } else {
+                subtitleEl.textContent = ownerName + '\'s watchlist - ranked by distance from their moving average';
+            }
+        }
         updatePeriodLabels(smaPeriod);
         setupSmaPills(smaPeriod);
         setupShareButton();
