@@ -4,6 +4,12 @@ import { ObjectId } from 'mongodb';
 import { randomBytes } from 'crypto';
 import { connectToDatabase } from './lib/mongodb';
 
+const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function generateShortToken(len = 6): string {
+  return Array.from(randomBytes(len)).map(b => BASE62[b % 62]).join('');
+}
+const SHARE_TOKEN_RE = /^([a-f0-9]{24}|[A-Za-z0-9]{6})$/;
+
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -23,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── Public: get shared watchlist by token (no auth required) ──────────────
   if (req.method === 'GET' && req.query.action === 'get-share') {
     const shareToken = typeof req.query.token === 'string' ? req.query.token : '';
-    if (!shareToken || !/^[a-f0-9]{24}$/.test(shareToken)) {
+    if (!shareToken || !SHARE_TOKEN_RE.test(shareToken)) {
       return res.status(400).json({ error: 'Invalid share token' });
     }
     try {
@@ -227,7 +233,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ownerId: decoded.userId,
         watchlistId: shareWatchlistId,
       });
-      const shareToken = existingShare?.token || randomBytes(12).toString('hex');
+      const shareToken = existingShare?.token || generateShortToken();
 
       await db.collection('sharedWatchlists').updateOne(
         { ownerId: decoded.userId, watchlistId: shareWatchlistId },

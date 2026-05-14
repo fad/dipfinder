@@ -2391,7 +2391,7 @@ async function shareWatchlist() {
                 return;
             }
             const json = await res.json();
-            _buildShareLinkArea(window.location.origin + '/share/' + json.token, body);
+            _buildShareLinkArea(window.location.origin + '/s/' + json.token, body);
         } catch {
             body.innerHTML = '<p style="color:#dc2626;font-size:0.85rem;">Could not create share link. Try again.</p>';
         } finally {

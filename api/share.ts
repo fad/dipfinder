@@ -26,10 +26,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let title       = 'Shared Watchlist - Dip Finder';
   let description = 'See which stocks on this watchlist are trading below their moving average.';
   const image     = 'https://dipfinder.com/img/preview.png';
-  let canonical   = 'https://dipfinder.com/share/' + (token || '');
+  const isShortToken = /^[A-Za-z0-9]{6}$/.test(token);
+  const isLongToken  = /^[a-f0-9]{24}$/.test(token);
+  const sharePrefix  = isShortToken ? '/s/' : '/share/';
+  let canonical      = 'https://dipfinder.com' + sharePrefix + (token || '');
 
   // Try to personalise from DB
-  if (token && /^[a-f0-9]{24}$/.test(token)) {
+  if (token && (isShortToken || isLongToken)) {
     try {
       const db    = await connectToDatabase();
       const share = await db.collection('sharedWatchlists').findOne({ token });
@@ -41,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         title       = `${share.watchlistName} - shared by ${share.ownerName} on Dip Finder`;
         description = `${stocks.length} stocks tracked vs ${share.smaPeriod}-day SMA: ${shown}${more}. See which are dipping below their moving average.`;
-        canonical   = `https://dipfinder.com/share/${token}`;
+        canonical   = `https://dipfinder.com${sharePrefix}${token}`;
       }
     } catch {
       // Fall through with defaults
