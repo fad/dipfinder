@@ -710,6 +710,15 @@ function renderScatterChart(stockDataArray) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            onClick(event, elements) {
+                if (elements.length > 0) {
+                    const symbol = included[elements[0].index]?.d?.stock;
+                    if (symbol) window.spaNavigate(`/screener?stock=${encodeURIComponent(symbol)}`);
+                }
+            },
+            onHover(event, elements) {
+                if (event.native) event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -721,7 +730,6 @@ function renderScatterChart(stockDataArray) {
                         }
                     }
                 },
-                // Ticker labels via datalabels would need a plugin; use afterDraw instead
             },
             scales: {
                 x: {
