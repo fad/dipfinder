@@ -1212,6 +1212,7 @@ async function switchWatchlist(id) {
         if (chart) { chart.destroy(); chart = null; }
         if (scatterChart) { scatterChart.destroy(); scatterChart = null; }
         document.getElementById('admin-scatter-section')?.classList.add('hidden');
+        lastRenderCache = { data: [], period, tableBody: $('#stocks-table tbody') };
         renderSummaryMetrics([], period);
         hideChartLoading();
     }
@@ -1664,9 +1665,14 @@ window.initializeDipfinder = function() {
 
         try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
 
-        const updatedData = [...(lastRenderCache.data || []), newStockData];
-        lastRenderCache.data = updatedData;
-        renderScatterChart(updatedData);
+        if (!chart) {
+            // First stock in a newly created empty watchlist — full render to initialize bar chart
+            renderDashboardData([...(lastRenderCache.data || []), newStockData], period, $('#stocks-table tbody'));
+        } else {
+            const updatedData = [...(lastRenderCache.data || []), newStockData];
+            lastRenderCache.data = updatedData;
+            renderScatterChart(updatedData);
+        }
 
         if (input) { input.value = ''; input.disabled = false; }
         if (loadingEl) loadingEl.textContent = '';
