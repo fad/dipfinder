@@ -1504,6 +1504,7 @@ async function switchWatchlist(id) {
         activeWatchlistNotes = (wl && wl.notes) || '';
     }
     loadNotesIntoTextarea();
+    _updateWatchlistTitle();
 
     // Refresh admin summary panel for the new watchlist
     window._reloadAdminWlSummaries?.();
@@ -2030,6 +2031,7 @@ window.initializeDipfinder = function() {
                 activeWatchlistNotes = (activeWl && activeWl.notes) || '';
             }
             loadNotesIntoTextarea();
+            _updateWatchlistTitle();
 
             // Cache primary stocks so tab-switches can restore them
             const primaryStocks = detail.stocks || [];
@@ -2248,11 +2250,12 @@ function initFounderBanner() {
             if (lastRenderCache.data) renderScatterChart(lastRenderCache.data);
             if (window.IS_ADMIN) initAdminTools();
 
-            // Show share + notes buttons for all authenticated users
+            // Show watchlist header bar (title + notes + share) for all authenticated users
+            const headerBar = document.getElementById('watchlist-header-bar');
+            if (headerBar) headerBar.classList.remove('hidden');
             const shareBtn = document.getElementById('share-watchlist-btn');
             if (shareBtn) shareBtn.classList.remove('hidden');
-            const notesBtn = document.getElementById('notes-watchlist-btn');
-            if (notesBtn) notesBtn.classList.remove('hidden');
+            _updateWatchlistTitle();
             setupNotesArea();
 
             // Don't show founder banner to Pro or founding members
@@ -2379,6 +2382,11 @@ function _getActiveWatchlistName() {
     return wl ? wl.name : 'My Watchlist';
 }
 
+function _updateWatchlistTitle() {
+    const el = document.getElementById('watchlist-active-title');
+    if (el) el.textContent = _getActiveWatchlistName();
+}
+
 async function shareWatchlist() {
     const data = lastRenderCache.data || [];
     if (!data.length) {
@@ -2482,9 +2490,21 @@ async function _doCreateShare(data, token, watchlistName, includeNotes) {
 
 // ── Watchlist notes ───────────────────────────────────────────────────────────
 
+function _updateNotesDisplay(text) {
+    const el = document.getElementById('watchlist-notes-display');
+    if (!el) return;
+    const hasNotes = text && text.trim();
+    el.textContent = hasNotes ? text : 'Notes';
+    el.style.color = hasNotes ? '#4b5563' : '#9ca3af'; // gray-600 vs gray-400
+}
+
 function loadNotesIntoTextarea() {
     const ta = document.getElementById('watchlist-notes-input');
     if (ta) ta.value = activeWatchlistNotes;
+    // Reset to display mode
+    document.getElementById('watchlist-notes-edit')?.classList.add('hidden');
+    document.getElementById('watchlist-notes-display')?.classList.remove('hidden');
+    _updateNotesDisplay(activeWatchlistNotes);
 }
 
 let _notesSaveTimeout = null;
@@ -2495,31 +2515,37 @@ function setupNotesArea() {
     _notesAreaSetup = true;
     const ta = document.getElementById('watchlist-notes-input');
     if (!ta) return;
-    ta.addEventListener('blur', saveWatchlistNotes);
+    ta.addEventListener('blur', () => {
+        stopEditingNotes();
+        saveWatchlistNotes();
+    });
     ta.addEventListener('input', () => {
         clearTimeout(_notesSaveTimeout);
         _notesSaveTimeout = setTimeout(saveWatchlistNotes, 1500);
     });
 }
 
-function toggleWatchlistNotes() {
-    const section = document.getElementById('watchlist-notes-section');
-    if (!section) return;
-    const opening = section.classList.contains('hidden');
-    section.classList.toggle('hidden');
-    if (opening) {
-        const ta = document.getElementById('watchlist-notes-input');
-        if (ta) ta.focus();
-    }
-    // Update button label
-    const btn = document.getElementById('notes-watchlist-btn');
-    if (btn) {
-        btn.innerHTML = opening
-            ? '<i class="fas fa-sticky-note text-xs"></i> Notes'
-            : '<i class="fas fa-sticky-note text-xs"></i> Notes';
-    }
+function startEditingNotes() {
+    const display = document.getElementById('watchlist-notes-display');
+    const edit = document.getElementById('watchlist-notes-edit');
+    const ta = document.getElementById('watchlist-notes-input');
+    if (!display || !edit || !ta) return;
+    display.classList.add('hidden');
+    edit.classList.remove('hidden');
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
 }
-window.toggleWatchlistNotes = toggleWatchlistNotes;
+window.startEditingNotes = startEditingNotes;
+
+function stopEditingNotes() {
+    const display = document.getElementById('watchlist-notes-display');
+    const edit = document.getElementById('watchlist-notes-edit');
+    const ta = document.getElementById('watchlist-notes-input');
+    if (!display || !edit) return;
+    edit.classList.add('hidden');
+    display.classList.remove('hidden');
+    _updateNotesDisplay(ta ? ta.value : activeWatchlistNotes);
+}
 
 async function saveWatchlistNotes() {
     const ta = document.getElementById('watchlist-notes-input');
