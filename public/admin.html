@@ -2228,6 +2228,7 @@
     let sharesLoaded = false;
 
     async function loadShares() {
+      const token = localStorage.getItem('token');
       const tbody = document.getElementById('shares-tbody');
       const empty = document.getElementById('shares-empty');
       tbody.innerHTML = '<tr><td colspan="8" style="color:#64748b;font-size:0.8rem;padding:1rem;">Loading...</td></tr>';
