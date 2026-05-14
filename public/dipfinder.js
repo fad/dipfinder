@@ -2248,6 +2248,87 @@ function initFounderBanner() {
 
 // ── Share watchlist ───────────────────────────────────────────────────────────
 
+function showShareModal(shareUrl, watchlistName) {
+    // Remove any existing modal
+    document.getElementById('share-modal-overlay')?.remove();
+
+    const text = encodeURIComponent('Check out my ' + watchlistName + ' watchlist on Dip Finder');
+    const encodedUrl = encodeURIComponent(shareUrl);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'share-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;';
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:28px 24px 24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;">
+            <button id="share-modal-close" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;" aria-label="Close">&times;</button>
+            <h3 style="margin:0 0 4px;font-size:1rem;font-weight:700;color:#111827;">Share watchlist</h3>
+            <p style="margin:0 0 18px;font-size:0.8rem;color:#6b7280;">${watchlistName}</p>
+
+            <!-- Link row -->
+            <div style="display:flex;gap:8px;margin-bottom:20px;">
+                <input id="share-modal-url" type="text" readonly value="${shareUrl}"
+                    style="flex:1;min-width:0;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#374151;background:#f9fafb;outline:none;">
+                <button id="share-modal-copy"
+                    style="flex-shrink:0;border:none;cursor:pointer;border-radius:8px;padding:8px 14px;font-size:0.8rem;font-weight:600;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#fff;white-space:nowrap;transition:opacity .15s;">
+                    <i class="fas fa-copy" style="margin-right:4px;"></i>Copy
+                </button>
+            </div>
+
+            <!-- Share buttons -->
+            <p style="margin:0 0 10px;font-size:0.75rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Share via</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="https://twitter.com/intent/tweet?text=${text}&url=${encodedUrl}" target="_blank" rel="noopener"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#000;color:#fff;">
+                    <i class="fab fa-x-twitter"></i> X / Twitter
+                </a>
+                <a href="https://wa.me/?text=${text}%20${encodedUrl}" target="_blank" rel="noopener"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#25D366;color:#fff;">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </a>
+                <a href="https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}" target="_blank" rel="noopener"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#0A66C2;color:#fff;">
+                    <i class="fab fa-linkedin"></i> LinkedIn
+                </a>
+                <a href="mailto:?subject=${encodeURIComponent('Check out this watchlist on Dip Finder')}&body=${text}%0A%0A${encodedUrl}" rel="noopener"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#f3f4f6;color:#374151;">
+                    <i class="fas fa-envelope"></i> Email
+                </a>
+            </div>
+        </div>`;
+
+    document.body.appendChild(overlay);
+
+    // Copy button
+    document.getElementById('share-modal-copy').addEventListener('click', async () => {
+        const input = document.getElementById('share-modal-url');
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+        } catch {
+            input.select();
+            document.execCommand('copy');
+        }
+        const btn = document.getElementById('share-modal-copy');
+        btn.innerHTML = '<i class="fas fa-check" style="margin-right:4px;"></i>Copied!';
+        btn.style.background = '#059669';
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-copy" style="margin-right:4px;"></i>Copy';
+            btn.style.background = 'linear-gradient(135deg,#2563EB,#4F46E5)';
+        }, 2000);
+    });
+
+    // Close handlers
+    const close = () => overlay.remove();
+    document.getElementById('share-modal-close').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); }
+    });
+
+    // Auto-select URL input on click
+    document.getElementById('share-modal-url').addEventListener('click', function() { this.select(); });
+}
+
 async function shareWatchlist() {
     const data = lastRenderCache.data || [];
     if (!data.length) {
@@ -2293,14 +2374,7 @@ async function shareWatchlist() {
 
         const json = await res.json();
         const shareUrl = window.location.origin + '/share/' + json.token;
-
-        try {
-            await navigator.clipboard.writeText(shareUrl);
-            showToast('Share link copied to clipboard!', { type: 'success', duration: 6000 });
-        } catch {
-            // Clipboard not available - show the URL in a toast
-            showToast('Share link: ' + shareUrl, { type: 'info', duration: 10000 });
-        }
+        showShareModal(shareUrl, watchlistName);
     } catch (err) {
         console.error('shareWatchlist error:', err);
         showToast('Could not create share link. Try again.', { type: 'error' });
