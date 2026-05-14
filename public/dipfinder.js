@@ -1517,13 +1517,19 @@ window.initializeDipfinder = function() {
             const cachedRows  = loadCachedDashboardData(savedPeriod);
             if (cachedRows && cachedRows.length > 0) {
                 renderDashboardData(cachedRows, savedPeriod, $('#stocks-table tbody'));
-            }
-            // Restore news
-            if (window.dipfinderContentCache.newsFeedHtml && newsFeed) {
-                newsFeed.innerHTML = window.dipfinderContentCache.newsFeedHtml;
-            }
-            if (window.dipfinderContentCache.newsTitleHtml && newsTitle) {
-                newsTitle.innerHTML = window.dipfinderContentCache.newsTitleHtml;
+                // Restore news
+                if (window.dipfinderContentCache.newsFeedHtml && newsFeed) {
+                    newsFeed.innerHTML = window.dipfinderContentCache.newsFeedHtml;
+                }
+                if (window.dipfinderContentCache.newsTitleHtml && newsTitle) {
+                    newsTitle.innerHTML = window.dipfinderContentCache.newsTitleHtml;
+                }
+            } else if (stocks.length > 0) {
+                // HTML cache said rows exist but localStorage data is gone — fetch fresh
+                const periodSelect = $('#sma-period');
+                periodSelect.val(savedPeriod);
+                updateTableAndChart(savedPeriod);
+                return;
             }
         } else if (stocks.length > 0) {
             const periodSelect = $('#sma-period');
