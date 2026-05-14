@@ -241,6 +241,44 @@ async function fetchMacroContext(db: any): Promise<MacroContext> {
 async function handleSnapshot(req: VercelRequest, res: VercelResponse) {
   const isCronInvocation = !!req.headers['x-vercel-cron'];
 
+  // Admin manual trigger scoped to specific symbols: snapshot only the requesting
+  // user's watchlist with those symbols, skip macro recap and Radar sweep.
+  const symbolsParam = typeof req.query.symbols === 'string' ? req.query.symbols.trim() : '';
+  if (symbolsParam) {
+    const targetSymbols = symbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
+    if (targetSymbols.length === 0) return res.status(400).json({ error: 'No valid symbols provided' });
+
+    try {
+      const db = await connectToDatabase();
+      // Identify the requesting admin user from JWT
+      const authHeader = req.headers.authorization || '';
+      const decoded = verifyJWT(authHeader.slice(7)) as any;
+      const { ObjectId } = await import('mongodb');
+      const user = await db.collection('users').findOne({ _id: new ObjectId(decoded.userId) });
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      const smaPeriod: number = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
+      const stockResults = await buildStockResults(targetSymbols, db, smaPeriod);
+      const weekOf = todayUtc();
+      const stocks = stockResults.map(s => ({ symbol: s.symbol, relativePrice: s.relativePrice }));
+
+      const col = db.collection('weeklySnapshots');
+      await col.updateOne(
+        { userId: user._id.toString(), weekOf },
+        {
+          $set:         { stocks, updatedAt: new Date() },
+          $setOnInsert: { userId: user._id.toString(), weekOf, createdAt: new Date() },
+        },
+        { upsert: true },
+      );
+
+      return res.status(200).json({ saved: stocks.length, symbols: targetSymbols });
+    } catch (err) {
+      console.error('Scoped snapshot failed:', err);
+      return res.status(500).json({ error: 'Snapshot failed' });
+    }
+  }
+
   try {
     const db = await connectToDatabase();
 

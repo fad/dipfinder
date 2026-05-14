@@ -805,16 +805,18 @@ function initAdminTools() {
     const snapshotBtn = document.getElementById('admin-snapshot-btn');
     if (snapshotBtn) {
         snapshotBtn.addEventListener('click', async () => {
+            const currentSymbols = stocks.slice();
+            if (!currentSymbols.length) { setStatus('No stocks in watchlist.', true); return; }
             snapshotBtn.disabled = true;
             snapshotBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-400"></i> Running...';
             try {
                 const token = localStorage.getItem('token');
-                const r = await fetch('/api/newsletter?action=snapshot', {
+                const r = await fetch(`/api/newsletter?action=snapshot&symbols=${encodeURIComponent(currentSymbols.join(','))}`, {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await r.json();
-                setStatus(r.ok ? 'Snapshot complete.' : `Error: ${data.error || 'Unknown error'}`, !r.ok);
+                setStatus(r.ok ? `Snapshot saved for ${data.saved} stock${data.saved === 1 ? '' : 's'}.` : `Error: ${data.error || 'Unknown error'}`, !r.ok);
             } catch (e) {
                 setStatus('Network error — snapshot failed.', true);
             }
