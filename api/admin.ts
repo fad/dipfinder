@@ -126,6 +126,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleSaveAiPrompt(req, res);
       case 'test-ai':
         return await handleTestAi(res);
+      case 'list-shared-watchlists':
+        return await handleListSharedWatchlists(res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -1250,4 +1252,13 @@ async function handleTestAi(res: VercelResponse) {
   } catch (err: any) {
     return res.status(200).json({ ok: false, error: err.message, latencyMs: Date.now() - start });
   }
+}
+
+async function handleListSharedWatchlists(res: VercelResponse) {
+  const db = await connectToDatabase();
+  const shares = await db.collection('sharedWatchlists')
+    .find({}, { projection: { token: 1, ownerName: 1, watchlistId: 1, watchlistName: 1, stocks: 1, smaPeriod: 1, viewCount: 1, notes: 1, createdAt: 1, _id: 0 } })
+    .sort({ createdAt: -1 })
+    .toArray();
+  return res.status(200).json({ shares });
 }

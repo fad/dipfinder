@@ -163,6 +163,7 @@
       <div class="tab" onclick="switchTab('settings')">Settings</div>
       <div class="tab" onclick="switchTab('crons')">Crons</div>
       <div class="tab" onclick="switchTab('ai-summaries')">AI Summaries</div>
+      <div class="tab" onclick="switchTab('shares'); loadShares()">Shared Watchlists</div>
     </div>
 
     <!-- Dashboard tab -->
@@ -524,6 +525,34 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- Shared Watchlists tab -->
+    <div id="tab-shares" class="tab-panel">
+      <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+        <input type="text" id="shares-search" placeholder="Search by owner or watchlist name…" oninput="renderSharesTable()"
+          style="flex:1; max-width:320px; background:#1e293b; border:1px solid #334155; border-radius:7px; color:#e2e8f0; padding:0.5rem 0.9rem; font-size:0.8rem; outline:none;">
+        <span id="shares-count" style="color:#64748b; font-size:0.8rem;"></span>
+        <button class="btn" onclick="loadShares()" style="margin-left:auto;">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Owner</th>
+              <th>Watchlist</th>
+              <th>Stocks</th>
+              <th>SMA</th>
+              <th>Views</th>
+              <th>Notes</th>
+              <th>Created</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody id="shares-tbody"></tbody>
+        </table>
+      </div>
+      <p id="shares-empty" style="color:#64748b; font-size:0.85rem; display:none; margin-top:1rem;">No shared watchlists found.</p>
     </div>
 
   </div>
@@ -2191,6 +2220,61 @@
       } catch (e) {
         el.innerHTML = '<p style="color:#f87171;font-size:0.78rem;padding:0.75rem 1rem;margin:0;">Failed to load: ' + e.message + '</p>';
       }
+    }
+
+    // ── Shared Watchlists tab ─────────────────────────────────────────────────
+    let allShares = [];
+    let sharesLoaded = false;
+
+    async function loadShares() {
+      const tbody = document.getElementById('shares-tbody');
+      const empty = document.getElementById('shares-empty');
+      tbody.innerHTML = '<tr><td colspan="8" style="color:#64748b;font-size:0.8rem;padding:1rem;">Loading...</td></tr>';
+      empty.style.display = 'none';
+      try {
+        const res = await fetch('/api/admin?action=list-shared-watchlists', { headers: { Authorization: 'Bearer ' + adminToken } });
+        const data = await res.json();
+        allShares = data.shares || [];
+        sharesLoaded = true;
+        renderSharesTable();
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="8" style="color:#f87171;font-size:0.8rem;padding:1rem;">Failed to load: ' + e.message + '</td></tr>';
+      }
+    }
+
+    function renderSharesTable() {
+      const q = (document.getElementById('shares-search')?.value || '').toLowerCase();
+      const filtered = allShares.filter(s =>
+        (s.ownerName || '').toLowerCase().includes(q) ||
+        (s.watchlistName || '').toLowerCase().includes(q)
+      );
+      const count = document.getElementById('shares-count');
+      if (count) count.textContent = filtered.length + ' of ' + allShares.length;
+      const empty = document.getElementById('shares-empty');
+      const tbody = document.getElementById('shares-tbody');
+      if (!filtered.length) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      const tdStyle = 'padding:0.55rem 1rem;vertical-align:middle;border-bottom:1px solid #1e293b;';
+      tbody.innerHTML = filtered.map(s => {
+        const url = '/share/' + s.token;
+        const stocks = (s.stocks || []).join(', ');
+        const created = s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '-';
+        const hasNotes = s.notes && s.notes.trim();
+        return `<tr style="background:#0f172a;">
+          <td style="${tdStyle}color:#e2e8f0;">${s.ownerName || '-'}</td>
+          <td style="${tdStyle}color:#e2e8f0;">${s.watchlistName || 'Unnamed'}</td>
+          <td style="${tdStyle}color:#94a3b8;font-size:0.75rem;">${stocks}</td>
+          <td style="${tdStyle}color:#94a3b8;">${s.smaPeriod || '-'}-day</td>
+          <td style="${tdStyle}color:#94a3b8;text-align:center;">${s.viewCount || 0}</td>
+          <td style="${tdStyle}text-align:center;">${hasNotes ? '<span title="' + (s.notes || '').replace(/"/g,'&quot;') + '" style="color:#a78bfa;cursor:help;">&#10003;</span>' : '<span style="color:#334155;">-</span>'}</td>
+          <td style="${tdStyle}color:#64748b;font-size:0.75rem;white-space:nowrap;">${created}</td>
+          <td style="${tdStyle}"><a href="${url}" target="_blank" rel="noopener" style="color:#38bdf8;font-size:0.78rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">View ↗</a></td>
+        </tr>`;
+      }).join('');
     }
 
   </script>
