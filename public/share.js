@@ -258,7 +258,7 @@
 
     async function loadShare() {
         const token = getShareToken();
-        if (!token || !/^[a-f0-9]{24}$/.test(token)) { showError(); return; }
+        if (!token || !/^([a-f0-9]{24}|[A-Za-z0-9]{6})$/.test(token)) { showError(); return; }
 
         // 1. Fetch share metadata
         let shareData;
