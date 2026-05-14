@@ -950,11 +950,20 @@ function initAdminTools() {
         return true;
     }
 
+    async function refreshDashboardSummaries() {
+        const data = lastRenderCache.data || [];
+        if (!data.length) return;
+        const fresh = await fetchAiSummaries(data.map(d => d.stock));
+        Object.assign(aiSummariesCache, fresh);
+        renderAiSummaries($('#news-feed'), data);
+    }
+
     window.wlApprove = async function(idx) {
         if (!await wlUpdateSummary(idx, true, true, undefined)) return;
         wlSummariesData[idx].reviewed = true;
         wlSummariesData[idx].approved = true;
         renderWlSummaries();
+        refreshDashboardSummaries();
     };
 
     window.wlReject = async function(idx) {
@@ -962,6 +971,7 @@ function initAdminTools() {
         wlSummariesData[idx].reviewed = true;
         wlSummariesData[idx].approved = false;
         renderWlSummaries();
+        refreshDashboardSummaries();
     };
 
     window.wlEdit = function(idx) {
@@ -985,6 +995,7 @@ function initAdminTools() {
         wlSummariesData[idx].approved = true;
         wlSummariesData[idx].editedSummary = edited;
         renderWlSummaries();
+        refreshDashboardSummaries();
     };
 
     window.wlRegen = async function(idx) {

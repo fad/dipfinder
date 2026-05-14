@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const db = await connectToDatabase();
       const docs = await db.collection('aiSummaries')
-        .find({ symbol: { $in: symbols }, reviewed: true })
+        .find({ symbol: { $in: symbols }, reviewed: true, approved: true })
         .sort({ weekOf: -1 })
         .toArray();
 
@@ -71,14 +71,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const doc of docs) {
         if (!summaries[doc.symbol]) {
           summaries[doc.symbol] = {
-            summary: doc.summary,
+            summary: doc.editedSummary || doc.summary,
             weekOf: doc.weekOf,
             companyName: doc.companyName,
           };
         }
       }
 
-      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({ summaries });
     } catch (error) {
       console.error('ai-summaries error:', error);
