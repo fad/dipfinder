@@ -802,6 +802,7 @@ function initAdminTools() {
         statusEl.classList.add(isError ? 'text-red-600' : 'text-gray-600');
     }
 
+    // ── Snapshot button ──────────────────────────────────────────────────────
     const snapshotBtn = document.getElementById('admin-snapshot-btn');
     if (snapshotBtn) {
         snapshotBtn.addEventListener('click', async () => {
@@ -825,6 +826,7 @@ function initAdminTools() {
         });
     }
 
+    // ── AI Summaries button ──────────────────────────────────────────────────
     const aiBtn = document.getElementById('admin-ai-btn');
     if (aiBtn) {
         aiBtn.addEventListener('click', async () => {
@@ -856,8 +858,168 @@ function initAdminTools() {
             }
             aiBtn.disabled = false;
             aiBtn.innerHTML = '<i class="fas fa-magic text-gray-400"></i> Generate AI Summaries';
+            await loadWlSummaries();
         });
     }
+
+    // ── Summaries review panel ───────────────────────────────────────────────
+
+    let wlSummariesData = []; // all this week's summaries for current watchlist symbols
+
+    const summariesWrap = document.getElementById('admin-summaries-wrap');
+    const summariesList = document.getElementById('admin-summaries-list');
+    const refreshBtn    = document.getElementById('admin-summaries-refresh');
+
+    async function loadWlSummaries() {
+        if (!summariesWrap || !summariesList) return;
+        summariesList.innerHTML = '<p class="text-xs text-gray-400 py-2">Loading...</p>';
+        summariesWrap.classList.remove('hidden');
+        try {
+            const token = localStorage.getItem('token');
+            const r = await fetch('/api/admin?action=list-ai-summaries', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await r.json();
+            if (!r.ok) { summariesList.innerHTML = `<p class="text-xs text-red-500">Error: ${data.error || r.status}</p>`; return; }
+            const symbolSet = new Set(stocks.map(s => s.toUpperCase()));
+            wlSummariesData = (data.summaries || []).filter(s => symbolSet.has(s.symbol.toUpperCase()));
+            renderWlSummaries();
+        } catch (e) {
+            summariesList.innerHTML = '<p class="text-xs text-red-500">Network error.</p>';
+        }
+    }
+
+    function renderWlSummaries() {
+        if (!summariesList) return;
+        if (!wlSummariesData.length) {
+            summariesList.innerHTML = '<p class="text-xs text-gray-400 py-1">No summaries found for this watchlist this week. Use "Generate AI Summaries" above to create them.</p>';
+            return;
+        }
+        summariesList.innerHTML = wlSummariesData.map((s, idx) => {
+            const statusBadge = s.reviewed
+                ? (s.approved
+                    ? `<span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Approved</span>`
+                    : `<span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">Rejected</span>`)
+                : `<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Pending</span>`;
+            const editedBadge = s.editedSummary
+                ? `<span class="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-600">Edited</span>`
+                : '';
+            const displayText = escapeHtml(s.editedSummary || s.summary || '');
+            const headlines = (s.headlines || []).map(h => `<li>${escapeHtml(h)}</li>`).join('');
+            return `<div class="rounded-lg border border-gray-200 overflow-hidden mb-2" id="wl-sum-card-${idx}">
+  <div class="flex flex-wrap items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100">
+    <span class="font-bold text-xs text-gray-900">${escapeHtml(s.symbol)}</span>
+    <span class="text-xs text-gray-400">${escapeHtml(s.companyName || '')}</span>
+    ${statusBadge}${editedBadge}
+    <div class="ml-auto flex gap-1.5">
+      <button onclick="wlApprove(${idx})" class="rounded px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 hover:bg-green-200 transition">Approve</button>
+      <button onclick="wlEdit(${idx})" class="rounded px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 transition">Edit</button>
+      <button onclick="wlReject(${idx})" class="rounded px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-600 hover:bg-red-200 transition">Reject</button>
+      <button id="wl-regen-${idx}" onclick="wlRegen(${idx})" class="rounded px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Regen</button>
+    </div>
+  </div>
+  <div class="px-3 py-2">
+    <div id="wl-sum-display-${idx}">
+      <p class="text-xs text-gray-700 leading-relaxed mb-1.5">${displayText}</p>
+      <details class="text-xs text-gray-400"><summary class="cursor-pointer font-medium">Headlines (${(s.headlines || []).length})</summary><ul class="mt-1 pl-4 space-y-0.5 list-disc">${headlines}</ul></details>
+    </div>
+    <div id="wl-sum-edit-${idx}" style="display:none;">
+      <textarea id="wl-sum-ta-${idx}" class="w-full rounded border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-800 leading-relaxed resize-y focus:outline-none focus:border-blue-400" rows="4">${displayText}</textarea>
+      <div class="flex gap-2 mt-1.5">
+        <button onclick="wlSaveEdit(${idx})" class="rounded px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 hover:bg-green-200 transition">Save &amp; Approve</button>
+        <button onclick="wlCancelEdit(${idx})" class="rounded px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-500 hover:bg-gray-200 transition">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+        }).join('');
+    }
+
+    async function wlUpdateSummary(idx, reviewed, approved, editedSummary) {
+        const s = wlSummariesData[idx];
+        if (!s) return false;
+        const body = { symbol: s.symbol, weekOf: s.weekOf, reviewed, approved };
+        if (editedSummary !== undefined) body.editedSummary = editedSummary;
+        const token = localStorage.getItem('token');
+        const r = await fetch('/api/admin?action=update-ai-summary', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!r.ok) { const d = await r.json(); alert(`Error: ${d.error || r.status}`); return false; }
+        return true;
+    }
+
+    window.wlApprove = async function(idx) {
+        if (!await wlUpdateSummary(idx, true, true, undefined)) return;
+        wlSummariesData[idx].reviewed = true;
+        wlSummariesData[idx].approved = true;
+        renderWlSummaries();
+    };
+
+    window.wlReject = async function(idx) {
+        if (!await wlUpdateSummary(idx, true, false, undefined)) return;
+        wlSummariesData[idx].reviewed = true;
+        wlSummariesData[idx].approved = false;
+        renderWlSummaries();
+    };
+
+    window.wlEdit = function(idx) {
+        document.getElementById(`wl-sum-display-${idx}`).style.display = 'none';
+        document.getElementById(`wl-sum-edit-${idx}`).style.display = 'block';
+        const ta = document.getElementById(`wl-sum-ta-${idx}`);
+        if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    };
+
+    window.wlCancelEdit = function(idx) {
+        document.getElementById(`wl-sum-display-${idx}`).style.display = 'block';
+        document.getElementById(`wl-sum-edit-${idx}`).style.display = 'none';
+    };
+
+    window.wlSaveEdit = async function(idx) {
+        const ta = document.getElementById(`wl-sum-ta-${idx}`);
+        const edited = ta ? ta.value.trim() : '';
+        if (!edited) { alert('Summary cannot be empty.'); return; }
+        if (!await wlUpdateSummary(idx, true, true, edited)) return;
+        wlSummariesData[idx].reviewed = true;
+        wlSummariesData[idx].approved = true;
+        wlSummariesData[idx].editedSummary = edited;
+        renderWlSummaries();
+    };
+
+    window.wlRegen = async function(idx) {
+        const s = wlSummariesData[idx];
+        if (!s) return;
+        const btn = document.getElementById(`wl-regen-${idx}`);
+        if (btn) { btn.disabled = true; btn.textContent = '...'; }
+        try {
+            const token = localStorage.getItem('token');
+            const r = await fetch('/api/admin?action=regenerate-ai-summary', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: s.symbol }),
+            });
+            const data = await r.json();
+            if (!r.ok) { alert(`Error: ${data.error || r.status}`); return; }
+            wlSummariesData[idx] = Object.assign({}, wlSummariesData[idx], {
+                summary: data.summary,
+                editedSummary: undefined,
+                reviewed: false,
+                approved: false,
+            });
+            renderWlSummaries();
+        } catch (e) {
+            alert(`Request failed: ${e.message}`);
+        } finally {
+            const b = document.getElementById(`wl-regen-${idx}`);
+            if (b) { b.disabled = false; b.textContent = 'Regen'; }
+        }
+    };
+
+    if (refreshBtn) refreshBtn.addEventListener('click', loadWlSummaries);
+
+    // Load summaries on init
+    loadWlSummaries();
 }
 
 // ── Chart build ───────────────────────────────────────────────────────────────
