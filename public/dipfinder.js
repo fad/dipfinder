@@ -579,6 +579,8 @@ function removeStockFromUI(stockToRemove) {
 
     delete aiSummariesCache[stockToRemove];
     const remainingData = (lastRenderCache.data || []).filter(s => s.stock !== stockToRemove);
+    lastRenderCache.data = remainingData;
+    renderScatterChart(remainingData);
     renderAiSummaries($('#news-feed'), remainingData);
 
     $('#stock-limit-message').addClass('hidden');
@@ -1208,6 +1210,8 @@ async function switchWatchlist(id) {
     } else {
         $('#stocks-table tbody').empty();
         if (chart) { chart.destroy(); chart = null; }
+        if (scatterChart) { scatterChart.destroy(); scatterChart = null; }
+        document.getElementById('admin-scatter-section')?.classList.add('hidden');
         renderSummaryMetrics([], period);
         hideChartLoading();
     }
@@ -1271,7 +1275,13 @@ async function deleteWatchlist(id) {
             const period = $('#sma-period').val() || '200';
             try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
             if (stocks.length > 0) updateTableAndChart(period);
-            else { $('#stocks-table tbody').empty(); if (chart) { chart.destroy(); chart = null; } hideChartLoading(); }
+            else {
+                $('#stocks-table tbody').empty();
+                if (chart) { chart.destroy(); chart = null; }
+                if (scatterChart) { scatterChart.destroy(); scatterChart = null; }
+                document.getElementById('admin-scatter-section')?.classList.add('hidden');
+                hideChartLoading();
+            }
         }
         renderWatchlistTabs();
     } catch (e) { alert('Network error'); }
@@ -1630,7 +1640,8 @@ window.initializeDipfinder = function() {
             currentPrice:  batch.currentPrice,
             dailyChange:   ((batch.currentPrice - batch.previousPrice) / batch.previousPrice) * 100,
             sma:           batch.sma,
-            relativePrice: Number.isFinite(batch.relativePrice) ? batch.relativePrice : (batch.currentPrice / batch.sma - 1)
+            relativePrice: Number.isFinite(batch.relativePrice) ? batch.relativePrice : (batch.currentPrice / batch.sma - 1),
+            peRatio:       batch.peRatio ?? null,
         };
 
         renderStockTableRows($('#stocks-table tbody'), [newStockData]);
@@ -1653,12 +1664,15 @@ window.initializeDipfinder = function() {
 
         try { localStorage.removeItem(getDashboardCacheKey(period)); } catch (e) {}
 
+        const updatedData = [...(lastRenderCache.data || []), newStockData];
+        lastRenderCache.data = updatedData;
+        renderScatterChart(updatedData);
+
         if (input) { input.value = ''; input.disabled = false; }
         if (loadingEl) loadingEl.textContent = '';
 
         fetchAiSummaries([newStock]).then(newSummaries => {
             Object.assign(aiSummariesCache, newSummaries);
-            const updatedData = [...(lastRenderCache.data || []), newStockData];
             renderAiSummaries($('#news-feed'), updatedData);
         });
 
@@ -2060,6 +2074,10 @@ window.destroyDipfinder = function() {
     if (chart) {
         chart.destroy();
         chart = null;
+    }
+    if (scatterChart) {
+        scatterChart.destroy();
+        scatterChart = null;
     }
 
     clearInterval(dipfinderAuthCheckInterval);
