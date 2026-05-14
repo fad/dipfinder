@@ -296,8 +296,8 @@ function renderStockTableRows(tableBody, stockDataArray) {
         const diffClasses = getSmaDiffClasses(diffPercent);
 
         tableBody.append(`
-            <tr class="stock-row grid gap-3 px-4 py-2 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: 14px minmax(0, 1fr) auto 40px; align-items: center; cursor: grab;" data-stock="${escapeHtml(data.stock)}" draggable="true">
-                <td style="display:flex;align-items:center;padding:0;">
+            <tr class="stock-row grid gap-3 px-4 py-2 transition-colors duration-200 hover:bg-gray-50" style="grid-template-columns: 14px minmax(0, 1fr) auto 40px; align-items: center; cursor: pointer;" data-stock="${escapeHtml(data.stock)}" draggable="true">
+                <td class="drag-handle" style="display:flex;align-items:center;padding:0;cursor:grab;">
                     <svg width="8" height="14" viewBox="0 0 8 14" fill="#d1d5db" style="flex-shrink:0;">
                         <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
                         <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
@@ -1293,9 +1293,13 @@ function attachDragToReorder() {
     };
 
     tbody.querySelectorAll('tr.stock-row').forEach(row => {
+        let mousedownTarget = null;
+        row.addEventListener('mousedown', e => { mousedownTarget = e.target; });
+
         row.addEventListener('dragstart', e => {
-            // Don't drag when clicking the remove button
-            if (e.target.closest('.remove-stock')) { e.preventDefault(); return; }
+            // Only allow drag when initiated from the drag handle
+            const handle = row.querySelector('.drag-handle');
+            if (!handle || !handle.contains(mousedownTarget)) { e.preventDefault(); return; }
             isDragging = true;
             dragSrc = row;
             e.dataTransfer.effectAllowed = 'move';
