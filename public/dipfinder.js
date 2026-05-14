@@ -1038,6 +1038,9 @@ function initAdminTools() {
 
     if (refreshBtn) refreshBtn.addEventListener('click', loadWlSummaries);
 
+    // Expose so switchWatchlist can trigger a refresh after tab change
+    window._reloadAdminWlSummaries = loadWlSummaries;
+
     // Load summaries on init
     loadWlSummaries();
 }
@@ -1488,6 +1491,9 @@ async function switchWatchlist(id) {
         renderSummaryMetrics([], period);
         hideChartLoading();
     }
+
+    // Refresh admin summary panel for the new watchlist
+    window._reloadAdminWlSummaries?.();
 }
 
 async function createWatchlist() {
