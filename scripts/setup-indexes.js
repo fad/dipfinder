@@ -62,6 +62,10 @@ const QUERY_INDEXES = [
   // radar suggestions — per-user, per-week recommendation list
   { col: 'weekly_radar_suggestions', spec: { userId: 1, weekKey: 1 }, opts: { unique: true, name: 'weekly_radar_suggestions_userId_weekKey_unique' } },
 
+  // shared watchlists — public share links (token is unique; ownerId+watchlistId for upsert)
+  { col: 'sharedWatchlists', spec: { token: 1 },                  opts: { unique: true,  name: 'sharedWatchlists_token_unique' } },
+  { col: 'sharedWatchlists', spec: { ownerId: 1, watchlistId: 1 }, opts: { unique: true, name: 'sharedWatchlists_ownerId_watchlistId_unique' } },
+
   // key-value stores
   { col: 'settings',       spec: { key: 1 },                     opts: { unique: true,  name: 'settings_key_unique' } },
   { col: 'emailTemplates', spec: { key: 1 },                     opts: { unique: true,  name: 'emailTemplates_key_unique' } },

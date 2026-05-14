@@ -3,7 +3,7 @@
 // ── Shared globals (var so other scripts can access via window scope) ─────────
 var stocks = [];  // populated from localStorage in initializeDipfinder
 var chart;        // Chart.js instance; created/destroyed in renderDashboardData
-var scatterChart; // Admin-only scatter chart instance
+var scatterChart; // Dip vs Valuation scatter chart instance
 var chartOrientation = 'y'; // 'y' = horizontal bars, 'x' = vertical bars
 var lastRenderCache = { data: null, period: null, tableBody: null };
 var aiSummariesCache = {};  // symbol → { summary, weekOf, companyName }
@@ -618,19 +618,14 @@ function attachStockRowEvents() {
     attachRemoveStockListeners();
 }
 
-// ── Admin scatter: Dip vs Valuation ──────────────────────────────────────────
+// ── Scatter: Dip vs Valuation ─────────────────────────────────────────────────
 
 function renderScatterChart(stockDataArray) {
     const section = document.getElementById('admin-scatter-section');
     if (!section) return;
 
-    if (!window.IS_ADMIN) {
-        section.classList.add('hidden');
-        return;
-    }
-
-    // Re-show admin tools panel if it was hidden by an empty-watchlist transition
-    document.getElementById('admin-tools-section')?.classList.remove('hidden');
+    // Show admin tools panel alongside scatter (admins only)
+    if (window.IS_ADMIN) document.getElementById('admin-tools-section')?.classList.remove('hidden');
 
     const included = [];
     const excluded = [];
@@ -2219,12 +2214,14 @@ function initFounderBanner() {
     fetch('/api/user?action=subscription-status', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(data => {
-            // Set admin flag and re-render scatter if data already loaded
+            // Set admin flag; render scatter for all users, admin tools only for admins
             window.IS_ADMIN = !!data.isAdmin;
-            if (window.IS_ADMIN) {
-                if (lastRenderCache.data) renderScatterChart(lastRenderCache.data);
-                initAdminTools();
-            }
+            if (lastRenderCache.data) renderScatterChart(lastRenderCache.data);
+            if (window.IS_ADMIN) initAdminTools();
+
+            // Show share button for all authenticated users
+            const shareBtn = document.getElementById('share-watchlist-btn');
+            if (shareBtn) shareBtn.classList.remove('hidden');
 
             // Don't show founder banner to Pro or founding members
             if (data.isPro || data.foundingMember) return;
@@ -2248,6 +2245,70 @@ function initFounderBanner() {
         })
         .catch(() => {});
 }
+
+// ── Share watchlist ───────────────────────────────────────────────────────────
+
+async function shareWatchlist() {
+    const data = lastRenderCache.data || [];
+    if (!data.length) {
+        showToast('Add some stocks to your watchlist before sharing.', { type: 'info' });
+        return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const btn = document.getElementById('share-watchlist-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Generating...'; }
+
+    try {
+        const period = Number(document.getElementById('sma-period')?.value) || 50;
+
+        // Determine active watchlist name
+        let watchlistName = 'My Watchlist';
+        if (activeWatchlistId === 'primary') {
+            watchlistName = primaryWatchlistName || 'Main';
+        } else {
+            const wl = namedWatchlists.find(w => w.id === activeWatchlistId);
+            if (wl) watchlistName = wl.name;
+        }
+
+        const res = await fetch('/api/watchlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                action: 'create-share',
+                watchlistId: activeWatchlistId,
+                watchlistName,
+                stocks: data.map(d => d.stock),
+                smaPeriod: period,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.error || 'Could not create share link.', { type: 'error' });
+            return;
+        }
+
+        const json = await res.json();
+        const shareUrl = window.location.origin + '/share/' + json.token;
+
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            showToast('Share link copied to clipboard!', { type: 'success', duration: 6000 });
+        } catch {
+            // Clipboard not available - show the URL in a toast
+            showToast('Share link: ' + shareUrl, { type: 'info', duration: 10000 });
+        }
+    } catch (err) {
+        console.error('shareWatchlist error:', err);
+        showToast('Could not create share link. Try again.', { type: 'error' });
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-share-alt text-xs"></i> Share'; }
+    }
+}
+window.shareWatchlist = shareWatchlist;
 
 // ── Newsletter empty-state toggle ─────────────────────────────────────────────
 

@@ -20,6 +20,33 @@ function sanitizeTickers(stocks: any[], limit: number): string[] {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // ── Public: get shared watchlist by token (no auth required) ──────────────
+  if (req.method === 'GET' && req.query.action === 'get-share') {
+    const shareToken = typeof req.query.token === 'string' ? req.query.token : '';
+    if (!shareToken || !/^[a-f0-9]{24}$/.test(shareToken)) {
+      return res.status(400).json({ error: 'Invalid share token' });
+    }
+    try {
+      const db = await connectToDatabase();
+      const share = await db.collection('sharedWatchlists').findOne({ token: shareToken });
+      if (!share) return res.status(404).json({ error: 'Share link not found or expired' });
+
+      // Increment view count (fire-and-forget)
+      db.collection('sharedWatchlists').updateOne({ token: shareToken }, { $inc: { viewCount: 1 } }).catch(() => {});
+
+      res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      return res.status(200).json({
+        watchlistName: share.watchlistName,
+        ownerName: share.ownerName,
+        stocks: share.stocks,
+        smaPeriod: share.smaPeriod,
+      });
+    } catch (err) {
+      console.error('get-share error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
@@ -34,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const db = await connectToDatabase();
   const user = await db.collection('users').findOne(
     { _id: new ObjectId(decoded.userId) },
-    { projection: { watchlist: 1, isPro: 1, namedWatchlists: 1, activeWatchlistId: 1, primaryWatchlistName: 1, smaPeriod: 1, chartOrientation: 1 } }
+    { projection: { watchlist: 1, isPro: 1, namedWatchlists: 1, activeWatchlistId: 1, primaryWatchlistName: 1, smaPeriod: 1, chartOrientation: 1, name: 1 } }
   );
   if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -154,6 +181,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!watchlistId) return res.status(400).json({ error: 'watchlistId required' });
       await db.collection('users').updateOne({ _id: new ObjectId(decoded.userId) }, { $set: { activeWatchlistId: watchlistId } });
       return res.status(200).json({ success: true });
+    }
+
+    // Create or refresh a public share link for the current watchlist
+    if (action === 'create-share') {
+      const { watchlistName: wlNameRaw, stocks: wlStocks, smaPeriod: wlPeriod } = req.body;
+      if (!Array.isArray(wlStocks) || !wlStocks.length) {
+        return res.status(400).json({ error: 'stocks required' });
+      }
+      const sanitized = sanitizeTickers(wlStocks, stockLimit);
+      if (!sanitized.length) return res.status(400).json({ error: 'No valid tickers' });
+
+      const shareWatchlistId = typeof req.body.watchlistId === 'string' ? req.body.watchlistId : 'primary';
+      const watchlistName = typeof wlNameRaw === 'string' ? wlNameRaw.slice(0, 60) : 'My Watchlist';
+      const smaPeriod = Number.isFinite(Number(wlPeriod)) && Number(wlPeriod) > 0 ? Number(wlPeriod) : 50;
+      const ownerName = (user as any).name?.split(' ')[0] || 'Someone';
+
+      // Upsert: stable token per user+watchlistId so existing links keep working
+      const existingShare = await db.collection('sharedWatchlists').findOne({
+        ownerId: decoded.userId,
+        watchlistId: shareWatchlistId,
+      });
+      const shareToken = existingShare?.token || randomBytes(12).toString('hex');
+
+      await db.collection('sharedWatchlists').updateOne(
+        { ownerId: decoded.userId, watchlistId: shareWatchlistId },
+        {
+          $set: { token: shareToken, ownerName, watchlistName, stocks: sanitized, smaPeriod, updatedAt: new Date() },
+          $setOnInsert: { createdAt: new Date(), viewCount: 0 },
+        },
+        { upsert: true }
+      );
+
+      return res.status(200).json({ token: shareToken });
     }
 
     return res.status(400).json({ error: `Unknown action: ${action}` });

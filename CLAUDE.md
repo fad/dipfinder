@@ -144,6 +144,7 @@ Then for each `sundayBriefSubscribed` user: checks `isTimeToSend(user.timezone)`
 | `ticker_tags` | Static tag data for Radar scoring — sector/industry/factors/themes/market_cap_tier per ticker | permanent (seed once) |
 | `weekly_radar_universe` | Weekly price snapshot for all tagged tickers (Saturday night) — keyed by weekKey+ticker | permanent (weekly) |
 | `weekly_radar_suggestions` | Pre-computed per-user Radar suggestions (Saturday night) — keyed by userId+weekKey | permanent (weekly) |
+| `sharedWatchlists` | Public watchlist share links — token (unique 24-char hex), ownerId+watchlistId (unique per user+watchlist), ownerName, stocks, smaPeriod, viewCount | permanent |
 | `settings` | Key-value store: app config + cron last-run tracking + AI prompt template + weekly AI alert dedup key (`ai-summary-alert-{weekKey}`) | permanent |
 
 TTL indexes are live on Atlas — MongoDB auto-deletes expired docs. App-level TTL checks at read time provide an additional fast-path guard.
