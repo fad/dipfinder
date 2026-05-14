@@ -388,7 +388,28 @@ const AuthManager = (function() {
                     setTimeout(() => {
                         closeAuthModal();
                         showLoggedInUI(userData);
-                        restoreWatchlistFromDb();
+
+                        // Apply pending share watchlist (from /share/:token subscribe banner)
+                        const pendingShare = sessionStorage.getItem('pendingShareWatchlist');
+                        if (pendingShare) {
+                            sessionStorage.removeItem('pendingShareWatchlist');
+                            try {
+                                const { stocks, smaPeriod } = JSON.parse(pendingShare);
+                                const tok = localStorage.getItem('token');
+                                if (tok && Array.isArray(stocks) && stocks.length) {
+                                    fetch('/api/watchlist', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
+                                        body: JSON.stringify({ action: 'save-primary', stocks, smaPeriod }),
+                                    }).then(() => restoreWatchlistFromDb()).catch(() => restoreWatchlistFromDb());
+                                } else {
+                                    restoreWatchlistFromDb();
+                                }
+                            } catch { restoreWatchlistFromDb(); }
+                        } else {
+                            restoreWatchlistFromDb();
+                        }
+
                         // Handle postAuthRedirect (e.g. set by /founding page for unauthenticated visitors)
                         const redirect = sessionStorage.getItem('postAuthRedirect');
                         if (redirect) { sessionStorage.removeItem('postAuthRedirect'); window.location.href = redirect; }
@@ -855,6 +876,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (loginForm)      loginForm.addEventListener('submit', function(e) { e.preventDefault(); AuthManager.login(); });
     if (loginBtn)       loginBtn.addEventListener('click', AuthManager.login);
     if (loginCancelBtn) loginCancelBtn.addEventListener('click', AuthManager.showRegisterForm);
+
+    // Submit login on Enter in password field
+    const loginPasswordEl = document.getElementById('login-password');
+    if (loginPasswordEl) loginPasswordEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); AuthManager.login(); }
+    });
 
     // ── Forgot password form ──────────────────────────────────────────────────
     const forgotForm    = document.getElementById('forgot-form');

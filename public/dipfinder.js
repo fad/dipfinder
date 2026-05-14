@@ -2290,6 +2290,10 @@ function showShareModal(shareUrl, watchlistName) {
                     style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#0A66C2;color:#fff;">
                     <i class="fab fa-linkedin"></i> LinkedIn
                 </a>
+                <a href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" target="_blank" rel="noopener"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#1877F2;color:#fff;">
+                    <i class="fab fa-facebook-f"></i> Facebook
+                </a>
                 <a href="mailto:?subject=${encodeURIComponent('Check out this watchlist on Dip Finder')}&body=${text}%0A%0A${encodedUrl}" rel="noopener"
                     style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#f3f4f6;color:#374151;">
                     <i class="fas fa-envelope"></i> Email
