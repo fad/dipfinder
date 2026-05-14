@@ -113,21 +113,19 @@
 
     const SMA_OPTIONS = [20, 50, 100, 200];
 
-    function setupSmaPills(ownerPeriod) {
-        const container = document.getElementById('share-sma-pills');
-        const ownerSpan = document.getElementById('share-owner-period');
+    // Sidebar pills are full-width vertical; mobile pills are horizontal rounded pills
+    function renderPillsInto(container, activePeriod, vertical) {
         if (!container) return;
-        if (ownerSpan) ownerSpan.textContent = ownerPeriod;
-
         container.innerHTML = SMA_OPTIONS.map(p => {
-            const isActive = p === _activePeriod;
-            return `<button data-period="${p}"
-                class="rounded-full px-3 py-1 text-xs font-semibold border transition ${isActive
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
-                }">${p}-day</button>`;
+            const isActive = p === activePeriod;
+            const base = vertical
+                ? `w-full text-left px-3 py-2 text-sm font-semibold rounded-lg border transition`
+                : `rounded-full px-3 py-1 text-xs font-semibold border transition`;
+            return `<button data-period="${p}" class="${base} ${isActive
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-400 hover:text-indigo-600'
+            }">${p}-day</button>`;
         }).join('');
-
         container.addEventListener('click', e => {
             const btn = e.target.closest('button[data-period]');
             if (!btn) return;
@@ -136,15 +134,36 @@
         });
     }
 
+    function setupSmaPills(ownerPeriod) {
+        // Desktop sidebar
+        const desktop = document.getElementById('share-sma-pills');
+        const ownerSpan = document.getElementById('share-owner-period');
+        if (ownerSpan) ownerSpan.textContent = ownerPeriod;
+        renderPillsInto(desktop, _activePeriod, true);
+
+        // Mobile inline
+        const mobile = document.getElementById('share-sma-pills-mobile');
+        const ownerSpanMobile = document.getElementById('share-owner-period-mobile');
+        if (ownerSpanMobile) ownerSpanMobile.textContent = ownerPeriod;
+        renderPillsInto(mobile, _activePeriod, false);
+    }
+
     function updateSmaPills(activePeriod) {
-        const container = document.getElementById('share-sma-pills');
-        if (!container) return;
-        container.querySelectorAll('button[data-period]').forEach(btn => {
-            const isActive = Number(btn.dataset.period) === activePeriod;
-            btn.className = `rounded-full px-3 py-1 text-xs font-semibold border transition ${isActive
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
-            }`;
+        ['share-sma-pills', 'share-sma-pills-mobile'].forEach(id => {
+            const container = document.getElementById(id);
+            if (!container) return;
+            container.querySelectorAll('button[data-period]').forEach(btn => {
+                const isActive = Number(btn.dataset.period) === activePeriod;
+                // Preserve vertical vs horizontal class by checking if it has w-full
+                const isVertical = btn.classList.contains('w-full');
+                const base = isVertical
+                    ? `w-full text-left px-3 py-2 text-sm font-semibold rounded-lg border transition`
+                    : `rounded-full px-3 py-1 text-xs font-semibold border transition`;
+                btn.className = `${base} ${isActive
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-400 hover:text-indigo-600'
+                }`;
+            });
         });
     }
 
