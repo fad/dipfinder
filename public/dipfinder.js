@@ -1536,6 +1536,7 @@ async function renameWatchlist(id, name) {
         if (wl) wl.name = name;
     }
     renderWatchlistTabs();
+    if (id === activeWatchlistId) _updateWatchlistTitle();
 
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -2422,6 +2423,45 @@ async function shareWatchlist() {
     }
 }
 window.shareWatchlist = shareWatchlist;
+
+// ── Watchlist title inline edit ───────────────────────────────────────────────
+
+let _titleBeforeEdit = '';
+
+let _titleInputSetup = false;
+
+function startEditingTitle() {
+    const h2 = document.getElementById('watchlist-active-title');
+    const inp = document.getElementById('watchlist-title-input');
+    if (!h2 || !inp) return;
+    if (!_titleInputSetup) {
+        _titleInputSetup = true;
+        inp.addEventListener('blur', stopEditingTitle);
+        inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+            if (e.key === 'Escape') { inp.value = _titleBeforeEdit; inp.blur(); }
+        });
+    }
+    _titleBeforeEdit = h2.textContent || '';
+    inp.value = _titleBeforeEdit;
+    h2.classList.add('hidden');
+    inp.classList.remove('hidden');
+    inp.focus();
+    inp.select();
+}
+window.startEditingTitle = startEditingTitle;
+
+async function stopEditingTitle() {
+    const h2 = document.getElementById('watchlist-active-title');
+    const inp = document.getElementById('watchlist-title-input');
+    if (!h2 || !inp) return;
+    inp.classList.add('hidden');
+    h2.classList.remove('hidden');
+    const newName = inp.value.trim() || _titleBeforeEdit;
+    if (newName !== _titleBeforeEdit) {
+        await renameWatchlist(activeWatchlistId, newName);
+    }
+}
 
 // ── Watchlist notes ───────────────────────────────────────────────────────────
 
