@@ -283,7 +283,7 @@
                 subtitleEl.innerHTML = linkifyText(notes);
                 subtitleEl.className = 'mt-2 text-sm text-gray-700 leading-relaxed';
             } else {
-                subtitleEl.textContent = ownerName + '\'s watchlist - ranked by distance from their moving average';
+                subtitleEl.textContent = 'Ranked by distance from the moving average';
             }
         }
         updatePeriodLabels(smaPeriod);
