@@ -2373,53 +2373,105 @@ function showShareModal(shareUrl, watchlistName) {
     document.getElementById('share-modal-url').addEventListener('click', function() { this.select(); });
 }
 
+function _getActiveWatchlistName() {
+    if (activeWatchlistId === 'primary') return primaryWatchlistName || 'Main';
+    const wl = namedWatchlists.find(w => w.id === activeWatchlistId);
+    return wl ? wl.name : 'My Watchlist';
+}
+
 async function shareWatchlist() {
     const data = lastRenderCache.data || [];
     if (!data.length) {
         showToast('Add some stocks to your watchlist before sharing.', { type: 'info' });
         return;
     }
-
     const token = localStorage.getItem('token');
     if (!token) return;
 
+    // If there are notes, let the user decide whether to include them
+    if (activeWatchlistNotes.trim()) {
+        _showShareOptionsModal(data, token, _getActiveWatchlistName());
+    } else {
+        await _doCreateShare(data, token, _getActiveWatchlistName(), false);
+    }
+}
+window.shareWatchlist = shareWatchlist;
+
+function _showShareOptionsModal(data, token, watchlistName) {
+    const existing = document.getElementById('_share-opts-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = '_share-opts-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+    modal.addEventListener('click', e => e.stopPropagation());
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;';
+    const ttl = document.createElement('h3');
+    ttl.style.cssText = 'font-size:16px;font-weight:700;color:#111827;margin:0;';
+    ttl.textContent = 'Share this watchlist';
+    const x = document.createElement('button');
+    x.style.cssText = 'background:none;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;padding:4px;';
+    x.textContent = '×';
+    x.addEventListener('click', () => overlay.remove());
+    hdr.append(ttl, x);
+
+    // Notes checkbox row
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px 14px;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb;margin-bottom:20px;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.style.cssText = 'margin-top:2px;flex-shrink:0;width:15px;height:15px;accent-color:#4f46e5;cursor:pointer;';
+    const cbText = document.createElement('div');
+    cbText.innerHTML = '<span style="font-size:13px;font-weight:600;color:#111827;display:block;margin-bottom:2px;">Include notes</span>'
+        + '<span style="font-size:12px;color:#6b7280;line-height:1.45;">Your notes will be shown on the public watchlist page.</span>';
+    lbl.append(cb, cbText);
+
+    // Create link button
+    const createBtn = document.createElement('button');
+    createBtn.style.cssText = 'width:100%;background:linear-gradient(135deg,#2563EB,#4F46E5);color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s;';
+    createBtn.textContent = 'Create share link';
+    createBtn.addEventListener('click', async () => {
+        overlay.remove();
+        await _doCreateShare(data, token, watchlistName, cb.checked);
+    });
+
+    modal.append(hdr, lbl, createBtn);
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
+}
+
+async function _doCreateShare(data, token, watchlistName, includeNotes) {
     const btn = document.getElementById('share-watchlist-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Generating...'; }
-
     try {
         const period = Number(document.getElementById('sma-period')?.value) || 50;
-
-        // Determine active watchlist name
-        let watchlistName = 'My Watchlist';
-        if (activeWatchlistId === 'primary') {
-            watchlistName = primaryWatchlistName || 'Main';
-        } else {
-            const wl = namedWatchlists.find(w => w.id === activeWatchlistId);
-            if (wl) watchlistName = wl.name;
-        }
-
         const res = await fetch('/api/watchlist', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
                 action: 'create-share',
                 watchlistId: activeWatchlistId,
                 watchlistName,
                 stocks: data.map(d => d.stock),
                 smaPeriod: period,
-                notes: activeWatchlistNotes,
+                notes: includeNotes ? activeWatchlistNotes : '',
             }),
         });
-
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             showToast(err.error || 'Could not create share link.', { type: 'error' });
             return;
         }
-
         const json = await res.json();
-        const shareUrl = window.location.origin + '/share/' + json.token;
-        showShareModal(shareUrl, watchlistName);
+        showShareModal(window.location.origin + '/share/' + json.token, watchlistName);
     } catch (err) {
         console.error('shareWatchlist error:', err);
         showToast('Could not create share link. Try again.', { type: 'error' });
@@ -2427,7 +2479,6 @@ async function shareWatchlist() {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-share-alt text-xs"></i> Share'; }
     }
 }
-window.shareWatchlist = shareWatchlist;
 
 // ── Watchlist notes ───────────────────────────────────────────────────────────
 
