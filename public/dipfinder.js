@@ -2283,97 +2283,37 @@ function initFounderBanner() {
 
 // ── Share watchlist ───────────────────────────────────────────────────────────
 
-function showShareModal(shareUrl, watchlistName) {
-    // Remove any existing modal
-    document.getElementById('share-modal-overlay')?.remove();
-
-    const text = encodeURIComponent('Check out my ' + watchlistName + ' watchlist on Dip Finder');
+function _buildShareLinkArea(shareUrl, body) {
+    const text = encodeURIComponent('Check out my watchlist on Dip Finder');
     const encodedUrl = encodeURIComponent(shareUrl);
-
-    const overlay = document.createElement('div');
-    overlay.id = 'share-modal-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;';
-
-    overlay.innerHTML = `
-        <div style="background:#fff;border-radius:16px;padding:28px 24px 24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;">
-            <button id="share-modal-close" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;" aria-label="Close">&times;</button>
-            <h3 style="margin:0 0 4px;font-size:1rem;font-weight:700;color:#111827;">Share watchlist</h3>
-            <p style="margin:0 0 18px;font-size:0.8rem;color:#6b7280;">${watchlistName}</p>
-
-            <!-- Link row -->
-            <div style="display:flex;gap:8px;margin-bottom:20px;">
-                <input id="share-modal-url" type="text" readonly value="${shareUrl}"
-                    style="flex:1;min-width:0;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#374151;background:#f9fafb;outline:none;">
-                <button id="share-modal-copy"
-                    style="flex-shrink:0;border:none;cursor:pointer;border-radius:8px;padding:8px 14px;font-size:0.8rem;font-weight:600;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#fff;white-space:nowrap;transition:opacity .15s;">
-                    <i class="fas fa-copy" style="margin-right:4px;"></i>Copy
-                </button>
-            </div>
-
-            <!-- Share buttons -->
-            <p style="margin:0 0 10px;font-size:0.75rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Share via</p>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <a href="https://twitter.com/intent/tweet?text=${text}&url=${encodedUrl}" target="_blank" rel="noopener"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#000;color:#fff;">
-                    <i class="fab fa-x-twitter"></i> X / Twitter
-                </a>
-                <a href="https://wa.me/?text=${text}%20${encodedUrl}" target="_blank" rel="noopener"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#25D366;color:#fff;">
-                    <i class="fab fa-whatsapp"></i> WhatsApp
-                </a>
-                <a href="https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}" target="_blank" rel="noopener"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#0A66C2;color:#fff;">
-                    <i class="fab fa-linkedin"></i> LinkedIn
-                </a>
-                <a href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" target="_blank" rel="noopener"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#1877F2;color:#fff;">
-                    <i class="fab fa-facebook-f"></i> Facebook
-                </a>
-                <a href="https://www.reddit.com/submit?url=${encodedUrl}&title=${text}" target="_blank" rel="noopener"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#FF4500;color:#fff;">
-                    <i class="fab fa-reddit-alien"></i> Reddit
-                </a>
-                <a href="https://t.me/share/url?url=${encodedUrl}&text=${text}" target="_blank" rel="noopener"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#2AABEE;color:#fff;">
-                    <i class="fab fa-telegram-plane"></i> Telegram
-                </a>
-                <a href="mailto:?subject=${encodeURIComponent('Check out this watchlist on Dip Finder')}&body=${text}%0A%0A${encodedUrl}" rel="noopener"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;background:#f3f4f6;color:#374151;">
-                    <i class="fas fa-envelope"></i> Email
-                </a>
-            </div>
+    const linkStyle = 'display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;text-decoration:none;';
+    body.innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+            <input id="_share-url-inp" type="text" readonly value="${shareUrl}"
+                style="flex:1;min-width:0;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#374151;background:#f9fafb;outline:none;cursor:text;">
+            <button id="_share-copy-btn"
+                style="flex-shrink:0;border:none;cursor:pointer;border-radius:8px;padding:8px 14px;font-size:0.8rem;font-weight:600;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#fff;white-space:nowrap;">
+                <i class="fas fa-copy" style="margin-right:4px;"></i>Copy
+            </button>
+        </div>
+        <p style="margin:0 0 10px;font-size:0.75rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Share via</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="https://twitter.com/intent/tweet?text=${text}&url=${encodedUrl}" target="_blank" rel="noopener" style="${linkStyle}background:#000;color:#fff;"><i class="fab fa-x-twitter"></i> X</a>
+            <a href="https://wa.me/?text=${text}%20${encodedUrl}" target="_blank" rel="noopener" style="${linkStyle}background:#25D366;color:#fff;"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+            <a href="https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}" target="_blank" rel="noopener" style="${linkStyle}background:#0A66C2;color:#fff;"><i class="fab fa-linkedin"></i> LinkedIn</a>
+            <a href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" target="_blank" rel="noopener" style="${linkStyle}background:#1877F2;color:#fff;"><i class="fab fa-facebook-f"></i> Facebook</a>
+            <a href="https://www.reddit.com/submit?url=${encodedUrl}&title=${text}" target="_blank" rel="noopener" style="${linkStyle}background:#FF4500;color:#fff;"><i class="fab fa-reddit-alien"></i> Reddit</a>
+            <a href="https://t.me/share/url?url=${encodedUrl}&text=${text}" target="_blank" rel="noopener" style="${linkStyle}background:#2AABEE;color:#fff;"><i class="fab fa-telegram-plane"></i> Telegram</a>
+            <a href="mailto:?subject=${encodeURIComponent('Check out this watchlist on Dip Finder')}&body=${text}%0A%0A${encodedUrl}" rel="noopener" style="${linkStyle}background:#f3f4f6;color:#374151;"><i class="fas fa-envelope"></i> Email</a>
         </div>`;
-
-    document.body.appendChild(overlay);
-
-    // Copy button
-    document.getElementById('share-modal-copy').addEventListener('click', async () => {
-        const input = document.getElementById('share-modal-url');
-        try {
-            await navigator.clipboard.writeText(shareUrl);
-        } catch {
-            input.select();
-            document.execCommand('copy');
-        }
-        const btn = document.getElementById('share-modal-copy');
-        btn.innerHTML = '<i class="fas fa-check" style="margin-right:4px;"></i>Copied!';
-        btn.style.background = '#059669';
-        setTimeout(() => {
-            btn.innerHTML = '<i class="fas fa-copy" style="margin-right:4px;"></i>Copy';
-            btn.style.background = 'linear-gradient(135deg,#2563EB,#4F46E5)';
-        }, 2000);
+    body.querySelector('#_share-copy-btn').addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(shareUrl); } catch { body.querySelector('#_share-url-inp').select(); document.execCommand('copy'); }
+        const b = body.querySelector('#_share-copy-btn');
+        b.innerHTML = '<i class="fas fa-check" style="margin-right:4px;"></i>Copied!';
+        b.style.background = '#059669';
+        setTimeout(() => { b.innerHTML = '<i class="fas fa-copy" style="margin-right:4px;"></i>Copy'; b.style.background = 'linear-gradient(135deg,#2563EB,#4F46E5)'; }, 2000);
     });
-
-    // Close handlers
-    const close = () => overlay.remove();
-    document.getElementById('share-modal-close').addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', function escHandler(e) {
-        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); }
-    });
-
-    // Auto-select URL input on click
-    document.getElementById('share-modal-url').addEventListener('click', function() { this.select(); });
+    body.querySelector('#_share-url-inp').addEventListener('click', function() { this.select(); });
 }
 
 function _getActiveWatchlistName() {
@@ -2395,98 +2335,92 @@ async function shareWatchlist() {
     }
     const token = localStorage.getItem('token');
     if (!token) return;
+    const watchlistName = _getActiveWatchlistName();
+    const hasNotes = !!activeWatchlistNotes.trim();
 
-    // If there are notes, let the user decide whether to include them
-    if (activeWatchlistNotes.trim()) {
-        _showShareOptionsModal(data, token, _getActiveWatchlistName());
-    } else {
-        await _doCreateShare(data, token, _getActiveWatchlistName(), false);
-    }
-}
-window.shareWatchlist = shareWatchlist;
-
-function _showShareOptionsModal(data, token, watchlistName) {
-    const existing = document.getElementById('_share-opts-overlay');
-    if (existing) existing.remove();
-
+    // Build single modal
+    document.getElementById('_share-modal-overlay')?.remove();
     const overlay = document.createElement('div');
-    overlay.id = '_share-opts-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.id = '_share-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;';
 
     const modal = document.createElement('div');
-    modal.style.cssText = 'background:white;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+    modal.style.cssText = 'background:#fff;border-radius:16px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;';
     modal.addEventListener('click', e => e.stopPropagation());
 
     // Header
-    const hdr = document.createElement('div');
-    hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;';
-    const ttl = document.createElement('h3');
-    ttl.style.cssText = 'font-size:16px;font-weight:700;color:#111827;margin:0;';
-    ttl.textContent = 'Share this watchlist';
-    const x = document.createElement('button');
-    x.style.cssText = 'background:none;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;padding:4px;';
-    x.textContent = '×';
-    x.addEventListener('click', () => overlay.remove());
-    hdr.append(ttl, x);
+    modal.innerHTML = `
+        <button id="_share-close" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;" aria-label="Close">&times;</button>
+        <h3 style="margin:0 0 2px;font-size:1rem;font-weight:700;color:#111827;">Share watchlist</h3>
+        <p style="margin:0 0 20px;font-size:0.8rem;color:#6b7280;">${watchlistName}</p>`;
 
-    // Notes checkbox row
-    const lbl = document.createElement('label');
-    lbl.style.cssText = 'display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px 14px;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb;margin-bottom:20px;';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = true;
-    cb.style.cssText = 'margin-top:2px;flex-shrink:0;width:15px;height:15px;accent-color:#4f46e5;cursor:pointer;';
-    const cbText = document.createElement('div');
-    cbText.innerHTML = '<span style="font-size:13px;font-weight:600;color:#111827;display:block;margin-bottom:2px;">Include notes</span>'
-        + '<span style="font-size:12px;color:#6b7280;line-height:1.45;">Your notes will be shown on the public watchlist page.</span>';
-    lbl.append(cb, cbText);
-
-    // Create link button
-    const createBtn = document.createElement('button');
-    createBtn.style.cssText = 'width:100%;background:linear-gradient(135deg,#2563EB,#4F46E5);color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s;';
-    createBtn.textContent = 'Create share link';
-    createBtn.addEventListener('click', async () => {
-        overlay.remove();
-        await _doCreateShare(data, token, watchlistName, cb.checked);
-    });
-
-    modal.append(hdr, lbl, createBtn);
+    // Body area — swapped between states
+    const body = document.createElement('div');
+    modal.appendChild(body);
     overlay.appendChild(modal);
-    overlay.addEventListener('click', () => overlay.remove());
-    document.body.appendChild(overlay);
-}
 
-async function _doCreateShare(data, token, watchlistName, includeNotes) {
-    const btn = document.getElementById('share-watchlist-btn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Generating...'; }
-    try {
-        const period = Number(document.getElementById('sma-period')?.value) || 50;
-        const res = await fetch('/api/watchlist', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-                action: 'create-share',
-                watchlistId: activeWatchlistId,
-                watchlistName,
-                stocks: data.map(d => d.stock),
-                smaPeriod: period,
-                notes: includeNotes ? activeWatchlistNotes : '',
-            }),
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            showToast(err.error || 'Could not create share link.', { type: 'error' });
-            return;
+    const close = () => overlay.remove();
+    modal.querySelector('#_share-close').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
+
+    document.body.appendChild(overlay);
+
+    const doGenerate = async (includeNotes) => {
+        body.innerHTML = '<div style="text-align:center;padding:20px 0;color:#6b7280;font-size:0.85rem;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;color:#4f46e5;"></i>Generating link...</div>';
+        const shareBtn = document.getElementById('share-watchlist-btn');
+        if (shareBtn) { shareBtn.disabled = true; shareBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Generating...'; }
+        try {
+            const period = Number(document.getElementById('sma-period')?.value) || 50;
+            const res = await fetch('/api/watchlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    action: 'create-share',
+                    watchlistId: activeWatchlistId,
+                    watchlistName,
+                    stocks: data.map(d => d.stock),
+                    smaPeriod: period,
+                    notes: includeNotes ? activeWatchlistNotes : '',
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                body.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;">${err.error || 'Could not create share link.'}</p>`;
+                return;
+            }
+            const json = await res.json();
+            _buildShareLinkArea(window.location.origin + '/share/' + json.token, body);
+        } catch {
+            body.innerHTML = '<p style="color:#dc2626;font-size:0.85rem;">Could not create share link. Try again.</p>';
+        } finally {
+            if (shareBtn) { shareBtn.disabled = false; shareBtn.innerHTML = '<i class="fas fa-share-alt text-xs"></i> Share'; }
         }
-        const json = await res.json();
-        showShareModal(window.location.origin + '/share/' + json.token, watchlistName);
-    } catch (err) {
-        console.error('shareWatchlist error:', err);
-        showToast('Could not create share link. Try again.', { type: 'error' });
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-share-alt text-xs"></i> Share'; }
+    };
+
+    if (hasNotes) {
+        // Show notes checkbox first
+        const lbl = document.createElement('label');
+        lbl.style.cssText = 'display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px 14px;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb;margin-bottom:16px;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = true;
+        cb.style.cssText = 'margin-top:2px;flex-shrink:0;width:15px;height:15px;accent-color:#4f46e5;cursor:pointer;';
+        const cbText = document.createElement('div');
+        cbText.innerHTML = '<span style="font-size:13px;font-weight:600;color:#111827;display:block;margin-bottom:2px;">Include notes</span><span style="font-size:12px;color:#6b7280;line-height:1.45;">Your notes will be shown on the public watchlist page.</span>';
+        lbl.append(cb, cbText);
+
+        const genBtn = document.createElement('button');
+        genBtn.style.cssText = 'width:100%;background:linear-gradient(135deg,#2563EB,#4F46E5);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;';
+        genBtn.textContent = 'Create share link';
+        genBtn.addEventListener('click', () => { lbl.remove(); genBtn.remove(); doGenerate(cb.checked); });
+
+        body.append(lbl, genBtn);
+    } else {
+        // No notes — generate immediately
+        doGenerate(false);
     }
 }
+window.shareWatchlist = shareWatchlist;
 
 // ── Watchlist notes ───────────────────────────────────────────────────────────
 
