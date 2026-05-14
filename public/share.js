@@ -89,6 +89,8 @@
     function showContent() {
         loading.classList.add('hidden');
         content.classList.remove('hidden');
+        // Reveal the fixed sidebar (xl+ only — CSS hides it below xl)
+        document.getElementById('share-sma-sidebar')?.classList.remove('hidden');
     }
 
     // ── Screener link ─────────────────────────────────────────────────────────
@@ -135,17 +137,17 @@
     }
 
     function setupSmaPills(ownerPeriod) {
-        // Desktop sidebar
-        const desktop = document.getElementById('share-sma-pills');
+        // Fixed sidebar (xl+): vertical full-width buttons
+        const sidebar = document.getElementById('share-sma-pills');
         const ownerSpan = document.getElementById('share-owner-period');
         if (ownerSpan) ownerSpan.textContent = ownerPeriod;
-        renderPillsInto(desktop, _activePeriod, true);
+        renderPillsInto(sidebar, _activePeriod, true);
 
-        // Mobile inline
-        const mobile = document.getElementById('share-sma-pills-mobile');
+        // Header inline (below xl): horizontal rounded pills
+        const inline = document.getElementById('share-sma-pills-mobile');
         const ownerSpanMobile = document.getElementById('share-owner-period-mobile');
         if (ownerSpanMobile) ownerSpanMobile.textContent = ownerPeriod;
-        renderPillsInto(mobile, _activePeriod, false);
+        renderPillsInto(inline, _activePeriod, false);
     }
 
     function updateSmaPills(activePeriod) {
