@@ -102,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  const { stocks, period } = req.body;
+  const { stocks, period, shareToken } = req.body;
   const smaPeriod = Number(period);
   if (!Array.isArray(stocks) || !Number.isFinite(smaPeriod) || smaPeriod <= 0) {
     return res.status(400).json({ error: 'Missing stocks array or period' });
@@ -119,6 +119,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // invalid/expired token — apply guest limit
     }
   }
+
+  // Share page: if a valid shareToken is provided, verify it and bypass the guest limit
+  if (stockLimit === GUEST_STOCK_LIMIT && typeof shareToken === 'string' && /^([a-f0-9]{24}|[A-Za-z0-9]{6})$/.test(shareToken)) {
+    try {
+      const shareDb = await connectToDatabase();
+      const share = await shareDb.collection('sharedWatchlists').findOne({ token: shareToken }, { projection: { stocks: 1 } });
+      if (share && Array.isArray(share.stocks)) {
+        stockLimit = share.stocks.length;
+      }
+    } catch { /* fall through to guest limit */ }
+  }
+
   if (stocks.length > stockLimit) {
     return res.status(400).json({ error: `Stock limit exceeded (max ${stockLimit})` });
   }

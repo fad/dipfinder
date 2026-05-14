@@ -228,7 +228,7 @@
             const r = await fetch('/api/batch-stocks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stocks: stocks.slice(0, 20), period }),
+                body: JSON.stringify({ stocks: stocks.slice(0, 20), period, shareToken: getShareToken() }),
             });
             if (r.ok) {
                 const json = await r.json();
