@@ -396,10 +396,15 @@
 
     function setupAuthUI(stocks, smaPeriod, watchlistName) {
         if (isLoggedIn) {
-            // Swap promo for "Go to Dashboard"
-            document.getElementById('share-visitor-promo')?.classList.add('hidden');
-            document.getElementById('share-loggedin-cta')?.classList.remove('hidden');
-            // No subscribe banner for logged-in users
+            // Swap nav button to "Go to Dashboard"
+            const navCta = document.getElementById('share-nav-cta');
+            if (navCta) {
+                navCta.href = '/app';
+                navCta.innerHTML = 'Go to Dashboard <i class="fas fa-arrow-right text-xs"></i>';
+                navCta.removeAttribute('data-umami-event');
+            }
+            // Hide the entire promo section
+            document.getElementById('share-promo-section')?.classList.add('hidden');
         } else {
             // Show subscribe banner
             const banner = document.getElementById('share-subscribe-banner');

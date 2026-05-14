@@ -28,7 +28,7 @@
                 </picture>
                 <span class="text-base font-extrabold tracking-tight text-gray-900">Dip Finder</span>
             </a>
-            <a href="/app?signup=1"
+            <a id="share-nav-cta" href="/app?signup=1"
                data-umami-event="share_page_cta_nav"
                class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
                style="background:linear-gradient(135deg,#2563EB,#4F46E5);">
@@ -144,47 +144,32 @@
                 <div id="share-summaries-list" class="divide-y divide-gray-100 p-5 space-y-4"></div>
             </div>
 
-            <!-- Promo (visitors) / Dashboard CTA (logged-in) -->
-            <div id="share-promo-section">
-                <!-- Visitor promo -->
-                <div id="share-visitor-promo" class="rounded-xl overflow-hidden shadow-sm" style="background:linear-gradient(135deg,#1e3a8a 0%,#4338ca 60%,#6d28d9 100%);">
-                    <div class="px-6 py-8 sm:px-10 sm:py-10 text-white">
-                        <div class="max-w-xl">
-                            <p class="text-xs font-semibold uppercase tracking-widest text-indigo-300 mb-2">Dip Finder</p>
-                            <h2 class="text-2xl font-bold leading-snug mb-3">Know when your stocks go on sale</h2>
-                            <p class="text-sm text-indigo-100 leading-relaxed mb-6">
-                                Build your own watchlist, track how far each stock has dipped below its moving average, and get a weekly Sunday Brief with personalised insights - straight to your inbox.
-                            </p>
-                            <div class="flex flex-wrap gap-3">
-                                <button id="share-promo-cta"
-                                   data-umami-event="share_page_cta_promo"
-                                   class="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-indigo-700 shadow transition hover:bg-indigo-50">
-                                    Create free account <i class="fas fa-arrow-right text-xs"></i>
-                                </button>
-                                <a href="/start"
-                                   class="inline-flex items-center gap-2 rounded-xl border border-indigo-400 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white hover:bg-opacity-10">
-                                    Learn more
-                                </a>
-                            </div>
-                            <ul class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-indigo-200">
-                                <li><i class="fas fa-check mr-1"></i> Free forever</li>
-                                <li><i class="fas fa-check mr-1"></i> No credit card</li>
-                                <li><i class="fas fa-check mr-1"></i> Weekly email digest</li>
-                            </ul>
+            <!-- Promo (visitors only, hidden for logged-in users) -->
+            <div id="share-promo-section" class="rounded-xl overflow-hidden shadow-sm" style="background:linear-gradient(135deg,#1e3a8a 0%,#4338ca 60%,#6d28d9 100%);">
+                <div class="px-6 py-8 sm:px-10 sm:py-10 text-white">
+                    <div class="max-w-xl">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-indigo-300 mb-2">Dip Finder</p>
+                        <h2 class="text-2xl font-bold leading-snug mb-3">Know when your stocks go on sale</h2>
+                        <p class="text-sm text-indigo-100 leading-relaxed mb-6">
+                            Build your own watchlist, track how far each stock has dipped below its moving average, and get a weekly Sunday Brief with personalised insights - straight to your inbox.
+                        </p>
+                        <div class="flex flex-wrap gap-3">
+                            <button id="share-promo-cta"
+                               data-umami-event="share_page_cta_promo"
+                               class="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-indigo-700 shadow transition hover:bg-indigo-50">
+                                Create free account <i class="fas fa-arrow-right text-xs"></i>
+                            </button>
+                            <a href="/start"
+                               class="inline-flex items-center gap-2 rounded-xl border border-indigo-400 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white hover:bg-opacity-10">
+                                Learn more
+                            </a>
                         </div>
+                        <ul class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-indigo-200">
+                            <li><i class="fas fa-check mr-1"></i> Free forever</li>
+                            <li><i class="fas fa-check mr-1"></i> No credit card</li>
+                            <li><i class="fas fa-check mr-1"></i> Weekly email digest</li>
+                        </ul>
                     </div>
-                </div>
-                <!-- Logged-in user CTA (hidden by default) -->
-                <div id="share-loggedin-cta" class="hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex items-center justify-between gap-4">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-800">You already have a Dip Finder account.</p>
-                        <p class="mt-0.5 text-xs text-gray-500">Head to your dashboard to manage your own watchlist.</p>
-                    </div>
-                    <a href="/app"
-                       class="flex-shrink-0 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
-                       style="background:linear-gradient(135deg,#2563EB,#4F46E5);">
-                        Go to Dashboard <i class="fas fa-arrow-right text-xs"></i>
-                    </a>
                 </div>
             </div>
 
@@ -198,6 +183,6 @@
         </div>
     </main>
 
-    <script src="/share.js?v=3"></script>
+    <script src="/share.js?v=4"></script>
 </body>
 </html>
