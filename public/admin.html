@@ -163,7 +163,7 @@
       <div class="tab" onclick="switchTab('settings')">Settings</div>
       <div class="tab" onclick="switchTab('crons')">Crons</div>
       <div class="tab" onclick="switchTab('ai-summaries')">AI Summaries</div>
-      <div class="tab" onclick="switchTab('shares'); loadShares()">Shared Watchlists</div>
+      <div class="tab" onclick="switchTab('shares')">Shared Watchlists</div>
     </div>
 
     <!-- Dashboard tab -->
@@ -572,6 +572,7 @@
       if (name === 'cache' && cacheData.length === 0) loadCacheHealth();
       if (name === 'templates' && !tplLoaded) loadTemplateList();
       if (name === 'settings') loadSettings();
+      if (name === 'shares' && !sharesLoaded) loadShares();
       if (name === 'crons') loadCrons();
       if (name === 'tickers' && tickersData.length === 0) loadTickers();
       if (name === 'ai-summaries') loadAiSummaries();
