@@ -86,7 +86,7 @@
         { "source": "/verify-captcha", "destination": "/api/user?action=verify-captcha" },
         
         { "source": "/newsletter/:token", "destination": "/api/newsletter?action=view&token=:token" },
-        { "source": "/share/:token", "destination": "/share.html" },
+        { "source": "/share/:token", "destination": "/api/share?token=:token" },
         { "source": "/admin", "destination": "/admin.html" },
         { "source": "/", "destination": "/start.html" },
         { "source": "/start", "destination": "/start.html" },
