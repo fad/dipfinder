@@ -1295,10 +1295,36 @@ async function fetchVideoMetadata(videoId: string): Promise<{ videoTitle: string
 }
 
 async function fetchYouTubeTranscript(videoId: string): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { YoutubeTranscript } = require('youtube-transcript');
-  const segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
-  return (segments as any[]).map((s: any) => s.text).join(' ');
+  // Stage 1: youtube-transcript npm package
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { YoutubeTranscript } = require('youtube-transcript');
+    const segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
+    const text = (segments as any[]).map((s: any) => s.text).join(' ').trim();
+    if (text) return text;
+  } catch {
+    // fall through to Supadata
+  }
+
+  // Stage 2: Supadata API fallback
+  const supadata_key = process.env.SUPADATA_API_KEY;
+  if (!supadata_key) throw new Error('No transcript available');
+
+  const r = await axios.get('https://api.supadata.ai/v1/youtube/transcript', {
+    params: { videoId, lang: 'en', text: true },
+    headers: { 'x-api-key': supadata_key },
+    timeout: 20000,
+  });
+
+  // Response shape: { content: string } when text=true, or { content: [{text,offset,duration}] }
+  const data = r.data;
+  if (typeof data?.content === 'string' && data.content.trim()) return data.content.trim();
+  if (Array.isArray(data?.content)) {
+    const joined = data.content.map((s: any) => s.text ?? '').join(' ').trim();
+    if (joined) return joined;
+  }
+
+  throw new Error('No transcript available');
 }
 
 async function ytExtractTickers(transcript: string, videoTitle: string): Promise<any[]> {
