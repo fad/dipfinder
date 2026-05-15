@@ -309,6 +309,21 @@ Warning/notice boxes: `background:#FEF9C3; border-left:4px solid #EAB308`
 5. Run `npm run check` to confirm types pass.
 6. Test locally with `npm run local`.
 
+### Adding a new external service or API
+
+Whenever a new third-party API or service is integrated (any outbound HTTP call to an external host, or a new SDK), do all of the following in the same change:
+
+1. **Add env var** — add it to `.env.example` with a descriptive comment.
+2. **Add health check** — add a numbered check block to `handleHealthCheck()` in `api/admin.ts`:
+   - Verify the env var is set (throw if missing).
+   - Make the cheapest possible live call (smallest payload, read-only, free tier safe).
+   - Store result as `results.<serviceKey> = { ok: boolean, ... }`.
+   - Add `'<serviceKey>'` to the `checks` array in the email table builder below.
+3. **Update health check description** — find the `health-check` cron entry in `handleListCrons()` and update its `description` string to mention the new service.
+4. **Document the service** — add a row to the Stack table at the top of this file.
+
+**Current services in the health check:** MongoDB, Yahoo Finance, Finnhub, Resend, Anthropic, TranscriptAPI, QuickChart.
+
 ### Debugging a failed newsletter send
 
 1. Check Vercel function logs for the Sat 23:00, Sun 07:00, or Sun 14:00 UTC invocations of `newsletter-send`.

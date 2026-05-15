@@ -447,6 +447,35 @@ async function handleHealthCheck(req: VercelRequest, res: VercelResponse) {
     results.anthropic = { ok: false, error: err?.message };
   }
 
+  // 6. TranscriptAPI — fetch a known short video transcript (Big Buck Bunny trailer)
+  try {
+    const transcriptApiKey = process.env.TRANSCRIPT_API_KEY;
+    if (!transcriptApiKey) throw new Error('TRANSCRIPT_API_KEY not set');
+    const start = Date.now();
+    const r = await axios.get('https://transcriptapi.com/api/v2/youtube/transcript', {
+      params: { video_url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' },
+      headers: { Authorization: `Bearer ${transcriptApiKey}` },
+      timeout: 15000,
+    });
+    const segments = r.data?.transcript;
+    const ok = Array.isArray(segments) && segments.length > 0;
+    results.transcriptApi = { ok, segmentsReturned: Array.isArray(segments) ? segments.length : 0, latencyMs: Date.now() - start };
+  } catch (err: any) {
+    results.transcriptApi = { ok: false, error: err?.message };
+  }
+
+  // 7. QuickChart.io — fetch a minimal chart image (no API key required)
+  try {
+    const start = Date.now();
+    const cfg = encodeURIComponent(JSON.stringify({ type: 'bar', data: { labels: ['A'], datasets: [{ data: [1] }] } }));
+    const r = await fetch(`https://quickchart.io/chart?w=10&h=10&c=${cfg}`, { signal: AbortSignal.timeout(8000) });
+    const contentType = r.headers.get('content-type') || '';
+    const ok = r.ok && contentType.startsWith('image/');
+    results.quickChart = { ok, httpStatus: r.status, contentType, latencyMs: Date.now() - start };
+  } catch (err: any) {
+    results.quickChart = { ok: false, error: err?.message };
+  }
+
   const anyFailed = Object.entries(results)
     .filter(([k]) => k !== 'checkedAt')
     .some(([, v]) => v?.ok === false);
@@ -457,7 +486,7 @@ async function handleHealthCheck(req: VercelRequest, res: VercelResponse) {
   let emailSent = false;
 
   if (shouldEmail && ADMIN_EMAIL) {
-    const checks = ['mongodb', 'yahooFinance', 'finnhub', 'resend', 'anthropic'];
+    const checks = ['mongodb', 'yahooFinance', 'finnhub', 'resend', 'anthropic', 'transcriptApi', 'quickChart'];
     const rows = checks.map(key => {
       const v = results[key] ?? {};
       const detail = v.error ?? v.httpStatus ?? v.quotesReturned ?? v.itemsReturned ?? v.userCount ?? '';
@@ -758,7 +787,7 @@ const CRON_DEFS = [
   {
     id: 'health-check',
     name: 'Health Check',
-    description: 'Verifies MongoDB, Yahoo Finance, Finnhub, and Resend connectivity. Emails admin on failure.',
+    description: 'Verifies MongoDB, Yahoo Finance, Finnhub, Resend, Anthropic, TranscriptAPI, and QuickChart connectivity. Emails admin on failure.',
     endpoint: '/api/health-check',
     method: 'GET',
     vercelSchedule: 'Daily at 09:00 UTC',
