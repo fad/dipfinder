@@ -562,7 +562,9 @@
 
     <!-- YouTube Wizard tab -->
     <div id="tab-youtube" class="tab-panel">
-      <div style="max-width:680px;">
+
+      <!-- Prompt editors — full width above both wizards -->
+      <div style="max-width:1400px;margin-bottom:24px;">
 
         <!-- Ticker prompt editor -->
         <details id="yt-prompt-details" style="margin-bottom:16px;" ontoggle="if(this.open) loadYtTickerPrompt()">
@@ -609,187 +611,308 @@
           </div>
         </details>
 
-        <!-- Step indicators -->
-        <div id="yt-indicators" style="display:flex;gap:6px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
-          <span id="yt-ind-1" style="font-size:0.78rem;font-weight:700;padding:4px 12px;border-radius:20px;background:#38bdf8;color:#0f172a;">1 · URL</span>
-          <span style="color:#334155;font-size:0.75rem;">→</span>
-          <span id="yt-ind-2" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">2 · Tickers</span>
-          <span style="color:#334155;font-size:0.75rem;">→</span>
-          <span id="yt-ind-3" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">3 · Title & Notes</span>
-          <span id="yt-ind-3-arrow" style="color:#334155;font-size:0.75rem;">→</span>
-          <span id="yt-ind-4" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">4 · Comment</span>
-        </div>
+      </div>
 
-        <!-- Step 1: URL -->
-        <div id="yt-step-1">
-          <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
-            <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">YouTube URL</p>
-            <div style="display:flex;gap:8px;">
-              <input id="yt-url" type="text" placeholder="https://www.youtube.com/watch?v=..."
-                style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;outline:none;transition:border-color .15s;"
-                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
-                onkeydown="if(event.key==='Enter') ytProcess()">
-              <button class="btn btn-sky" onclick="ytProcess()" id="yt-process-btn">Process video</button>
-            </div>
-            <label style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
-              <input type="checkbox" id="yt-comment-only-chk" style="width:15px;height:15px;accent-color:#38bdf8;cursor:pointer;" onchange="ytUpdateCommentOnlyMode()">
-              <span style="color:#94a3b8;font-size:0.8rem;">Comment only — don't create a watchlist</span>
-            </label>
-            <p id="yt-step1-error" style="color:#f87171;font-size:0.8rem;margin:8px 0 0;display:none;"></p>
+      <!-- Two-column wizard layout -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start;max-width:1400px;">
+
+        <!-- LEFT: Watchlist wizard -->
+        <div>
+          <p style="color:#64748b;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;padding-bottom:8px;border-bottom:1px solid #1e293b;">With watchlist</p>
+
+          <!-- Step indicators -->
+          <div id="yt-indicators" style="display:flex;gap:6px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+            <span id="yt-ind-1" style="font-size:0.78rem;font-weight:700;padding:4px 12px;border-radius:20px;background:#38bdf8;color:#0f172a;">1 · URL</span>
+            <span style="color:#334155;font-size:0.75rem;">→</span>
+            <span id="yt-ind-2" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">2 · Tickers</span>
+            <span style="color:#334155;font-size:0.75rem;">→</span>
+            <span id="yt-ind-3" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">3 · Title & Notes</span>
+            <span style="color:#334155;font-size:0.75rem;">→</span>
+            <span id="yt-ind-4" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">4 · Comment</span>
           </div>
+
+          <!-- Step 1: URL -->
+          <div id="yt-step-1">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
+              <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">YouTube URL</p>
+              <div style="display:flex;gap:8px;">
+                <input id="yt-url" type="text" placeholder="https://www.youtube.com/watch?v=..."
+                  style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;outline:none;transition:border-color .15s;"
+                  onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
+                  onkeydown="if(event.key==='Enter') ytProcess()">
+                <button class="btn btn-sky" onclick="ytProcess()" id="yt-process-btn">Process video</button>
+              </div>
+              <p id="yt-step1-error" style="color:#f87171;font-size:0.8rem;margin:8px 0 0;display:none;"></p>
+            </div>
+          </div>
+
+          <!-- Step 2: Extract + Review Tickers -->
+          <div id="yt-step-2" style="display:none;">
+
+            <!-- Loading state -->
+            <div id="yt-loading" style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:48px 24px;text-align:center;">
+              <div style="display:inline-block;width:28px;height:28px;border:3px solid #334155;border-top-color:#38bdf8;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;"></div>
+              <p id="yt-progress-msg" style="color:#e2e8f0;font-size:0.9rem;margin:0 0 4px;font-weight:600;">Fetching transcript...</p>
+              <p style="color:#64748b;font-size:0.78rem;margin:0;">This can take 15-30 seconds</p>
+            </div>
+
+            <!-- Results (shown after load) -->
+            <div id="yt-step2-content" style="display:none;">
+
+              <!-- Video meta -->
+              <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;display:flex;gap:16px;align-items:flex-start;">
+                <img id="yt-thumbnail" src="" alt="" style="width:120px;height:68px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#0f172a;">
+                <div style="min-width:0;">
+                  <p id="yt-video-title" style="color:#e2e8f0;font-weight:700;font-size:0.875rem;margin:0 0 4px;"></p>
+                  <p id="yt-creator-name" style="color:#94a3b8;font-size:0.78rem;margin:0 0 2px;"></p>
+                  <p id="yt-upload-date" style="color:#64748b;font-size:0.75rem;margin:0;"></p>
+                  <a id="yt-video-link" href="#" target="_blank" rel="noopener" style="color:#38bdf8;font-size:0.75rem;text-decoration:none;">Open on YouTube ↗</a>
+                </div>
+              </div>
+
+              <!-- Tickers -->
+              <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:20px;margin-top:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                  <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0;">Extracted Tickers</p>
+                  <span id="yt-ticker-counts" style="color:#64748b;font-size:0.75rem;"></span>
+                </div>
+                <div id="yt-no-tickers-msg" style="color:#64748b;font-size:0.82rem;margin-bottom:12px;display:none;">No clear stock picks were identified. Add tickers manually below.</div>
+                <div id="yt-ticker-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;min-height:32px;"></div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input id="yt-add-ticker-input" type="text" placeholder="Add ticker (e.g. AAPL)"
+                    style="width:160px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 10px;font-size:0.8rem;outline:none;text-transform:uppercase;"
+                    onkeydown="if(event.key==='Enter') ytAddTicker()" oninput="this.value=this.value.toUpperCase()">
+                  <button class="btn" style="background:#1e293b;color:#94a3b8;padding:6px 12px;font-size:0.78rem;" onclick="ytAddTicker()">Add</button>
+                </div>
+              </div>
+
+              <!-- Justifications (collapsed) -->
+              <div style="margin-top:8px;">
+                <button onclick="ytToggleJustifications()" id="yt-justify-toggle"
+                  style="background:none;border:none;color:#38bdf8;font-size:0.78rem;cursor:pointer;padding:4px 0;">▶ Show why these tickers were picked</button>
+                <div id="yt-justifications" style="display:none;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;margin-top:8px;"></div>
+              </div>
+
+              <!-- Manual transcript -->
+              <div id="yt-manual-transcript" style="display:none;margin-top:12px;">
+                <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:20px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <p id="yt-transcript-label" style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0;">Paste Transcript</p>
+                    <button id="yt-transcript-toggle" onclick="ytToggleTranscriptArea()" style="background:none;border:none;color:#38bdf8;font-size:0.78rem;cursor:pointer;padding:0;">Hide</button>
+                  </div>
+                  <div id="yt-transcript-area">
+                    <textarea id="yt-transcript-input" rows="8" placeholder="Paste the video transcript, auto-generated captions, or a detailed description here..."
+                      style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:10px 12px;font-size:0.8rem;resize:vertical;outline:none;font-family:inherit;line-height:1.5;"
+                      onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"></textarea>
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:8px;">
+                      <span id="yt-reanalyze-status" style="color:#4ade80;font-size:0.78rem;display:none;"></span>
+                      <button class="btn btn-sky" onclick="ytReanalyze()" id="yt-reanalyze-btn" style="font-size:0.8rem;padding:6px 16px;">Analyze transcript</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Nav -->
+              <div style="display:flex;justify-content:flex-end;margin-top:20px;">
+                <button class="btn btn-sky" id="yt-step2-continue" onclick="ytGoToStep3()">Continue →</button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Step 3: Title + Notes -->
+          <div id="yt-step-3" style="display:none;">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
+              <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 16px;">Watchlist Title & Notes</p>
+
+              <label style="color:#94a3b8;font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Title <span style="color:#64748b;font-weight:400;text-transform:none;">(max 60 chars)</span></label>
+              <input id="yt-title" type="text" maxlength="60"
+                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;outline:none;box-sizing:border-box;margin-bottom:6px;transition:border-color .15s;"
+                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
+                oninput="document.getElementById('yt-title-count').textContent=this.value.length+'/60'">
+              <p id="yt-title-count" style="color:#64748b;font-size:0.72rem;text-align:right;margin:0 0 20px;">0/60</p>
+
+              <label style="color:#94a3b8;font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Notes <span style="color:#64748b;font-weight:400;text-transform:none;">(shown on public share page, max 500 chars)</span></label>
+              <textarea id="yt-notes" rows="5" maxlength="500"
+                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;transition:border-color .15s;"
+                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
+                oninput="document.getElementById('yt-notes-count').textContent=this.value.length+'/500'"></textarea>
+              <p id="yt-notes-count" style="color:#64748b;font-size:0.72rem;text-align:right;margin:0 0 4px;">0/500</p>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;margin-top:16px;">
+              <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytGoToStep(2)">← Back</button>
+              <button class="btn btn-sky" onclick="ytGoToStep4()">Continue →</button>
+            </div>
+          </div>
+
+          <!-- Step 4: Comment Draft -->
+          <div id="yt-step-4" style="display:none;">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
+              <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">YouTube Comment Draft</p>
+              <p style="color:#64748b;font-size:0.78rem;margin:0 0 14px;">The share link placeholder <code style="background:#0f172a;padding:1px 5px;border-radius:4px;color:#38bdf8;">https://dipfinder.com/s/[link]</code> will be replaced with the real URL when you save.</p>
+              <textarea id="yt-comment" rows="8" maxlength="2000"
+                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.7rem 0.9rem;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;line-height:1.6;transition:border-color .15s;"
+                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
+                oninput="ytUpdateCommentCount()"></textarea>
+              <p id="yt-comment-count" style="color:#64748b;font-size:0.72rem;text-align:right;margin:4px 0 0;"></p>
+              <p id="yt-save-error" style="color:#f87171;font-size:0.8rem;margin:8px 0 0;display:none;"></p>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:16px;">
+              <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytGoToStep(3)">← Back to edit</button>
+              <button class="btn btn-sky" id="yt-save-btn" onclick="ytSave()">Save watchlist + copy comment</button>
+            </div>
+          </div>
+
+          <!-- Success -->
+          <div id="yt-success" style="display:none;">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+                <div style="width:32px;height:32px;background:#0f172a;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                  <span style="color:#4ade80;font-size:1.1rem;">✓</span>
+                </div>
+                <p style="color:#4ade80;font-weight:700;font-size:0.95rem;margin:0;">Watchlist created</p>
+              </div>
+
+              <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+                <a id="yt-success-share-link" href="#" target="_blank" rel="noopener"
+                  style="display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#38bdf8;font-size:0.8rem;font-weight:600;padding:8px 14px;text-decoration:none;">
+                  View share page ↗
+                </a>
+                <a id="yt-success-video-link" href="#" target="_blank" rel="noopener"
+                  style="display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#94a3b8;font-size:0.8rem;font-weight:600;padding:8px 14px;text-decoration:none;">
+                  Open video on YouTube ↗
+                </a>
+              </div>
+
+              <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;">Final comment <span style="color:#4ade80;font-size:0.72rem;font-weight:600;text-transform:none;">(copied to clipboard)</span></p>
+              <div style="position:relative;">
+                <textarea id="yt-success-comment" readonly rows="8"
+                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#94a3b8;padding:0.7rem 0.9rem;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;line-height:1.6;"></textarea>
+                <button onclick="ytCopyFinalComment()"
+                  style="position:absolute;top:8px;right:8px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#94a3b8;font-size:0.72rem;padding:4px 10px;cursor:pointer;"
+                  id="yt-recopy-btn">Copy</button>
+              </div>
+            </div>
+            <div style="margin-top:16px;">
+              <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytReset()">Process another video</button>
+            </div>
+          </div>
+
         </div>
 
-        <!-- Step 2: Extract + Review Tickers -->
-        <div id="yt-step-2" style="display:none;">
+        <!-- RIGHT: Comment-only wizard -->
+        <div>
+          <p style="color:#64748b;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 16px;padding-bottom:8px;border-bottom:1px solid #1e293b;">Comment only</p>
+
+          <!-- Input state -->
+          <div id="ytc-input">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
+              <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">YouTube URL</p>
+              <div style="display:flex;gap:8px;">
+                <input id="ytc-url" type="text" placeholder="https://www.youtube.com/watch?v=..."
+                  style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;outline:none;transition:border-color .15s;"
+                  onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
+                  onkeydown="if(event.key==='Enter') ytcProcess()">
+                <button class="btn btn-sky" onclick="ytcProcess()" id="ytc-process-btn">Process video</button>
+              </div>
+              <p id="ytc-step1-error" style="color:#f87171;font-size:0.8rem;margin:8px 0 0;display:none;"></p>
+            </div>
+          </div>
 
           <!-- Loading state -->
-          <div id="yt-loading" style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:48px 24px;text-align:center;">
+          <div id="ytc-loading" style="display:none;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:48px 24px;text-align:center;">
             <div style="display:inline-block;width:28px;height:28px;border:3px solid #334155;border-top-color:#38bdf8;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;"></div>
-            <p id="yt-progress-msg" style="color:#e2e8f0;font-size:0.9rem;margin:0 0 4px;font-weight:600;">Fetching transcript...</p>
+            <p id="ytc-progress-msg" style="color:#e2e8f0;font-size:0.9rem;margin:0 0 4px;font-weight:600;">Fetching transcript...</p>
             <p style="color:#64748b;font-size:0.78rem;margin:0;">This can take 15-30 seconds</p>
           </div>
 
-          <!-- Results (shown after load) -->
-          <div id="yt-step2-content" style="display:none;">
+          <!-- Result state -->
+          <div id="ytc-result" style="display:none;">
 
             <!-- Video meta -->
             <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;display:flex;gap:16px;align-items:flex-start;">
-              <img id="yt-thumbnail" src="" alt="" style="width:120px;height:68px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#0f172a;">
+              <img id="ytc-thumbnail" src="" alt="" style="width:100px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#0f172a;">
               <div style="min-width:0;">
-                <p id="yt-video-title" style="color:#e2e8f0;font-weight:700;font-size:0.875rem;margin:0 0 4px;"></p>
-                <p id="yt-creator-name" style="color:#94a3b8;font-size:0.78rem;margin:0 0 2px;"></p>
-                <p id="yt-upload-date" style="color:#64748b;font-size:0.75rem;margin:0;"></p>
-                <a id="yt-video-link" href="#" target="_blank" rel="noopener" style="color:#38bdf8;font-size:0.75rem;text-decoration:none;">Open on YouTube ↗</a>
+                <p id="ytc-video-title" style="color:#e2e8f0;font-weight:700;font-size:0.875rem;margin:0 0 4px;"></p>
+                <p id="ytc-creator-name" style="color:#94a3b8;font-size:0.78rem;margin:0 0 2px;"></p>
+                <a id="ytc-video-link" href="#" target="_blank" rel="noopener" style="color:#38bdf8;font-size:0.75rem;text-decoration:none;">Open on YouTube ↗</a>
               </div>
             </div>
 
-            <!-- Tickers -->
-            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:20px;margin-top:12px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-                <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0;">Extracted Tickers</p>
-                <span id="yt-ticker-counts" style="color:#64748b;font-size:0.75rem;"></span>
+            <!-- Tickers (context only) -->
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;margin-top:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0;">Stocks mentioned</p>
+                <span id="ytc-ticker-counts" style="color:#64748b;font-size:0.75rem;"></span>
               </div>
-              <div id="yt-no-tickers-msg" style="color:#64748b;font-size:0.82rem;margin-bottom:12px;display:none;">No clear stock picks were identified. Add tickers manually below.</div>
-              <div id="yt-ticker-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;min-height:32px;"></div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <input id="yt-add-ticker-input" type="text" placeholder="Add ticker (e.g. AAPL)"
-                  style="width:160px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 10px;font-size:0.8rem;outline:none;text-transform:uppercase;"
-                  onkeydown="if(event.key==='Enter') ytAddTicker()" oninput="this.value=this.value.toUpperCase()">
-                <button class="btn" style="background:#1e293b;color:#94a3b8;padding:6px 12px;font-size:0.78rem;" onclick="ytAddTicker()">Add</button>
-              </div>
+              <div id="ytc-ticker-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px;"></div>
             </div>
 
-            <!-- Justifications (collapsed) -->
-            <div style="margin-top:8px;">
-              <button onclick="ytToggleJustifications()" id="yt-justify-toggle"
-                style="background:none;border:none;color:#38bdf8;font-size:0.78rem;cursor:pointer;padding:4px 0;">▶ Show why these tickers were picked</button>
-              <div id="yt-justifications" style="display:none;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;margin-top:8px;"></div>
-            </div>
-
-            <!-- Manual transcript -->
-            <div id="yt-manual-transcript" style="display:none;margin-top:12px;">
-              <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:20px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                  <p id="yt-transcript-label" style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0;">Paste Transcript</p>
-                  <button id="yt-transcript-toggle" onclick="ytToggleTranscriptArea()" style="background:none;border:none;color:#38bdf8;font-size:0.78rem;cursor:pointer;padding:0;">Hide</button>
+            <!-- Transcript paste fallback (collapsed, shown if no transcript) -->
+            <div id="ytc-manual-transcript" style="display:none;margin-top:12px;">
+              <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0;">Paste transcript manually</p>
+                  <button id="ytc-transcript-toggle" onclick="ytcToggleTranscript()" style="background:none;border:none;color:#38bdf8;font-size:0.78rem;cursor:pointer;padding:0;">Show</button>
                 </div>
-                <div id="yt-transcript-area">
-                  <textarea id="yt-transcript-input" rows="8" placeholder="Paste the video transcript, auto-generated captions, or a detailed description here..."
+                <div id="ytc-transcript-area" style="display:none;">
+                  <textarea id="ytc-transcript-input" rows="6" placeholder="Paste transcript here..."
                     style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:10px 12px;font-size:0.8rem;resize:vertical;outline:none;font-family:inherit;line-height:1.5;"
                     onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"></textarea>
-                  <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:8px;">
-                    <span id="yt-reanalyze-status" style="color:#4ade80;font-size:0.78rem;display:none;"></span>
-                    <button class="btn btn-sky" onclick="ytReanalyze()" id="yt-reanalyze-btn" style="font-size:0.8rem;padding:6px 16px;">Analyze transcript</button>
+                  <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                    <button class="btn btn-sky" onclick="ytcReanalyze()" id="ytc-reanalyze-btn" style="font-size:0.8rem;padding:6px 16px;">Analyze transcript</button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Nav -->
-            <div style="display:flex;justify-content:flex-end;margin-top:20px;">
-              <button class="btn btn-sky" id="yt-step2-continue" onclick="ytGoToStep3()">Continue →</button>
+            <!-- Comment draft -->
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:20px;margin-top:12px;">
+              <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Comment draft</p>
+              <textarea id="ytc-comment" rows="8" maxlength="2000"
+                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.7rem 0.9rem;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;line-height:1.6;transition:border-color .15s;"
+                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
+                oninput="ytcUpdateCommentCount()"></textarea>
+              <p id="ytc-comment-count" style="color:#64748b;font-size:0.72rem;text-align:right;margin:4px 0 0;"></p>
+              <p id="ytc-save-error" style="color:#f87171;font-size:0.8rem;margin:8px 0 0;display:none;"></p>
             </div>
 
-          </div>
-        </div>
-
-        <!-- Step 3: Title + Notes -->
-        <div id="yt-step-3" style="display:none;">
-          <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
-            <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 16px;">Watchlist Title & Notes</p>
-
-            <label style="color:#94a3b8;font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Title <span style="color:#64748b;font-weight:400;text-transform:none;">(max 60 chars)</span></label>
-            <input id="yt-title" type="text" maxlength="60"
-              style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.875rem;outline:none;box-sizing:border-box;margin-bottom:6px;transition:border-color .15s;"
-              onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
-              oninput="document.getElementById('yt-title-count').textContent=this.value.length+'/60'">
-            <p id="yt-title-count" style="color:#64748b;font-size:0.72rem;text-align:right;margin:0 0 20px;">0/60</p>
-
-            <label style="color:#94a3b8;font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Notes <span style="color:#64748b;font-weight:400;text-transform:none;">(shown on public share page, max 500 chars)</span></label>
-            <textarea id="yt-notes" rows="5" maxlength="500"
-              style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.6rem 0.9rem;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;transition:border-color .15s;"
-              onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
-              oninput="document.getElementById('yt-notes-count').textContent=this.value.length+'/500'"></textarea>
-            <p id="yt-notes-count" style="color:#64748b;font-size:0.72rem;text-align:right;margin:0 0 4px;">0/500</p>
+            <div style="display:flex;justify-content:space-between;margin-top:16px;">
+              <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytcReset()">← Start over</button>
+              <button class="btn btn-sky" id="ytc-save-btn" onclick="ytcSave()">Log comment</button>
+            </div>
           </div>
 
-          <div style="display:flex;justify-content:space-between;margin-top:16px;">
-            <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytGoToStep(2)">← Back</button>
-            <button class="btn btn-sky" onclick="ytGoToStep4()">Continue →</button>
-          </div>
-        </div>
-
-        <!-- Step 4: Comment Draft -->
-        <div id="yt-step-4" style="display:none;">
-          <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
-            <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">YouTube Comment Draft</p>
-            <p style="color:#64748b;font-size:0.78rem;margin:0 0 14px;">The share link placeholder <code style="background:#0f172a;padding:1px 5px;border-radius:4px;color:#38bdf8;">https://dipfinder.com/s/[link]</code> will be replaced with the real URL when you save.</p>
-            <textarea id="yt-comment" rows="8" maxlength="2000"
-              style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:0.7rem 0.9rem;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;line-height:1.6;transition:border-color .15s;"
-              onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"
-              oninput="ytUpdateCommentCount()"></textarea>
-            <p id="yt-comment-count" style="color:#64748b;font-size:0.72rem;text-align:right;margin:4px 0 0;"></p>
-            <p id="yt-save-error" style="color:#f87171;font-size:0.8rem;margin:8px 0 0;display:none;"></p>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:16px;">
-            <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytGoToStep(3)">← Back to edit</button>
-            <button class="btn btn-sky" id="yt-save-btn" onclick="ytSave()">Save watchlist + copy comment</button>
-          </div>
-        </div>
-
-        <!-- Success -->
-        <div id="yt-success" style="display:none;">
-          <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-              <div style="width:32px;height:32px;background:#0f172a;border-radius:50%;display:flex;align-items:center;justify-content:center;">
-                <span style="color:#4ade80;font-size:1.1rem;">✓</span>
+          <!-- Success state -->
+          <div id="ytc-success" style="display:none;">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                <div style="width:32px;height:32px;background:#0f172a;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                  <span style="color:#4ade80;font-size:1.1rem;">✓</span>
+                </div>
+                <p style="color:#4ade80;font-weight:700;font-size:0.95rem;margin:0;">Comment logged</p>
               </div>
-              <p id="yt-success-heading" style="color:#4ade80;font-weight:700;font-size:0.95rem;margin:0;">Watchlist created</p>
+              <div style="margin-bottom:12px;">
+                <a id="ytc-success-video-link" href="#" target="_blank" rel="noopener"
+                  style="display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#94a3b8;font-size:0.8rem;font-weight:600;padding:8px 14px;text-decoration:none;">
+                  Open video on YouTube ↗
+                </a>
+              </div>
+              <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;">Final comment <span style="color:#4ade80;font-size:0.72rem;font-weight:600;text-transform:none;">(copied to clipboard)</span></p>
+              <div style="position:relative;">
+                <textarea id="ytc-success-comment" readonly rows="8"
+                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#94a3b8;padding:0.7rem 0.9rem;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;line-height:1.6;"></textarea>
+                <button onclick="ytcCopyFinalComment()"
+                  style="position:absolute;top:8px;right:8px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#94a3b8;font-size:0.72rem;padding:4px 10px;cursor:pointer;"
+                  id="ytc-recopy-btn">Copy</button>
+              </div>
             </div>
-
-            <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
-              <a id="yt-success-share-link" href="#" target="_blank" rel="noopener"
-                style="display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#38bdf8;font-size:0.8rem;font-weight:600;padding:8px 14px;text-decoration:none;">
-                View share page ↗
-              </a>
-              <a id="yt-success-video-link" href="#" target="_blank" rel="noopener"
-                style="display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#94a3b8;font-size:0.8rem;font-weight:600;padding:8px 14px;text-decoration:none;">
-                Open video on YouTube ↗
-              </a>
-            </div>
-
-            <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;">Final comment <span style="color:#4ade80;font-size:0.72rem;font-weight:600;text-transform:none;">(copied to clipboard)</span></p>
-            <div style="position:relative;">
-              <textarea id="yt-success-comment" readonly rows="8"
-                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#94a3b8;padding:0.7rem 0.9rem;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;line-height:1.6;"></textarea>
-              <button onclick="ytCopyFinalComment()"
-                style="position:absolute;top:8px;right:8px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#94a3b8;font-size:0.72rem;padding:4px 10px;cursor:pointer;"
-                id="yt-recopy-btn">Copy</button>
+            <div style="margin-top:16px;">
+              <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytcReset()">Process another video</button>
             </div>
           </div>
-          <div style="margin-top:16px;">
-            <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytReset()">Process another video</button>
-          </div>
+
         </div>
 
       </div>
@@ -2527,7 +2650,6 @@
     let ytExcludedTickers = [];
     let ytInitialized = false;
     let ytProgressInterval = null;
-    let ytCommentOnly = false;
 
     let ytPromptDefault = '';
 
@@ -2654,23 +2776,10 @@
       }
     }
 
-    function ytUpdateCommentOnlyMode() {
-      ytCommentOnly = document.getElementById('yt-comment-only-chk').checked;
-      const ind3 = document.getElementById('yt-ind-3');
-      const ind3arrow = document.getElementById('yt-ind-3-arrow');
-      if (ind3) ind3.style.display = ytCommentOnly ? 'none' : '';
-      if (ind3arrow) ind3arrow.style.display = ytCommentOnly ? 'none' : '';
-      const saveBtn = document.getElementById('yt-save-btn');
-      if (saveBtn) saveBtn.textContent = ytCommentOnly ? 'Log comment' : 'Save watchlist + copy comment';
-    }
-
     function ytReset() {
       ytData = {};
       ytTickers = [];
       ytExcludedTickers = [];
-      ytCommentOnly = false;
-      const chk = document.getElementById('yt-comment-only-chk');
-      if (chk) { chk.checked = false; ytUpdateCommentOnlyMode(); }
       document.getElementById('yt-url').value = '';
       const errEl = document.getElementById('yt-step1-error');
       if (errEl) errEl.style.display = 'none';
@@ -2757,7 +2866,7 @@
         const r = await fetch('/api/admin?action=youtube-process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-          body: JSON.stringify({ url, commentOnly: ytCommentOnly }),
+          body: JSON.stringify({ url }),
         });
         clearInterval(ytProgressInterval);
         document.getElementById('yt-process-btn').disabled = false;
@@ -2864,7 +2973,7 @@
         const r = await fetch('/api/admin?action=youtube-process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-          body: JSON.stringify({ url: ytData.videoUrl, transcript, commentOnly: ytCommentOnly }),
+          body: JSON.stringify({ url: ytData.videoUrl, transcript }),
         });
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
@@ -2997,8 +3106,7 @@
     }
 
     function ytGoToStep3() {
-      if (!ytTickers.length && !ytCommentOnly) { alert('Add at least one ticker to continue.'); return; }
-      if (ytCommentOnly) { ytGoToStep4(); return; }
+      if (!ytTickers.length) { alert('Add at least one ticker to continue.'); return; }
       // Pre-fill title and notes from AI output
       const titleInp = document.getElementById('yt-title');
       const notesInp = document.getElementById('yt-notes');
@@ -3015,7 +3123,7 @@
 
     function ytGoToStep4() {
       const title = (document.getElementById('yt-title').value || '').trim();
-      if (!ytCommentOnly && !title) { alert('Please enter a title.'); return; }
+      if (!title) { alert('Please enter a title.'); return; }
       const commentEl = document.getElementById('yt-comment');
       if (commentEl && !commentEl.value) {
         commentEl.value = ytData.commentDraft || '';
@@ -3043,10 +3151,9 @@
       const saveErr = document.getElementById('yt-save-error');
       const saveBtn = document.getElementById('yt-save-btn');
 
-      if (!ytCommentOnly && (!title || !ytTickers.length)) { saveErr.textContent = 'Title and at least one ticker required.'; saveErr.style.display = 'block'; return; }
-      if (ytCommentOnly && !commentText) { saveErr.textContent = 'No comment to save.'; saveErr.style.display = 'block'; return; }
+      if (!title || !ytTickers.length) { saveErr.textContent = 'Title and at least one ticker required.'; saveErr.style.display = 'block'; return; }
 
-      const defaultLabel = ytCommentOnly ? 'Log comment' : 'Save watchlist + copy comment';
+      const defaultLabel = 'Save watchlist + copy comment';
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving...';
       saveErr.style.display = 'none';
@@ -3065,7 +3172,6 @@
             title,
             notes,
             commentText,
-            commentOnly: ytCommentOnly,
           }),
         });
 
@@ -3101,20 +3207,12 @@
       const success = document.getElementById('yt-success');
       if (success) success.style.display = 'block';
 
-      // Heading
-      const heading = document.getElementById('yt-success-heading');
-      if (heading) heading.textContent = result.shareUrl ? 'Watchlist created' : 'Comment logged';
-
-      // Share link — hide in comment-only mode
+      // Share link — always shown
       const shareLink = document.getElementById('yt-success-share-link');
       if (shareLink) {
-        if (result.shareUrl) {
-          shareLink.href = result.shareUrl;
-          shareLink.textContent = result.shareUrl + ' ↗';
-          shareLink.style.display = 'inline-flex';
-        } else {
-          shareLink.style.display = 'none';
-        }
+        shareLink.href = result.shareUrl;
+        shareLink.textContent = result.shareUrl + ' ↗';
+        shareLink.style.display = 'inline-flex';
       }
 
       const vidLink = document.getElementById('yt-success-video-link');
@@ -3131,6 +3229,234 @@
       navigator.clipboard.writeText(el.value).then(() => {
         if (btn) { btn.textContent = 'Copied!'; btn.style.color = '#4ade80'; setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = '#94a3b8'; }, 2000); }
       }).catch(() => { el.select(); document.execCommand('copy'); });
+    }
+
+    // ── YouTube Comment-Only Wizard ───────────────────────────────────────────
+
+    let ytcData = {};
+    let ytcTickers = [];
+    let ytcExcludedTickers = [];
+    let ytcProgressInterval = null;
+
+    function ytcReset() {
+      ytcData = {};
+      ytcTickers = [];
+      ytcExcludedTickers = [];
+      if (ytcProgressInterval) { clearInterval(ytcProgressInterval); ytcProgressInterval = null; }
+      document.getElementById('ytc-url').value = '';
+      document.getElementById('ytc-step1-error').style.display = 'none';
+      document.getElementById('ytc-loading').style.display = 'none';
+      document.getElementById('ytc-result').style.display = 'none';
+      document.getElementById('ytc-success').style.display = 'none';
+      document.getElementById('ytc-input').style.display = 'block';
+      document.getElementById('ytc-process-btn').disabled = false;
+      document.getElementById('ytc-process-btn').textContent = 'Process video';
+    }
+
+    async function ytcProcess() {
+      const token = localStorage.getItem('token');
+      const url = (document.getElementById('ytc-url').value || '').trim();
+      const errEl = document.getElementById('ytc-step1-error');
+      if (!url) { errEl.textContent = 'Please enter a YouTube URL.'; errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+      document.getElementById('ytc-process-btn').disabled = true;
+      document.getElementById('ytc-process-btn').textContent = 'Processing...';
+      document.getElementById('ytc-input').style.display = 'none';
+      document.getElementById('ytc-loading').style.display = 'block';
+
+      const msgs = ['Fetching transcript...', 'Extracting tickers...', 'Generating comment...', 'Almost done...'];
+      let mi = 0;
+      const progEl = document.getElementById('ytc-progress-msg');
+      ytcProgressInterval = setInterval(() => { mi = (mi + 1) % msgs.length; if (progEl) progEl.textContent = msgs[mi]; }, 4000);
+
+      try {
+        const r = await fetch('/api/admin?action=youtube-process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ url, commentOnly: true }),
+        });
+        clearInterval(ytcProgressInterval);
+        document.getElementById('ytc-loading').style.display = 'none';
+        document.getElementById('ytc-process-btn').disabled = false;
+        document.getElementById('ytc-process-btn').textContent = 'Process video';
+
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          document.getElementById('ytc-input').style.display = 'block';
+          errEl.textContent = err.error || 'Processing failed. Please try again.';
+          errEl.style.display = 'block';
+          return;
+        }
+
+        ytcData = await r.json();
+        ytcTickers = (ytcData.tickers || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
+        ytcExcludedTickers = (ytcData.tickersExcluded || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
+        ytcRenderResult();
+      } catch (e) {
+        clearInterval(ytcProgressInterval);
+        document.getElementById('ytc-loading').style.display = 'none';
+        document.getElementById('ytc-input').style.display = 'block';
+        document.getElementById('ytc-process-btn').disabled = false;
+        document.getElementById('ytc-process-btn').textContent = 'Process video';
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.style.display = 'block';
+      }
+    }
+
+    function ytcRenderResult() {
+      // Meta
+      const thumb = document.getElementById('ytc-thumbnail');
+      if (thumb) thumb.src = ytcData.thumbnailUrl || '';
+      const titleEl = document.getElementById('ytc-video-title');
+      if (titleEl) titleEl.textContent = ytcData.videoTitle || '';
+      const creatorEl = document.getElementById('ytc-creator-name');
+      if (creatorEl) creatorEl.textContent = ytcData.creatorName || '';
+      const linkEl = document.getElementById('ytc-video-link');
+      if (linkEl) linkEl.href = ytcData.videoUrl || '#';
+
+      // Tickers
+      ytcRenderTickerChips();
+
+      // Comment
+      const commentEl = document.getElementById('ytc-comment');
+      if (commentEl) { commentEl.value = ytcData.commentDraft || ''; ytcUpdateCommentCount(); }
+
+      // Transcript fallback
+      const manualSection = document.getElementById('ytc-manual-transcript');
+      if (manualSection) manualSection.style.display = !ytcData.transcriptAvailable ? 'block' : 'none';
+      if (!ytcData.transcriptAvailable) {
+        const area = document.getElementById('ytc-transcript-area');
+        const toggle = document.getElementById('ytc-transcript-toggle');
+        if (area) area.style.display = 'block';
+        if (toggle) toggle.textContent = 'Hide';
+      }
+
+      document.getElementById('ytc-save-error').style.display = 'none';
+      document.getElementById('ytc-result').style.display = 'block';
+    }
+
+    function ytcRenderTickerChips() {
+      const chips = document.getElementById('ytc-ticker-chips');
+      if (!chips) return;
+      const countEl = document.getElementById('ytc-ticker-counts');
+      const total = ytcTickers.length + ytcExcludedTickers.length;
+      if (countEl) countEl.textContent = total ? total + ' found' : '';
+
+      const activeHtml = ytcTickers.map(t => {
+        const border = t.confidence === 'high' ? '#38bdf8' : '#475569';
+        return '<span style="display:inline-flex;align-items:center;gap:5px;background:#0f172a;border:1px solid ' + border + ';border-radius:20px;padding:3px 9px;font-size:0.75rem;color:#e2e8f0;font-weight:600;">'
+          + t.ticker
+          + '</span>';
+      }).join('');
+
+      const excludedHtml = ytcExcludedTickers.map(t =>
+        '<span style="display:inline-flex;align-items:center;background:transparent;border:1px dashed #334155;border-radius:20px;padding:3px 9px;font-size:0.75rem;color:#475569;font-weight:600;">'
+        + t.ticker + '</span>'
+      ).join('');
+
+      chips.innerHTML = activeHtml + excludedHtml;
+    }
+
+    function ytcToggleTranscript() {
+      const area = document.getElementById('ytc-transcript-area');
+      const btn = document.getElementById('ytc-transcript-toggle');
+      if (!area) return;
+      const hidden = area.style.display === 'none';
+      area.style.display = hidden ? 'block' : 'none';
+      if (btn) btn.textContent = hidden ? 'Hide' : 'Show';
+    }
+
+    async function ytcReanalyze() {
+      const token = localStorage.getItem('token');
+      const transcript = (document.getElementById('ytc-transcript-input').value || '').trim();
+      if (!transcript) { alert('Please paste a transcript first.'); return; }
+      const btn = document.getElementById('ytc-reanalyze-btn');
+      btn.disabled = true; btn.textContent = 'Analyzing...';
+      try {
+        const r = await fetch('/api/admin?action=youtube-process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ url: ytcData.videoUrl, transcript, commentOnly: true }),
+        });
+        if (!r.ok) { alert((await r.json().catch(() => ({}))).error || 'Failed.'); return; }
+        const result = await r.json();
+        ytcData = { ...ytcData, ...result };
+        ytcTickers = (result.tickers || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
+        ytcExcludedTickers = (result.tickersExcluded || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
+        ytcRenderTickerChips();
+        const commentEl = document.getElementById('ytc-comment');
+        if (commentEl && result.commentDraft) { commentEl.value = result.commentDraft; ytcUpdateCommentCount(); }
+      } catch (e) { alert('Network error. Please try again.'); }
+      finally { btn.disabled = false; btn.textContent = 'Analyze transcript'; }
+    }
+
+    function ytcUpdateCommentCount() {
+      const el = document.getElementById('ytc-comment');
+      const cnt = document.getElementById('ytc-comment-count');
+      if (!el || !cnt) return;
+      const n = el.value.length;
+      const words = el.value.trim() ? el.value.trim().split(/\s+/).length : 0;
+      cnt.textContent = words + ' words · ' + n + ' chars';
+      cnt.style.color = words > 120 ? '#f87171' : '#64748b';
+    }
+
+    async function ytcSave() {
+      const token = localStorage.getItem('token');
+      const commentText = (document.getElementById('ytc-comment').value || '').trim();
+      const saveErr = document.getElementById('ytc-save-error');
+      const saveBtn = document.getElementById('ytc-save-btn');
+      if (!commentText) { saveErr.textContent = 'No comment to save.'; saveErr.style.display = 'block'; return; }
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+      saveErr.style.display = 'none';
+      try {
+        const r = await fetch('/api/admin?action=youtube-save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({
+            videoId: ytcData.videoId,
+            videoUrl: ytcData.videoUrl,
+            videoTitle: ytcData.videoTitle,
+            creatorName: ytcData.creatorName,
+            uploadDate: ytcData.uploadDate,
+            tickers: ytcTickers.map(t => t.ticker),
+            title: '',
+            notes: '',
+            commentText,
+            commentOnly: true,
+          }),
+        });
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Log comment';
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          saveErr.textContent = err.error || 'Save failed.';
+          saveErr.style.display = 'block';
+          return;
+        }
+        const result = await r.json();
+        try { await navigator.clipboard.writeText(result.finalComment); } catch { }
+        document.getElementById('ytc-result').style.display = 'none';
+        document.getElementById('ytc-success').style.display = 'block';
+        const successComment = document.getElementById('ytc-success-comment');
+        if (successComment) successComment.value = result.finalComment || '';
+        const vidLink = document.getElementById('ytc-success-video-link');
+        if (vidLink) vidLink.href = ytcData.videoUrl || '#';
+      } catch (e) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Log comment';
+        saveErr.textContent = 'Network error. Please try again.';
+        saveErr.style.display = 'block';
+      }
+    }
+
+    function ytcCopyFinalComment() {
+      const el = document.getElementById('ytc-success-comment');
+      const btn = document.getElementById('ytc-recopy-btn');
+      if (!el) return;
+      navigator.clipboard.writeText(el.value).then(() => {
+        if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy'; }, 2000); }
+      });
     }
 
   </script>
