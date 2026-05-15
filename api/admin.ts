@@ -1450,7 +1450,7 @@ OUTPUT: only the comment text, no other text.`;
 
 async function handleYoutubeProcess(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
-  const { url } = req.body || {};
+  const { url, transcript: manualTranscript } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url required' });
 
   const videoId = extractYouTubeVideoId(url);
@@ -1459,10 +1459,13 @@ async function handleYoutubeProcess(req: VercelRequest, res: VercelResponse) {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const uploadDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-  // Fetch metadata + transcript in parallel
+  // If manual transcript provided, skip fetch and use it directly
+  const providedTranscript = typeof manualTranscript === 'string' ? manualTranscript.trim() : '';
+
+  // Fetch metadata always; transcript only if not manually provided
   const [metaResult, transcriptResult] = await Promise.allSettled([
     fetchVideoMetadata(videoId),
-    fetchYouTubeTranscript(videoId),
+    providedTranscript ? Promise.resolve(providedTranscript) : fetchYouTubeTranscript(videoId),
   ]);
 
   const meta = metaResult.status === 'fulfilled'

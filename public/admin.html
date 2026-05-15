@@ -635,6 +635,24 @@
               <div id="yt-justifications" style="display:none;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;margin-top:8px;"></div>
             </div>
 
+            <!-- Manual transcript -->
+            <div id="yt-manual-transcript" style="display:none;margin-top:12px;">
+              <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                  <p id="yt-transcript-label" style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0;">Paste Transcript</p>
+                  <button id="yt-transcript-toggle" onclick="ytToggleTranscriptArea()" style="background:none;border:none;color:#38bdf8;font-size:0.78rem;cursor:pointer;padding:0;">Hide</button>
+                </div>
+                <div id="yt-transcript-area">
+                  <textarea id="yt-transcript-input" rows="8" placeholder="Paste the video transcript, auto-generated captions, or a detailed description here..."
+                    style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:10px 12px;font-size:0.8rem;resize:vertical;outline:none;font-family:inherit;line-height:1.5;"
+                    onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"></textarea>
+                  <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                    <button class="btn btn-sky" onclick="ytReanalyze()" id="yt-reanalyze-btn" style="font-size:0.8rem;padding:6px 16px;">Analyze transcript</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Nav -->
             <div style="display:flex;justify-content:flex-end;margin-top:20px;">
               <button class="btn btn-sky" id="yt-step2-continue" onclick="ytGoToStep3()">Continue →</button>
@@ -2602,18 +2620,79 @@
       ytRenderTickerChips();
 
       // No transcript fallback
+      const manualSection = document.getElementById('yt-manual-transcript');
+      const transcriptArea = document.getElementById('yt-transcript-area');
+      const transcriptToggle = document.getElementById('yt-transcript-toggle');
+      const transcriptLabel = document.getElementById('yt-transcript-label');
       if (!ytData.transcriptAvailable) {
         document.getElementById('yt-no-tickers-msg').style.display = 'block';
-        document.getElementById('yt-no-tickers-msg').textContent = 'This video has no transcript available. Add tickers manually below.';
+        document.getElementById('yt-no-tickers-msg').textContent = 'No transcript available. Paste one below for AI extraction.';
         const toggle = document.getElementById('yt-justify-toggle');
         if (toggle) toggle.style.display = 'none';
+        // Show transcript area expanded
+        if (manualSection) manualSection.style.display = 'block';
+        if (transcriptArea) transcriptArea.style.display = 'block';
+        if (transcriptToggle) transcriptToggle.textContent = 'Hide';
+        if (transcriptLabel) transcriptLabel.textContent = 'Paste Transcript';
       } else if (!ytTickers.length) {
         document.getElementById('yt-no-tickers-msg').style.display = 'block';
         const toggle = document.getElementById('yt-justify-toggle');
         if (toggle) toggle.style.display = 'none';
+        // Show transcript as a collapsed override option
+        if (manualSection) manualSection.style.display = 'block';
+        if (transcriptArea) transcriptArea.style.display = 'none';
+        if (transcriptToggle) transcriptToggle.textContent = 'Show';
+        if (transcriptLabel) transcriptLabel.textContent = 'Paste transcript manually';
       } else {
         document.getElementById('yt-no-tickers-msg').style.display = 'none';
         ytRenderJustifications();
+        // Show transcript as a collapsed override option
+        if (manualSection) manualSection.style.display = 'block';
+        if (transcriptArea) transcriptArea.style.display = 'none';
+        if (transcriptToggle) transcriptToggle.textContent = 'Show';
+        if (transcriptLabel) transcriptLabel.textContent = 'Paste transcript manually';
+      }
+    }
+
+    function ytToggleTranscriptArea() {
+      const area = document.getElementById('yt-transcript-area');
+      const btn = document.getElementById('yt-transcript-toggle');
+      if (!area) return;
+      const hidden = area.style.display === 'none';
+      area.style.display = hidden ? 'block' : 'none';
+      if (btn) btn.textContent = hidden ? 'Hide' : 'Show';
+    }
+
+    async function ytReanalyze() {
+      const token = localStorage.getItem('token');
+      const transcript = (document.getElementById('yt-transcript-input').value || '').trim();
+      if (!transcript) { alert('Please paste a transcript first.'); return; }
+
+      const btn = document.getElementById('yt-reanalyze-btn');
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+
+      try {
+        const r = await fetch('/api/admin?action=youtube-process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ url: ytData.videoUrl, transcript }),
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          alert(err.error || 'Analysis failed. Please try again.');
+          return;
+        }
+        const result = await r.json();
+        // Preserve the video meta we already have, merge in AI results
+        ytData = { ...ytData, ...result };
+        ytTickers = (result.tickers || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
+        ytRenderStep2();
+      } catch (e) {
+        alert('Network error. Please try again.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Analyze transcript';
       }
     }
 
