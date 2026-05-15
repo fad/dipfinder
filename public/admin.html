@@ -563,8 +563,8 @@
       <div style="max-width:680px;">
 
         <!-- Ticker prompt editor -->
-        <details id="yt-prompt-details" style="margin-bottom:16px;">
-          <summary style="color:#64748b;font-size:0.78rem;font-weight:600;cursor:pointer;user-select:none;padding:4px 0;" onclick="loadYtTickerPrompt()">Edit ticker extraction prompt</summary>
+        <details id="yt-prompt-details" style="margin-bottom:16px;" ontoggle="if(this.open) loadYtTickerPrompt()">
+          <summary style="color:#64748b;font-size:0.78rem;font-weight:600;cursor:pointer;user-select:none;padding:4px 0;">Edit ticker extraction prompt</summary>
           <div style="margin-top:8px;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;">
             <p style="color:#475569;font-size:0.72rem;margin:0 0 8px;line-height:1.6;">Variables: <code style="color:#7dd3fc;">{{videoTitle}}</code> <code style="color:#7dd3fc;">{{transcript}}</code></p>
             <textarea id="yt-prompt-textarea" rows="14" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:10px 12px;font-size:0.75rem;font-family:ui-monospace,monospace;line-height:1.6;resize:vertical;outline:none;" onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"></textarea>
@@ -2505,8 +2505,6 @@
     }
 
     async function loadYtTickerPrompt() {
-      const details = document.getElementById('yt-prompt-details');
-      if (!details.open) return; // summary click fires before open toggles; only load when opening
       const token = localStorage.getItem('token');
       const ta = document.getElementById('yt-prompt-textarea');
       const badge = document.getElementById('yt-prompt-badge');
