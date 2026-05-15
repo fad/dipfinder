@@ -2521,6 +2521,7 @@
     }
 
     async function ytProcess() {
+      const token = localStorage.getItem('token');
       const url = (document.getElementById('yt-url').value || '').trim();
       const errEl = document.getElementById('yt-step1-error');
       if (!url) { errEl.textContent = 'Please enter a YouTube URL.'; errEl.style.display = 'block'; return; }
@@ -2717,6 +2718,7 @@
     }
 
     async function ytSave() {
+      const token = localStorage.getItem('token');
       const title = (document.getElementById('yt-title').value || '').trim();
       const notes = (document.getElementById('yt-notes').value || '').trim();
       const commentText = (document.getElementById('yt-comment').value || '').trim();
