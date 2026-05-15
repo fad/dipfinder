@@ -137,6 +137,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetYtTickerPrompt(res);
       case 'save-yt-ticker-prompt':
         return await handleSaveYtTickerPrompt(req, res);
+      case 'get-yt-comment-prompt-watchlist':
+        return await handleGetYtCommentPrompt(res, 'yt-comment-prompt-watchlist', DEFAULT_YT_COMMENT_PROMPT_WATCHLIST);
+      case 'save-yt-comment-prompt-watchlist':
+        return await handleSaveYtCommentPrompt(req, res, 'yt-comment-prompt-watchlist');
+      case 'get-yt-comment-prompt-only':
+        return await handleGetYtCommentPrompt(res, 'yt-comment-prompt-only', DEFAULT_YT_COMMENT_PROMPT_ONLY);
+      case 'save-yt-comment-prompt-only':
+        return await handleSaveYtCommentPrompt(req, res, 'yt-comment-prompt-only');
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -1160,6 +1168,87 @@ async function handleSaveYtTickerPrompt(req: VercelRequest, res: VercelResponse)
   return res.status(200).json({ ok: true });
 }
 
+export const DEFAULT_YT_COMMENT_PROMPT_WATCHLIST = `You are an experienced patient investor commenting on a YouTube finance video. Your goal is to add substantive value to the discussion while subtly referencing a public watchlist as supporting evidence.
+
+VIDEO TITLE: {{videoTitle}}
+CREATOR: {{creatorName}}
+STOCKS DISCUSSED IN VIDEO: {{tickerList}}
+WATCHLIST URL: {{watchlistUrl}}
+
+TRANSCRIPT (key excerpts):
+{{transcript}}
+
+TASK:
+Write a YouTube comment that:
+- Engages substantively with at least one specific stock or argument from the video (name the stock, reference what the creator said)
+- Adds your own observation or insight that goes beyond what the video said
+- Mentions the watchlist URL at the end framed as "I tracked the stocks discussed against their 200-day moving averages" or similar
+
+VOICE:
+- Dry, observational, calm
+- No exclamation marks
+- No emoji
+- No "great video!" or compliments to the creator
+- No hype phrases
+- Sound like someone who genuinely watched the video
+- Plain language
+
+LENGTH: 50-120 words total.
+OUTPUT: only the comment text, no other text.`;
+
+export const DEFAULT_YT_COMMENT_PROMPT_ONLY = `You are an experienced patient investor leaving a comment on a YouTube finance video. Your only goal is to add genuine value to the discussion — no self-promotion, no links.
+
+VIDEO TITLE: {{videoTitle}}
+CREATOR: {{creatorName}}
+STOCKS DISCUSSED IN VIDEO: {{tickerList}}
+
+TRANSCRIPT (key excerpts):
+{{transcript}}
+
+TASK:
+Write a YouTube comment that:
+- Engages substantively with at least one specific stock or argument from the video (name the stock, reference what the creator actually said)
+- Adds your own observation, data point, or insight that goes beyond what the video said
+- Reads like a genuine comment from someone who watched and thought about it
+
+VOICE:
+- Dry, observational, calm
+- No exclamation marks
+- No emoji
+- No "great video!" or compliments to the creator
+- No links, no watchlists, no self-promotion
+- Plain language
+
+LENGTH: 40-100 words.
+OUTPUT: only the comment text, no other text.`;
+
+async function handleGetYtCommentPrompt(res: VercelResponse, key: string, defaultPrompt: string) {
+  const db = await connectToDatabase();
+  const doc = await db.collection('settings').findOne({ key });
+  return res.status(200).json({
+    prompt: doc?.value ?? null,
+    default: defaultPrompt,
+    isCustom: !!doc?.value,
+  });
+}
+
+async function handleSaveYtCommentPrompt(req: VercelRequest, res: VercelResponse, key: string) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { prompt, reset } = req.body || {};
+  const db = await connectToDatabase();
+  if (reset) {
+    await db.collection('settings').deleteOne({ key });
+    return res.status(200).json({ ok: true, reset: true });
+  }
+  if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required' });
+  await db.collection('settings').updateOne(
+    { key },
+    { $set: { key, value: prompt.trim(), updatedAt: new Date() } },
+    { upsert: true },
+  );
+  return res.status(200).json({ ok: true });
+}
+
 async function handleSaveAiPrompt(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { prompt, reset } = req.body || {};
@@ -1482,34 +1571,19 @@ OUTPUT: only the description text, no other text.`;
   } catch { return ''; }
 }
 
-async function ytGenerateComment(videoTitle: string, creatorName: string, tickerList: string, shareUrl: string, transcriptExcerpt: string): Promise<string> {
-  const prompt = `You are an experienced patient investor commenting on a YouTube finance video. Your goal is to add substantive value to the discussion while subtly referencing a public watchlist as supporting evidence.
+async function ytGenerateComment(videoTitle: string, creatorName: string, tickerList: string, shareUrl: string, transcriptExcerpt: string, commentOnly = false): Promise<string> {
+  const db = await connectToDatabase();
+  const settingsKey = commentOnly ? 'yt-comment-prompt-only' : 'yt-comment-prompt-watchlist';
+  const defaultTemplate = commentOnly ? DEFAULT_YT_COMMENT_PROMPT_ONLY : DEFAULT_YT_COMMENT_PROMPT_WATCHLIST;
+  const doc = await db.collection('settings').findOne({ key: settingsKey });
+  const template = (doc?.value as string) || defaultTemplate;
 
-VIDEO TITLE: ${videoTitle}
-CREATOR: ${creatorName}
-STOCKS DISCUSSED IN VIDEO: ${tickerList || 'various stocks'}
-WATCHLIST URL: ${shareUrl}
-
-TRANSCRIPT (key excerpts):
-${transcriptExcerpt}
-
-TASK:
-Write a 2-3 paragraph YouTube comment that:
-- Engages substantively with at least one specific stock or argument from the video (be specific — name the stock, reference what the creator said about it)
-- Adds your own observation or insight that goes beyond what the video said
-- Mentions the watchlist URL at the end framed as "I tracked the stocks discussed against their 200-day moving averages" or similar
-
-VOICE:
-- Dry, observational, calm
-- No exclamation marks
-- No emoji
-- No "great video!" or compliments to the creator
-- No hype phrases
-- Sound like someone who genuinely watched the video
-- Plain language
-
-LENGTH: 50-120 words total.
-OUTPUT: only the comment text, no other text.`;
+  const prompt = template
+    .replace('{{videoTitle}}', videoTitle)
+    .replace('{{creatorName}}', creatorName)
+    .replace('{{tickerList}}', tickerList || 'various stocks')
+    .replace('{{watchlistUrl}}', shareUrl)
+    .replace('{{transcript}}', transcriptExcerpt);
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
@@ -1525,7 +1599,7 @@ OUTPUT: only the comment text, no other text.`;
 
 async function handleYoutubeProcess(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
-  const { url, transcript: manualTranscript } = req.body || {};
+  const { url, transcript: manualTranscript, commentOnly = false } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url required' });
 
   const videoId = extractYouTubeVideoId(url);
@@ -1567,10 +1641,10 @@ async function handleYoutubeProcess(req: VercelRequest, res: VercelResponse) {
   const tickerList = (tickers as any[]).map((t: any) => t.ticker).join(', ');
   const placeholderUrl = 'https://dipfinder.com/s/[link]';
 
-  // Tier 2: notes + comment in parallel
+  // Tier 2: notes + comment in parallel (notes skipped in comment-only mode)
   const [notes, commentDraft] = await Promise.all([
-    ytGenerateNotes(meta.videoTitle, meta.creatorName, uploadDate, videoUrl, tickerList),
-    ytGenerateComment(meta.videoTitle, meta.creatorName, tickerList, placeholderUrl, transcriptText.slice(0, 4000)),
+    commentOnly ? Promise.resolve('') : ytGenerateNotes(meta.videoTitle, meta.creatorName, uploadDate, videoUrl, tickerList),
+    ytGenerateComment(meta.videoTitle, meta.creatorName, tickerList, placeholderUrl, transcriptText.slice(0, 4000), !!commentOnly),
   ]);
 
   const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -1585,51 +1659,62 @@ async function handleYoutubeProcess(req: VercelRequest, res: VercelResponse) {
     notes,
     commentDraft,
     suggestedTitle,
+    commentOnly: !!commentOnly,
   });
 }
 
 async function handleYoutubeSave(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
-  const { videoId, videoUrl, videoTitle, creatorName, uploadDate, tickers, title, notes, commentText } = req.body || {};
+  const { videoId, videoUrl, videoTitle, creatorName, uploadDate, tickers, title, notes, commentText, commentOnly = false } = req.body || {};
 
-  if (!videoId || !Array.isArray(tickers) || !tickers.length || !title) {
+  if (!videoId || !Array.isArray(tickers) || !commentText) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  if (!commentOnly && !title) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   const db = await connectToDatabase();
-  const adminUser = await db.collection('users').findOne({ email: ADMIN_EMAIL });
-  if (!adminUser) return res.status(404).json({ error: 'Admin user not found' });
-
-  const adminUserId = (adminUser._id as any).toString();
-  const ownerName = (adminUser as any).name?.split(' ')[0] || 'DipFinder';
 
   const TICKER_RE_SAVE = /^[A-Z0-9.\-]{1,10}$/;
   const sanitized = (tickers as string[])
     .filter(t => typeof t === 'string' && TICKER_RE_SAVE.test(t.toUpperCase()))
     .map(t => t.toUpperCase())
     .slice(0, 50);
-  if (!sanitized.length) return res.status(400).json({ error: 'No valid tickers' });
 
-  const BASE62_YT = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-  const genToken = () => Array.from(randomBytes(6)).map(b => BASE62_YT[b % 62]).join('');
+  let shareUrl = '';
+  let token = '';
 
-  const shareWatchlistId = `youtube_${videoId}`;
-  const existing = await db.collection('sharedWatchlists').findOne({ ownerId: adminUserId, watchlistId: shareWatchlistId });
-  const token = existing?.token || genToken();
+  if (!commentOnly) {
+    if (!sanitized.length) return res.status(400).json({ error: 'No valid tickers' });
 
-  const watchlistName = (typeof title === 'string' ? title : 'YouTube Picks').slice(0, 60);
-  const notesText = typeof notes === 'string' ? notes.slice(0, 500) : '';
-  const creatorSlug = (creatorName || '').toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 30);
-  const shareUrl = `${FRONTEND_URL}/s/${token}?source=youtube_${creatorSlug}`;
+    const adminUser = await db.collection('users').findOne({ email: ADMIN_EMAIL });
+    if (!adminUser) return res.status(404).json({ error: 'Admin user not found' });
 
-  await db.collection('sharedWatchlists').updateOne(
-    { ownerId: adminUserId, watchlistId: shareWatchlistId },
-    {
-      $set: { token, ownerName, watchlistName, stocks: sanitized, smaPeriod: 200, notes: notesText, updatedAt: new Date() },
-      $setOnInsert: { createdAt: new Date(), viewCount: 0 },
-    },
-    { upsert: true }
-  );
+    const adminUserId = (adminUser._id as any).toString();
+    const ownerName = (adminUser as any).name?.split(' ')[0] || 'DipFinder';
+
+    const BASE62_YT = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const genToken = () => Array.from(randomBytes(6)).map(b => BASE62_YT[b % 62]).join('');
+
+    const shareWatchlistId = `youtube_${videoId}`;
+    const existing = await db.collection('sharedWatchlists').findOne({ ownerId: adminUserId, watchlistId: shareWatchlistId });
+    token = existing?.token || genToken();
+
+    const watchlistName = (typeof title === 'string' ? title : 'YouTube Picks').slice(0, 60);
+    const notesText = typeof notes === 'string' ? notes.slice(0, 500) : '';
+    const creatorSlug = (creatorName || '').toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 30);
+    shareUrl = `${FRONTEND_URL}/s/${token}?source=youtube_${creatorSlug}`;
+
+    await db.collection('sharedWatchlists').updateOne(
+      { ownerId: adminUserId, watchlistId: shareWatchlistId },
+      {
+        $set: { token, ownerName, watchlistName, stocks: sanitized, smaPeriod: 200, notes: notesText, updatedAt: new Date() },
+        $setOnInsert: { createdAt: new Date(), viewCount: 0 },
+      },
+      { upsert: true }
+    );
+  }
 
   const PLACEHOLDER = 'https://dipfinder.com/s/[link]';
   const finalComment = (typeof commentText === 'string' ? commentText : '').replace(PLACEHOLDER, shareUrl);
@@ -1642,12 +1727,13 @@ async function handleYoutubeSave(req: VercelRequest, res: VercelResponse) {
     uploadDate: uploadDate || '',
     tickersExtracted: tickers,
     tickersFinal: sanitized,
-    watchlistId: shareWatchlistId,
-    watchlistShareUrl: shareUrl,
+    commentOnly: !!commentOnly,
+    watchlistId: commentOnly ? null : `youtube_${videoId}`,
+    watchlistShareUrl: shareUrl || null,
     commentText: finalComment,
     createdAt: new Date(),
     postedAt: null,
   });
 
-  return res.status(200).json({ shareUrl, token, finalComment, logId: logResult.insertedId.toString() });
+  return res.status(200).json({ shareUrl: shareUrl || null, token: token || null, finalComment, logId: logResult.insertedId.toString() });
 }

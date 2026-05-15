@@ -577,6 +577,36 @@
           </div>
         </details>
 
+        <!-- Comment with watchlist prompt editor -->
+        <details id="yt-comment-watchlist-prompt-details" style="margin-bottom:16px;" ontoggle="if(this.open) loadYtCommentPrompt('watchlist')">
+          <summary style="color:#64748b;font-size:0.78rem;font-weight:600;cursor:pointer;user-select:none;padding:4px 0;">Edit comment prompt (with watchlist link)</summary>
+          <div style="margin-top:8px;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;">
+            <p style="color:#475569;font-size:0.72rem;margin:0 0 8px;line-height:1.6;">Variables: <code style="color:#7dd3fc;">{{videoTitle}}</code> <code style="color:#7dd3fc;">{{creatorName}}</code> <code style="color:#7dd3fc;">{{tickerList}}</code> <code style="color:#7dd3fc;">{{watchlistUrl}}</code> <code style="color:#7dd3fc;">{{transcript}}</code></p>
+            <textarea id="yt-comment-watchlist-prompt-textarea" rows="16" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:10px 12px;font-size:0.75rem;font-family:ui-monospace,monospace;line-height:1.6;resize:vertical;outline:none;" onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+              <button onclick="saveYtCommentPrompt('watchlist')" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:4px 14px;font-size:0.78rem;font-weight:700;cursor:pointer;">Save</button>
+              <button onclick="resetYtCommentPrompt('watchlist')" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:4px 14px;font-size:0.78rem;cursor:pointer;">Reset to default</button>
+              <span id="yt-comment-watchlist-prompt-badge" style="display:none;background:#312e81;color:#a5b4fc;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Custom</span>
+              <span id="yt-comment-watchlist-prompt-status" style="color:#94a3b8;font-size:0.75rem;margin-left:auto;"></span>
+            </div>
+          </div>
+        </details>
+
+        <!-- Comment-only prompt editor -->
+        <details id="yt-comment-only-prompt-details" style="margin-bottom:16px;" ontoggle="if(this.open) loadYtCommentPrompt('only')">
+          <summary style="color:#64748b;font-size:0.78rem;font-weight:600;cursor:pointer;user-select:none;padding:4px 0;">Edit comment prompt (no watchlist link)</summary>
+          <div style="margin-top:8px;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;">
+            <p style="color:#475569;font-size:0.72rem;margin:0 0 8px;line-height:1.6;">Variables: <code style="color:#7dd3fc;">{{videoTitle}}</code> <code style="color:#7dd3fc;">{{creatorName}}</code> <code style="color:#7dd3fc;">{{tickerList}}</code> <code style="color:#7dd3fc;">{{transcript}}</code></p>
+            <textarea id="yt-comment-only-prompt-textarea" rows="16" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:10px 12px;font-size:0.75rem;font-family:ui-monospace,monospace;line-height:1.6;resize:vertical;outline:none;" onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+              <button onclick="saveYtCommentPrompt('only')" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:4px 14px;font-size:0.78rem;font-weight:700;cursor:pointer;">Save</button>
+              <button onclick="resetYtCommentPrompt('only')" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:4px 14px;font-size:0.78rem;cursor:pointer;">Reset to default</button>
+              <span id="yt-comment-only-prompt-badge" style="display:none;background:#312e81;color:#a5b4fc;font-size:0.7em;font-weight:700;padding:2px 8px;border-radius:999px;">Custom</span>
+              <span id="yt-comment-only-prompt-status" style="color:#94a3b8;font-size:0.75rem;margin-left:auto;"></span>
+            </div>
+          </div>
+        </details>
+
         <!-- Step indicators -->
         <div id="yt-indicators" style="display:flex;gap:6px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
           <span id="yt-ind-1" style="font-size:0.78rem;font-weight:700;padding:4px 12px;border-radius:20px;background:#38bdf8;color:#0f172a;">1 · URL</span>
@@ -2553,6 +2583,67 @@
         });
         if (!r.ok) throw new Error((await r.json()).error);
         ta.value = ytPromptDefault;
+        badge.style.display = 'none';
+        status.textContent = 'Reset to default.'; status.style.color = '#4ade80';
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message; status.style.color = '#f87171';
+      }
+    }
+
+    const ytCommentPromptDefaults = {};
+
+    async function loadYtCommentPrompt(mode) {
+      const action = mode === 'watchlist' ? 'get-yt-comment-prompt-watchlist' : 'get-yt-comment-prompt-only';
+      const token = localStorage.getItem('token');
+      const ta = document.getElementById('yt-comment-' + mode + '-prompt-textarea');
+      const badge = document.getElementById('yt-comment-' + mode + '-prompt-badge');
+      const status = document.getElementById('yt-comment-' + mode + '-prompt-status');
+      try {
+        const r = await fetch('/api/admin?action=' + action, { headers: { Authorization: 'Bearer ' + token } });
+        const data = await r.json();
+        ytCommentPromptDefaults[mode] = data.default || '';
+        ta.value = data.prompt || data.default || '';
+        badge.style.display = data.isCustom ? 'inline' : 'none';
+        status.textContent = '';
+      } catch (e) {
+        status.textContent = 'Load failed: ' + e.message; status.style.color = '#f87171';
+      }
+    }
+
+    async function saveYtCommentPrompt(mode) {
+      const action = mode === 'watchlist' ? 'save-yt-comment-prompt-watchlist' : 'save-yt-comment-prompt-only';
+      const token = localStorage.getItem('token');
+      const ta = document.getElementById('yt-comment-' + mode + '-prompt-textarea');
+      const badge = document.getElementById('yt-comment-' + mode + '-prompt-badge');
+      const status = document.getElementById('yt-comment-' + mode + '-prompt-status');
+      try {
+        const r = await fetch('/api/admin?action=' + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ prompt: ta.value }),
+        });
+        if (!r.ok) throw new Error((await r.json()).error);
+        status.textContent = 'Saved.'; status.style.color = '#4ade80';
+        badge.style.display = 'inline';
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message; status.style.color = '#f87171';
+      }
+    }
+
+    async function resetYtCommentPrompt(mode) {
+      const action = mode === 'watchlist' ? 'save-yt-comment-prompt-watchlist' : 'save-yt-comment-prompt-only';
+      const token = localStorage.getItem('token');
+      const ta = document.getElementById('yt-comment-' + mode + '-prompt-textarea');
+      const badge = document.getElementById('yt-comment-' + mode + '-prompt-badge');
+      const status = document.getElementById('yt-comment-' + mode + '-prompt-status');
+      try {
+        const r = await fetch('/api/admin?action=' + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ reset: true }),
+        });
+        if (!r.ok) throw new Error((await r.json()).error);
+        ta.value = ytCommentPromptDefaults[mode] || '';
         badge.style.display = 'none';
         status.textContent = 'Reset to default.'; status.style.color = '#4ade80';
       } catch (e) {
