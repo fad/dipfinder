@@ -1306,21 +1306,25 @@ async function fetchYouTubeTranscript(videoId: string): Promise<string> {
     // fall through to Supadata
   }
 
-  // Stage 2: Supadata API fallback
-  const supadata_key = process.env.SUPADATA_API_KEY;
-  if (!supadata_key) throw new Error('No transcript available');
+  // Stage 2: TranscriptAPI fallback
+  const transcriptApiKey = process.env.TRANSCRIPT_API_KEY;
+  if (!transcriptApiKey) throw new Error('No transcript available');
 
-  const r = await axios.get('https://api.supadata.ai/v1/youtube/transcript', {
-    params: { videoId, lang: 'en', text: true },
-    headers: { 'x-api-key': supadata_key },
+  const r = await axios.get('https://www.transcriptapi.com/api/transcript', {
+    params: { apiKey: transcriptApiKey, videoId },
     timeout: 20000,
   });
 
-  // Response shape: { content: string } when text=true, or { content: [{text,offset,duration}] }
   const data = r.data;
-  if (typeof data?.content === 'string' && data.content.trim()) return data.content.trim();
-  if (Array.isArray(data?.content)) {
-    const joined = data.content.map((s: any) => s.text ?? '').join(' ').trim();
+  // Handle plain string response
+  if (typeof data === 'string' && data.trim()) return data.trim();
+  // Handle { transcript: string }
+  if (typeof data?.transcript === 'string' && data.transcript.trim()) return data.transcript.trim();
+  // Handle { text: string }
+  if (typeof data?.text === 'string' && data.text.trim()) return data.text.trim();
+  // Handle array of segments [{ text }]
+  if (Array.isArray(data)) {
+    const joined = data.map((s: any) => s.text ?? s).join(' ').trim();
     if (joined) return joined;
   }
 
