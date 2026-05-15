@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import axios from 'axios';
+import { randomBytes } from 'crypto';
 import { connectToDatabase } from './lib/mongodb';
 import { yahooFinance, calculateSma } from './lib/stocks';
 import { getEmailTemplate, saveEmailTemplate, listTemplateKeys, sendEmail, buildEmailHtml, renderTemplate } from './lib/email';
@@ -128,6 +129,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleTestAi(res);
       case 'list-shared-watchlists':
         return await handleListSharedWatchlists(res);
+      case 'youtube-process':
+        return await handleYoutubeProcess(req, res);
+      case 'youtube-save':
+        return await handleYoutubeSave(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -1261,4 +1266,310 @@ async function handleListSharedWatchlists(res: VercelResponse) {
     .sort({ createdAt: -1 })
     .toArray();
   return res.status(200).json({ shares });
+}
+
+// ── YouTube Watchlist Wizard ──────────────────────────────────────────────────
+
+function extractYouTubeVideoId(url: string): string | null {
+  try {
+    const u = new URL(url.trim());
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+    if (u.hostname.includes('youtube.com')) return u.searchParams.get('v');
+    return null;
+  } catch { return null; }
+}
+
+async function fetchVideoMetadata(videoId: string): Promise<{ videoTitle: string; creatorName: string; thumbnailUrl: string }> {
+  const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+  const r = await axios.get(oembedUrl, { timeout: 8000 });
+  return {
+    videoTitle: r.data.title || 'Unknown Video',
+    creatorName: r.data.author_name || 'Unknown',
+    thumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+  };
+}
+
+async function fetchYouTubeTranscript(videoId: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { YoutubeTranscript } = require('youtube-transcript');
+  const segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
+  return (segments as any[]).map((s: any) => s.text).join(' ');
+}
+
+async function ytExtractTickers(transcript: string, videoTitle: string): Promise<any[]> {
+  const truncated = transcript.slice(0, 18000);
+  const prompt = `You are analyzing a YouTube finance video transcript to identify stocks the creator is actively discussing, watching, or recommending.
+
+TRANSCRIPT:
+${truncated}
+
+VIDEO TITLE: ${videoTitle}
+
+TASK:
+Extract every stock ticker the creator is actively discussing as a pick, recommendation, watchlist item, or focus of analysis. Include both stocks mentioned by ticker symbol (e.g., "AAPL") and stocks mentioned by company name (e.g., "Apple") — for company names, infer the ticker.
+
+DO NOT INCLUDE:
+- Stocks mentioned only in passing comparison
+- Stocks mentioned only as historical reference
+- Indices (S&P 500, Nasdaq, etc.)
+- ETFs unless the creator is specifically discussing them as a pick
+
+OUTPUT FORMAT:
+JSON array of objects, each with:
+- ticker: the stock symbol (US exchange, uppercase)
+- company_name: the full company name
+- confidence: "high" if mentioned by ticker symbol explicitly, "medium" if mentioned only by company name
+- justification: a short phrase from the transcript that justifies inclusion (1-2 sentences max)
+
+If no clear picks found, return empty array.
+OUTPUT: only the JSON array, no other text.`;
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      temperature: 0.3 as any,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]';
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.error('ytExtractTickers error:', err);
+    return [];
+  }
+}
+
+async function ytExtractTheme(transcript: string, videoTitle: string): Promise<string> {
+  const truncated = transcript.slice(0, 18000);
+  const prompt = `Analyze this YouTube finance video transcript and identify the primary theme of the stocks discussed.
+
+TRANSCRIPT:
+${truncated}
+
+VIDEO TITLE: ${videoTitle}
+
+TASK:
+Return a 2-4 word phrase describing the theme of the stocks discussed. Examples:
+- "value picks"
+- "AI infrastructure plays"
+- "dividend aristocrats"
+- "quality compounders"
+- "small-cap growth"
+- "high-conviction picks"
+
+OUTPUT: only the phrase, no other text. Lowercase unless proper noun.`;
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 32,
+      temperature: 0.5 as any,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return message.content[0].type === 'text' ? message.content[0].text.trim().toLowerCase() : 'stock picks';
+  } catch { return 'stock picks'; }
+}
+
+async function ytGenerateNotes(videoTitle: string, creatorName: string, uploadDate: string, videoUrl: string, tickerList: string): Promise<string> {
+  const prompt = `Write a 2-3 sentence summary description for a public DipFinder watchlist based on a YouTube finance video.
+
+VIDEO TITLE: ${videoTitle}
+CREATOR: ${creatorName}
+DATE: ${uploadDate}
+VIDEO URL: ${videoUrl}
+STOCKS DISCUSSED: ${tickerList || 'various stocks'}
+
+TASK:
+Write a brief, factual description for the watchlist page that:
+- Mentions the creator name and date of the video
+- Briefly describes what the video discussed
+- Includes the video URL as a clickable reference
+- Notes that the watchlist tracks these stocks against their long-term price trends
+- Does NOT use marketing language, exclamation marks, or hype
+
+Length: 2-3 sentences.
+Example output: "From Daniel Pronk's May 14, 2026 video discussing five stocks he considers undervalued. Original video: https://www.youtube.com/watch?v=xyz. Tracking each pick against its 200-day price trend and current valuation."
+
+OUTPUT: only the description text, no other text.`;
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      temperature: 0.5 as any,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return message.content[0].type === 'text' ? message.content[0].text.trim() : '';
+  } catch { return ''; }
+}
+
+async function ytGenerateComment(videoTitle: string, creatorName: string, tickerList: string, shareUrl: string, transcriptExcerpt: string): Promise<string> {
+  const prompt = `You are an experienced patient investor commenting on a YouTube finance video. Your goal is to add substantive value to the discussion while subtly referencing a public watchlist as supporting evidence.
+
+VIDEO TITLE: ${videoTitle}
+CREATOR: ${creatorName}
+STOCKS DISCUSSED IN VIDEO: ${tickerList || 'various stocks'}
+WATCHLIST URL: ${shareUrl}
+
+TRANSCRIPT (key excerpts):
+${transcriptExcerpt}
+
+TASK:
+Write a 2-3 paragraph YouTube comment that:
+- Engages substantively with at least one specific stock or argument from the video (be specific — name the stock, reference what the creator said about it)
+- Adds your own observation or insight that goes beyond what the video said
+- Mentions the watchlist URL at the end framed as "I tracked the stocks discussed against their 200-day moving averages" or similar
+
+VOICE:
+- Dry, observational, calm
+- No exclamation marks
+- No emoji
+- No "great video!" or compliments to the creator
+- No hype phrases
+- Sound like someone who genuinely watched the video
+- Plain language
+
+LENGTH: 50-120 words total.
+OUTPUT: only the comment text, no other text.`;
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      temperature: 0.6 as any,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return message.content[0].type === 'text' ? message.content[0].text.trim() : '';
+  } catch { return ''; }
+}
+
+async function handleYoutubeProcess(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+  const { url } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'url required' });
+
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return res.status(400).json({ error: 'Invalid YouTube URL' });
+
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const uploadDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  // Fetch metadata + transcript in parallel
+  const [metaResult, transcriptResult] = await Promise.allSettled([
+    fetchVideoMetadata(videoId),
+    fetchYouTubeTranscript(videoId),
+  ]);
+
+  const meta = metaResult.status === 'fulfilled'
+    ? metaResult.value
+    : { videoTitle: 'Unknown Video', creatorName: 'Unknown', thumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` };
+
+  const transcriptAvailable = transcriptResult.status === 'fulfilled' && !!transcriptResult.value;
+  const transcriptText = transcriptAvailable ? (transcriptResult.value as string) : '';
+
+  if (!transcriptAvailable) {
+    return res.status(200).json({
+      videoId, videoUrl, uploadDate, ...meta,
+      transcriptAvailable: false,
+      tickers: [], theme: '', notes: '', commentDraft: '', suggestedTitle: '',
+    });
+  }
+
+  // Tier 1: tickers + theme in parallel
+  const [tickers, theme] = await Promise.all([
+    ytExtractTickers(transcriptText, meta.videoTitle),
+    ytExtractTheme(transcriptText, meta.videoTitle),
+  ]);
+
+  const tickerList = (tickers as any[]).map((t: any) => t.ticker).join(', ');
+  const placeholderUrl = 'https://dipfinder.com/s/[link]';
+
+  // Tier 2: notes + comment in parallel
+  const [notes, commentDraft] = await Promise.all([
+    ytGenerateNotes(meta.videoTitle, meta.creatorName, uploadDate, videoUrl, tickerList),
+    ytGenerateComment(meta.videoTitle, meta.creatorName, tickerList, placeholderUrl, transcriptText.slice(0, 4000)),
+  ]);
+
+  const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const suggestedTitle = `${meta.creatorName}'s ${theme} - ${month}`.slice(0, 60);
+
+  return res.status(200).json({
+    videoId, videoUrl, uploadDate, ...meta,
+    transcriptAvailable: true,
+    transcriptExcerpt: transcriptText.slice(0, 3000),
+    tickers,
+    theme,
+    notes,
+    commentDraft,
+    suggestedTitle,
+  });
+}
+
+async function handleYoutubeSave(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+  const { videoId, videoUrl, videoTitle, creatorName, uploadDate, tickers, title, notes, commentText } = req.body || {};
+
+  if (!videoId || !Array.isArray(tickers) || !tickers.length || !title) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const db = await connectToDatabase();
+  const adminUser = await db.collection('users').findOne({ email: ADMIN_EMAIL });
+  if (!adminUser) return res.status(404).json({ error: 'Admin user not found' });
+
+  const adminUserId = (adminUser._id as any).toString();
+  const ownerName = (adminUser as any).name?.split(' ')[0] || 'DipFinder';
+
+  const TICKER_RE_SAVE = /^[A-Z0-9.\-]{1,10}$/;
+  const sanitized = (tickers as string[])
+    .filter(t => typeof t === 'string' && TICKER_RE_SAVE.test(t.toUpperCase()))
+    .map(t => t.toUpperCase())
+    .slice(0, 50);
+  if (!sanitized.length) return res.status(400).json({ error: 'No valid tickers' });
+
+  const BASE62_YT = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  const genToken = () => Array.from(randomBytes(6)).map(b => BASE62_YT[b % 62]).join('');
+
+  const shareWatchlistId = `youtube_${videoId}`;
+  const existing = await db.collection('sharedWatchlists').findOne({ ownerId: adminUserId, watchlistId: shareWatchlistId });
+  const token = existing?.token || genToken();
+
+  const watchlistName = (typeof title === 'string' ? title : 'YouTube Picks').slice(0, 60);
+  const notesText = typeof notes === 'string' ? notes.slice(0, 500) : '';
+  const creatorSlug = (creatorName || '').toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 30);
+  const shareUrl = `${FRONTEND_URL}/s/${token}?source=youtube_${creatorSlug}`;
+
+  await db.collection('sharedWatchlists').updateOne(
+    { ownerId: adminUserId, watchlistId: shareWatchlistId },
+    {
+      $set: { token, ownerName, watchlistName, stocks: sanitized, smaPeriod: 200, notes: notesText, updatedAt: new Date() },
+      $setOnInsert: { createdAt: new Date(), viewCount: 0 },
+    },
+    { upsert: true }
+  );
+
+  const PLACEHOLDER = 'https://dipfinder.com/s/[link]';
+  const finalComment = (typeof commentText === 'string' ? commentText : '').replace(PLACEHOLDER, shareUrl);
+
+  const logResult = await db.collection('youtube_marketing_log').insertOne({
+    videoUrl: videoUrl || `https://www.youtube.com/watch?v=${videoId}`,
+    videoId,
+    videoTitle: videoTitle || '',
+    creatorName: creatorName || '',
+    uploadDate: uploadDate || '',
+    tickersExtracted: tickers,
+    tickersFinal: sanitized,
+    watchlistId: shareWatchlistId,
+    watchlistShareUrl: shareUrl,
+    commentText: finalComment,
+    createdAt: new Date(),
+    postedAt: null,
+  });
+
+  return res.status(200).json({ shareUrl, token, finalComment, logId: logResult.insertedId.toString() });
 }
