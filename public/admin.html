@@ -2524,6 +2524,7 @@
 
     let ytData = {};
     let ytTickers = [];
+    let ytExcludedTickers = [];
     let ytInitialized = false;
     let ytProgressInterval = null;
     let ytCommentOnly = false;
@@ -2666,6 +2667,7 @@
     function ytReset() {
       ytData = {};
       ytTickers = [];
+      ytExcludedTickers = [];
       ytCommentOnly = false;
       const chk = document.getElementById('yt-comment-only-chk');
       if (chk) { chk.checked = false; ytUpdateCommentOnlyMode(); }
@@ -2772,6 +2774,7 @@
 
         ytData = await r.json();
         ytTickers = (ytData.tickers || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
+        ytExcludedTickers = (ytData.tickersExcluded || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
         ytRenderStep2();
 
       } catch (e) {
@@ -2872,6 +2875,7 @@
         // Preserve the video meta we already have, merge in AI results
         ytData = { ...ytData, ...result };
         ytTickers = (result.tickers || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
+        ytExcludedTickers = (result.tickersExcluded || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
         ytRenderStep2();
 
         // Show status feedback
@@ -2915,7 +2919,7 @@
           countEl.textContent = '';
         }
       }
-      chips.innerHTML = ytTickers.map(t => {
+      const activeHtml = ytTickers.map(t => {
         const bg = t.confidence === 'high' ? '#0f172a' : '#1e293b';
         const border = t.confidence === 'high' ? '#38bdf8' : '#475569';
         const dot = t.confidence === 'high' ? '#38bdf8' : '#94a3b8';
@@ -2925,6 +2929,25 @@
           + '<button onclick="ytRemoveTicker(\'' + t.ticker + '\')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:0.9rem;line-height:1;padding:0;margin-left:2px;" title="Remove">×</button>'
           + '</span>';
       }).join('');
+
+      const excludedHtml = ytExcludedTickers.length
+        ? '<span style="display:inline-flex;align-items:center;color:#475569;font-size:0.72rem;font-weight:600;padding:4px 2px;align-self:center;">also found:</span>'
+          + ytExcludedTickers.map(t => {
+            return '<span onclick="ytAddExcludedTicker(\'' + t.ticker + '\')" title="Click to add" style="display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px dashed #334155;border-radius:20px;padding:4px 10px;font-size:0.78rem;color:#475569;font-weight:600;cursor:pointer;" onmouseover="this.style.borderColor=\'#64748b\';this.style.color=\'#94a3b8\'" onmouseout="this.style.borderColor=\'#334155\';this.style.color=\'#475569\'">'
+              + '+ ' + t.ticker
+              + '</span>';
+          }).join('')
+        : '';
+
+      chips.innerHTML = activeHtml + excludedHtml;
+    }
+
+    function ytAddExcludedTicker(ticker) {
+      const idx = ytExcludedTickers.findIndex(t => t.ticker === ticker);
+      if (idx === -1) return;
+      const [t] = ytExcludedTickers.splice(idx, 1);
+      ytTickers.push(t);
+      ytRenderTickerChips();
     }
 
     function ytRenderJustifications() {
@@ -2949,7 +2972,11 @@
     }
 
     function ytRemoveTicker(ticker) {
-      ytTickers = ytTickers.filter(t => t.ticker !== ticker);
+      const idx = ytTickers.findIndex(t => t.ticker === ticker);
+      if (idx === -1) return;
+      const [t] = ytTickers.splice(idx, 1);
+      // Move back to excluded so it's easy to re-add
+      if (!ytExcludedTickers.find(e => e.ticker === ticker)) ytExcludedTickers.push(t);
       ytRenderTickerChips();
     }
 

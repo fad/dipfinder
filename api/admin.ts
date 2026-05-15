@@ -1491,7 +1491,7 @@ function parseTitleStockCount(videoTitle: string): number | null {
   return null;
 }
 
-async function ytExtractTickers(transcript: string, videoTitle: string): Promise<any[]> {
+async function ytExtractTickers(transcript: string, videoTitle: string): Promise<{ tickers: any[]; excluded: any[] }> {
   const db = await connectToDatabase();
   const promptTemplate = await getYtTickerPrompt(db);
   const truncated = transcript.slice(0, 18000);
@@ -1509,22 +1509,22 @@ async function ytExtractTickers(transcript: string, videoTitle: string): Promise
     });
     const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]';
     const parsed = JSON.parse(stripJsonFences(raw));
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) return { tickers: [], excluded: [] };
 
-    // Sort by conviction: high > medium > low, then trim to title count if found
+    // Sort by conviction: high > medium > low
     const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
     parsed.sort((a: any, b: any) => (order[a.confidence] ?? 1) - (order[b.confidence] ?? 1));
 
     const titleCount = parseTitleStockCount(videoTitle);
     if (titleCount && parsed.length > titleCount) {
       console.log(`ytExtractTickers: title says ${titleCount} stocks, trimming from ${parsed.length}`);
-      return parsed.slice(0, titleCount);
+      return { tickers: parsed.slice(0, titleCount), excluded: parsed.slice(titleCount) };
     }
 
-    return parsed;
+    return { tickers: parsed, excluded: [] };
   } catch (err) {
     console.error('ytExtractTickers error:', err);
-    return [];
+    return { tickers: [], excluded: [] };
   }
 }
 
@@ -1665,11 +1665,12 @@ async function handleYoutubeProcess(req: VercelRequest, res: VercelResponse) {
   }
 
   // Tier 1: tickers + theme in parallel
-  const [tickers, theme] = await Promise.all([
+  const [tickerResult, theme] = await Promise.all([
     ytExtractTickers(transcriptText, meta.videoTitle),
     ytExtractTheme(transcriptText, meta.videoTitle),
   ]);
 
+  const { tickers, excluded: tickersExcluded } = tickerResult;
   const tickerList = (tickers as any[]).map((t: any) => t.ticker).join(', ');
   const placeholderUrl = 'https://dipfinder.com/s/[link]';
 
@@ -1687,6 +1688,7 @@ async function handleYoutubeProcess(req: VercelRequest, res: VercelResponse) {
     transcriptAvailable: true,
     transcriptExcerpt: transcriptText.slice(0, 3000),
     tickers,
+    tickersExcluded,
     theme,
     notes,
     commentDraft,
