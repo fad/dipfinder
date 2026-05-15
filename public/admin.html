@@ -2948,18 +2948,22 @@
       const [t] = ytExcludedTickers.splice(idx, 1);
       ytTickers.push(t);
       ytRenderTickerChips();
+      ytRenderJustifications();
     }
 
     function ytRenderJustifications() {
       const el = document.getElementById('yt-justifications');
       if (!el) return;
-      el.innerHTML = ytTickers.filter(t => t.justification).map(t =>
+      const makeRow = (t, optional) =>
         '<div style="border-bottom:1px solid #1e293b;padding:8px 0;">'
-        + '<span style="color:#e2e8f0;font-weight:700;font-size:0.8rem;">' + t.ticker + '</span>'
+        + '<span style="color:' + (optional ? '#475569' : '#e2e8f0') + ';font-weight:700;font-size:0.8rem;">' + t.ticker + '</span>'
         + '<span style="color:#64748b;font-size:0.75rem;margin-left:8px;">' + t.confidence + '</span>'
-        + '<p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0;line-height:1.5;">' + t.justification + '</p>'
-        + '</div>'
-      ).join('');
+        + (optional ? '<span style="color:#334155;font-size:0.72rem;margin-left:8px;font-style:italic;">not selected</span>' : '')
+        + '<p style="color:' + (optional ? '#475569' : '#94a3b8') + ';font-size:0.78rem;margin:4px 0 0;line-height:1.5;">' + t.justification + '</p>'
+        + '</div>';
+      const activeRows = ytTickers.filter(t => t.justification).map(t => makeRow(t, false)).join('');
+      const excludedRows = ytExcludedTickers.filter(t => t.justification).map(t => makeRow(t, true)).join('');
+      el.innerHTML = activeRows + excludedRows;
     }
 
     function ytToggleJustifications() {
@@ -2978,6 +2982,7 @@
       // Move back to excluded so it's easy to re-add
       if (!ytExcludedTickers.find(e => e.ticker === ticker)) ytExcludedTickers.push(t);
       ytRenderTickerChips();
+      ytRenderJustifications();
     }
 
     function ytAddTicker() {
