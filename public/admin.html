@@ -584,7 +584,7 @@
           <span id="yt-ind-2" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">2 · Tickers</span>
           <span style="color:#334155;font-size:0.75rem;">→</span>
           <span id="yt-ind-3" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">3 · Title & Notes</span>
-          <span style="color:#334155;font-size:0.75rem;">→</span>
+          <span id="yt-ind-3-arrow" style="color:#334155;font-size:0.75rem;">→</span>
           <span id="yt-ind-4" style="font-size:0.78rem;font-weight:600;padding:4px 12px;border-radius:20px;background:#1e293b;color:#64748b;">4 · Comment</span>
         </div>
 
@@ -599,6 +599,10 @@
                 onkeydown="if(event.key==='Enter') ytProcess()">
               <button class="btn btn-sky" onclick="ytProcess()" id="yt-process-btn">Process video</button>
             </div>
+            <label style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
+              <input type="checkbox" id="yt-comment-only-chk" style="width:15px;height:15px;accent-color:#38bdf8;cursor:pointer;" onchange="ytUpdateCommentOnlyMode()">
+              <span style="color:#94a3b8;font-size:0.8rem;">Comment only — don't create a watchlist</span>
+            </label>
             <p id="yt-step1-error" style="color:#f87171;font-size:0.8rem;margin:8px 0 0;display:none;"></p>
           </div>
         </div>
@@ -728,7 +732,7 @@
               <div style="width:32px;height:32px;background:#0f172a;border-radius:50%;display:flex;align-items:center;justify-content:center;">
                 <span style="color:#4ade80;font-size:1.1rem;">✓</span>
               </div>
-              <p style="color:#4ade80;font-weight:700;font-size:0.95rem;margin:0;">Watchlist created</p>
+              <p id="yt-success-heading" style="color:#4ade80;font-weight:700;font-size:0.95rem;margin:0;">Watchlist created</p>
             </div>
 
             <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
@@ -2490,6 +2494,7 @@
     let ytTickers = [];
     let ytInitialized = false;
     let ytProgressInterval = null;
+    let ytCommentOnly = false;
 
     let ytPromptDefault = '';
 
@@ -2557,9 +2562,22 @@
       }
     }
 
+    function ytUpdateCommentOnlyMode() {
+      ytCommentOnly = document.getElementById('yt-comment-only-chk').checked;
+      const ind3 = document.getElementById('yt-ind-3');
+      const ind3arrow = document.getElementById('yt-ind-3-arrow');
+      if (ind3) ind3.style.display = ytCommentOnly ? 'none' : '';
+      if (ind3arrow) ind3arrow.style.display = ytCommentOnly ? 'none' : '';
+      const saveBtn = document.getElementById('yt-save-btn');
+      if (saveBtn) saveBtn.textContent = ytCommentOnly ? 'Log comment' : 'Save watchlist + copy comment';
+    }
+
     function ytReset() {
       ytData = {};
       ytTickers = [];
+      ytCommentOnly = false;
+      const chk = document.getElementById('yt-comment-only-chk');
+      if (chk) { chk.checked = false; ytUpdateCommentOnlyMode(); }
       document.getElementById('yt-url').value = '';
       const errEl = document.getElementById('yt-step1-error');
       if (errEl) errEl.style.display = 'none';
@@ -2646,7 +2664,7 @@
         const r = await fetch('/api/admin?action=youtube-process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, commentOnly: ytCommentOnly }),
         });
         clearInterval(ytProgressInterval);
         document.getElementById('yt-process-btn').disabled = false;
@@ -2752,7 +2770,7 @@
         const r = await fetch('/api/admin?action=youtube-process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-          body: JSON.stringify({ url: ytData.videoUrl, transcript }),
+          body: JSON.stringify({ url: ytData.videoUrl, transcript, commentOnly: ytCommentOnly }),
         });
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
@@ -2856,7 +2874,8 @@
     }
 
     function ytGoToStep3() {
-      if (!ytTickers.length) { alert('Add at least one ticker to continue.'); return; }
+      if (!ytTickers.length && !ytCommentOnly) { alert('Add at least one ticker to continue.'); return; }
+      if (ytCommentOnly) { ytGoToStep4(); return; }
       // Pre-fill title and notes from AI output
       const titleInp = document.getElementById('yt-title');
       const notesInp = document.getElementById('yt-notes');
@@ -2901,8 +2920,10 @@
       const saveErr = document.getElementById('yt-save-error');
       const saveBtn = document.getElementById('yt-save-btn');
 
-      if (!title || !ytTickers.length) { saveErr.textContent = 'Title and at least one ticker required.'; saveErr.style.display = 'block'; return; }
+      if (!ytCommentOnly && (!title || !ytTickers.length)) { saveErr.textContent = 'Title and at least one ticker required.'; saveErr.style.display = 'block'; return; }
+      if (ytCommentOnly && !commentText) { saveErr.textContent = 'No comment to save.'; saveErr.style.display = 'block'; return; }
 
+      const defaultLabel = ytCommentOnly ? 'Log comment' : 'Save watchlist + copy comment';
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving...';
       saveErr.style.display = 'none';
@@ -2921,11 +2942,12 @@
             title,
             notes,
             commentText,
+            commentOnly: ytCommentOnly,
           }),
         });
 
         saveBtn.disabled = false;
-        saveBtn.textContent = 'Save watchlist + copy comment';
+        saveBtn.textContent = defaultLabel;
 
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
@@ -2944,7 +2966,7 @@
 
       } catch (e) {
         saveBtn.disabled = false;
-        saveBtn.textContent = 'Save watchlist + copy comment';
+        saveBtn.textContent = defaultLabel;
         saveErr.textContent = 'Network error. Please try again.';
         saveErr.style.display = 'block';
       }
@@ -2956,8 +2978,21 @@
       const success = document.getElementById('yt-success');
       if (success) success.style.display = 'block';
 
+      // Heading
+      const heading = document.getElementById('yt-success-heading');
+      if (heading) heading.textContent = result.shareUrl ? 'Watchlist created' : 'Comment logged';
+
+      // Share link — hide in comment-only mode
       const shareLink = document.getElementById('yt-success-share-link');
-      if (shareLink) { shareLink.href = result.shareUrl; shareLink.textContent = result.shareUrl + ' ↗'; }
+      if (shareLink) {
+        if (result.shareUrl) {
+          shareLink.href = result.shareUrl;
+          shareLink.textContent = result.shareUrl + ' ↗';
+          shareLink.style.display = 'inline-flex';
+        } else {
+          shareLink.style.display = 'none';
+        }
+      }
 
       const vidLink = document.getElementById('yt-success-video-link');
       if (vidLink) { vidLink.href = ytData.videoUrl || '#'; }
