@@ -1270,6 +1270,11 @@ async function handleListSharedWatchlists(res: VercelResponse) {
 
 // ── YouTube Watchlist Wizard ──────────────────────────────────────────────────
 
+function stripJsonFences(text: string): string {
+  // Remove markdown code fences that Haiku sometimes adds despite instructions
+  return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+}
+
 function extractYouTubeVideoId(url: string): string | null {
   try {
     const u = new URL(url.trim());
@@ -1332,8 +1337,8 @@ OUTPUT: only the JSON array, no other text.`;
       temperature: 0.3 as any,
       messages: [{ role: 'user', content: prompt }],
     });
-    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]';
-    const parsed = JSON.parse(text);
+    const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]';
+    const parsed = JSON.parse(stripJsonFences(raw));
     return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     console.error('ytExtractTickers error:', err);
