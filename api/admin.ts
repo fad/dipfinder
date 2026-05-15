@@ -133,6 +133,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleYoutubeProcess(req, res);
       case 'youtube-save':
         return await handleYoutubeSave(req, res);
+      case 'get-yt-ticker-prompt':
+        return await handleGetYtTickerPrompt(res);
+      case 'save-yt-ticker-prompt':
+        return await handleSaveYtTickerPrompt(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -1129,6 +1133,33 @@ async function handleGetAiPrompt(res: VercelResponse) {
   });
 }
 
+async function handleGetYtTickerPrompt(res: VercelResponse) {
+  const db = await connectToDatabase();
+  const doc = await db.collection('settings').findOne({ key: 'yt-ticker-prompt' });
+  return res.status(200).json({
+    prompt: doc?.value ?? null,
+    default: DEFAULT_YT_TICKER_PROMPT,
+    isCustom: !!doc?.value,
+  });
+}
+
+async function handleSaveYtTickerPrompt(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { prompt, reset } = req.body || {};
+  const db = await connectToDatabase();
+  if (reset) {
+    await db.collection('settings').deleteOne({ key: 'yt-ticker-prompt' });
+    return res.status(200).json({ ok: true, reset: true });
+  }
+  if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required' });
+  await db.collection('settings').updateOne(
+    { key: 'yt-ticker-prompt' },
+    { $set: { key: 'yt-ticker-prompt', value: prompt.trim(), updatedAt: new Date() } },
+    { upsert: true },
+  );
+  return res.status(200).json({ ok: true });
+}
+
 async function handleSaveAiPrompt(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { prompt, reset } = req.body || {};
@@ -1326,33 +1357,47 @@ async function fetchYouTubeTranscript(videoId: string): Promise<string> {
   throw new Error('No transcript available');
 }
 
-async function ytExtractTickers(transcript: string, videoTitle: string): Promise<any[]> {
-  const truncated = transcript.slice(0, 18000);
-  const prompt = `You are analyzing a YouTube finance video transcript to identify stocks the creator is actively discussing, watching, or recommending.
+export const DEFAULT_YT_TICKER_PROMPT = `You are analyzing a YouTube finance video transcript to extract every stock the creator is actively covering.
 
+VIDEO TITLE: {{videoTitle}}
 TRANSCRIPT:
-${truncated}
+{{transcript}}
 
-VIDEO TITLE: ${videoTitle}
+TITLE HINT: If the video title mentions a specific number of stocks (e.g. "8 stocks I'm buying", "my top 5 picks"), use that as a target count — make sure you find roughly that many.
 
 TASK:
-Extract every stock ticker the creator is actively discussing as a pick, recommendation, watchlist item, or focus of analysis. Include both stocks mentioned by ticker symbol (e.g., "AAPL") and stocks mentioned by company name (e.g., "Apple") — for company names, infer the ticker.
+Extract every stock the creator discusses with any meaningful depth — picks, watchlist items, undervalued candidates, conviction buys, or stocks they are analyzing in detail. Be inclusive: if a stock gets its own analysis section, price target, or valuation discussion, include it even if the ticker symbol is never said aloud.
+
+Include stocks mentioned by ticker symbol AND stocks mentioned only by company name (infer the ticker).
 
 DO NOT INCLUDE:
-- Stocks mentioned only in passing comparison
-- Stocks mentioned only as historical reference
-- Indices (S&P 500, Nasdaq, etc.)
-- ETFs unless the creator is specifically discussing them as a pick
+- Broad market indices (S&P 500, Nasdaq, Dow)
+- Macro benchmarks (SPY, QQQ, IWM) unless the creator explicitly discusses them as a trade
+- Stocks used only as a one-sentence comparison ("unlike Apple, this company...")
+- Companies mentioned only in passing as context
 
 OUTPUT FORMAT:
 JSON array of objects, each with:
-- ticker: the stock symbol (US exchange, uppercase)
-- company_name: the full company name
-- confidence: "high" if mentioned by ticker symbol explicitly, "medium" if mentioned only by company name
-- justification: a short phrase from the transcript that justifies inclusion (1-2 sentences max)
+- ticker: stock symbol (US exchange, uppercase)
+- company_name: full company name
+- confidence: "high" if ticker symbol was stated explicitly, "medium" if inferred from company name
+- justification: one sentence from the transcript showing why this stock is a real pick
 
-If no clear picks found, return empty array.
+Return [] if no stocks qualify.
 OUTPUT: only the JSON array, no other text.`;
+
+async function getYtTickerPrompt(db: any): Promise<string> {
+  const doc = await db.collection('settings').findOne({ key: 'yt-ticker-prompt' });
+  return doc?.value || DEFAULT_YT_TICKER_PROMPT;
+}
+
+async function ytExtractTickers(transcript: string, videoTitle: string): Promise<any[]> {
+  const db = await connectToDatabase();
+  const promptTemplate = await getYtTickerPrompt(db);
+  const truncated = transcript.slice(0, 18000);
+  const prompt = promptTemplate
+    .replace('{{videoTitle}}', videoTitle)
+    .replace('{{transcript}}', truncated);
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
