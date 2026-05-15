@@ -646,7 +646,8 @@
                   <textarea id="yt-transcript-input" rows="8" placeholder="Paste the video transcript, auto-generated captions, or a detailed description here..."
                     style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;padding:10px 12px;font-size:0.8rem;resize:vertical;outline:none;font-family:inherit;line-height:1.5;"
                     onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#334155'"></textarea>
-                  <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                  <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:8px;">
+                    <span id="yt-reanalyze-status" style="color:#4ade80;font-size:0.78rem;display:none;"></span>
                     <button class="btn btn-sky" onclick="ytReanalyze()" id="yt-reanalyze-btn" style="font-size:0.8rem;padding:6px 16px;">Analyze transcript</button>
                   </div>
                 </div>
@@ -2688,6 +2689,27 @@
         ytData = { ...ytData, ...result };
         ytTickers = (result.tickers || []).map(t => ({ ...t, ticker: t.ticker.toUpperCase() }));
         ytRenderStep2();
+
+        // Show status feedback
+        const statusEl = document.getElementById('yt-reanalyze-status');
+        if (statusEl) {
+          const n = ytTickers.length;
+          statusEl.textContent = n ? '✓ ' + n + ' ticker' + (n > 1 ? 's' : '') + ' extracted' : '✓ Analysis complete';
+          statusEl.style.display = 'inline';
+        }
+
+        // After render: if no tickers found, keep transcript area open and show feedback
+        if (!ytTickers.length) {
+          const area = document.getElementById('yt-transcript-area');
+          const toggle = document.getElementById('yt-transcript-toggle');
+          if (area) area.style.display = 'block';
+          if (toggle) toggle.textContent = 'Hide';
+          const noTickers = document.getElementById('yt-no-tickers-msg');
+          if (noTickers) {
+            const themeNote = result.theme ? ' Theme detected: "' + result.theme + '".' : '';
+            noTickers.textContent = 'No specific tickers found in this transcript.' + themeNote + ' Add tickers manually below to continue.';
+          }
+        }
       } catch (e) {
         alert('Network error. Please try again.');
       } finally {
