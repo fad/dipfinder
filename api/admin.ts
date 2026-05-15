@@ -453,7 +453,7 @@ async function handleHealthCheck(req: VercelRequest, res: VercelResponse) {
     if (!transcriptApiKey) throw new Error('TRANSCRIPT_API_KEY not set');
     const start = Date.now();
     const r = await axios.get('https://transcriptapi.com/api/v2/youtube/transcript', {
-      params: { video_url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' },
+      params: { video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
       headers: { Authorization: `Bearer ${transcriptApiKey}` },
       timeout: 15000,
     });
