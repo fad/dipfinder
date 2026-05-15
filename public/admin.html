@@ -794,6 +794,21 @@
                   id="yt-recopy-btn">Copy</button>
               </div>
             </div>
+            <!-- Summaries check (shown after watchlist created) -->
+            <div id="yt-summaries-section" style="margin-top:16px;display:none;">
+              <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                  <p style="color:#94a3b8;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0;">AI Summaries for watchlist tickers</p>
+                  <span id="yt-summaries-status" style="color:#64748b;font-size:0.75rem;"></span>
+                </div>
+                <div id="yt-summaries-loading" style="color:#64748b;font-size:0.82rem;">Checking...</div>
+                <div id="yt-summaries-list" style="display:none;"></div>
+                <div id="yt-summaries-actions" style="display:none;margin-top:12px;">
+                  <button id="yt-generate-summaries-btn" class="btn btn-sky" onclick="ytGenerateSummaries()" style="font-size:0.8rem;padding:6px 16px;">Generate missing summaries</button>
+                  <span id="yt-generate-summaries-status" style="color:#64748b;font-size:0.78rem;margin-left:12px;"></span>
+                </div>
+              </div>
+            </div>
             <div style="margin-top:16px;">
               <button class="btn" style="background:#1e293b;color:#94a3b8;" onclick="ytReset()">Process another video</button>
             </div>
@@ -2799,6 +2814,9 @@
       // Hide success, show step 1
       const success = document.getElementById('yt-success');
       if (success) success.style.display = 'none';
+      ytSummariesData = {};
+      const summariesSection = document.getElementById('yt-summaries-section');
+      if (summariesSection) summariesSection.style.display = 'none';
       ytShowStep(1);
     }
 
@@ -3220,6 +3238,10 @@
 
       const commentEl = document.getElementById('yt-success-comment');
       if (commentEl) commentEl.value = result.finalComment || '';
+
+      if (result.shareUrl && ytTickers.length) {
+        ytLoadSummaries(ytTickers.map(t => t.ticker));
+      }
     }
 
     function ytCopyFinalComment() {
@@ -3229,6 +3251,242 @@
       navigator.clipboard.writeText(el.value).then(() => {
         if (btn) { btn.textContent = 'Copied!'; btn.style.color = '#4ade80'; setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = '#94a3b8'; }, 2000); }
       }).catch(() => { el.select(); document.execCommand('copy'); });
+    }
+
+    let ytSummariesData = {}; // symbol -> summary doc
+
+    async function ytLoadSummaries(tickers) {
+      const section = document.getElementById('yt-summaries-section');
+      const loading = document.getElementById('yt-summaries-loading');
+      const list = document.getElementById('yt-summaries-list');
+      const actions = document.getElementById('yt-summaries-actions');
+      const status = document.getElementById('yt-summaries-status');
+      if (!section) return;
+
+      ytSummariesData = {};
+      section.style.display = 'block';
+      loading.style.display = 'block';
+      list.style.display = 'none';
+      actions.style.display = 'none';
+      status.textContent = '';
+
+      const token = localStorage.getItem('token');
+      try {
+        const r = await fetch('/api/admin?action=youtube-check-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ tickers }),
+        });
+        const data = await r.json();
+        loading.style.display = 'none';
+        list.style.display = 'block';
+        ytRenderSummariesList(data.tickers || []);
+      } catch (e) {
+        loading.textContent = 'Failed to check summaries.';
+      }
+    }
+
+    function ytRenderSummariesList(tickerResults) {
+      const list = document.getElementById('yt-summaries-list');
+      const actions = document.getElementById('yt-summaries-actions');
+      const status = document.getElementById('yt-summaries-status');
+      if (!list) return;
+
+      let missing = 0;
+      tickerResults.forEach(t => {
+        if (t.aiSummary) ytSummariesData[t.symbol] = t.aiSummary;
+        if (!t.aiSummary) missing++;
+      });
+
+      if (status) {
+        const approved = tickerResults.filter(t => t.aiSummary?.approved).length;
+        const pending = tickerResults.filter(t => t.aiSummary && !t.aiSummary.approved).length;
+        status.textContent = approved + ' approved · ' + pending + ' pending · ' + missing + ' missing';
+      }
+
+      list.innerHTML = tickerResults.map(t => ytRenderSummaryCard(t)).join('');
+
+      if (missing > 0 && actions) {
+        const btn = document.getElementById('yt-generate-summaries-btn');
+        if (btn) btn.textContent = 'Generate ' + missing + ' missing summar' + (missing === 1 ? 'y' : 'ies');
+        actions.style.display = 'block';
+        actions.dataset.missingTickers = tickerResults.filter(t => !t.aiSummary).map(t => t.symbol).join(',');
+      } else if (actions) {
+        actions.style.display = 'none';
+      }
+    }
+
+    function ytRenderSummaryCard(tickerResult) {
+      const { symbol, aiSummary, hasSnapshot } = tickerResult;
+      const snapshotBadge = hasSnapshot
+        ? '<span style="color:#4ade80;font-size:0.7rem;">radar ✓</span>'
+        : '<span style="color:#475569;font-size:0.7rem;">radar -</span>';
+
+      if (!aiSummary) {
+        return '<div id="ytsum-' + symbol + '" style="border-bottom:1px solid #0f172a;padding:10px 0;">'
+          + '<div style="display:flex;align-items:center;gap:8px;">'
+          + '<span style="color:#e2e8f0;font-weight:700;font-size:0.82rem;">' + symbol + '</span>'
+          + '<span style="background:#0f172a;color:#475569;font-size:0.7rem;padding:2px 8px;border-radius:999px;">no summary this week</span>'
+          + snapshotBadge
+          + '</div></div>';
+      }
+
+      const statusBadge = aiSummary.approved
+        ? '<span style="background:#14532d;color:#4ade80;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:999px;">approved</span>'
+        : aiSummary.reviewed
+          ? '<span style="background:#7f1d1d;color:#fca5a5;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:999px;">rejected</span>'
+          : '<span style="background:#1c1917;color:#a8a29e;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:999px;">pending review</span>';
+
+      const displayText = aiSummary.editedSummary || aiSummary.summary;
+      const weekOfStr = aiSummary.weekOf ? new Date(aiSummary.weekOf).toISOString() : '';
+
+      return '<div id="ytsum-' + symbol + '" style="border-bottom:1px solid #0f172a;padding:12px 0;">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
+        + '<span style="color:#e2e8f0;font-weight:700;font-size:0.82rem;">' + symbol + '</span>'
+        + (aiSummary.companyName ? '<span style="color:#64748b;font-size:0.78rem;">' + aiSummary.companyName + '</span>' : '')
+        + statusBadge + snapshotBadge
+        + '</div>'
+        + '<div id="ytsum-text-' + symbol + '" style="color:#94a3b8;font-size:0.8rem;line-height:1.6;margin-bottom:8px;">' + displayText + '</div>'
+        + '<div id="ytsum-edit-' + symbol + '" style="display:none;margin-bottom:8px;">'
+        + '<textarea id="ytsum-edit-ta-' + symbol + '" rows="3" style="width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:0.8rem;font-family:inherit;line-height:1.6;resize:vertical;outline:none;">'
+        + displayText + '</textarea>'
+        + '<div style="display:flex;gap:6px;margin-top:4px;">'
+        + '<button onclick="ytSaveEditSummary(\'' + symbol + '\',\'' + weekOfStr + '\')" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:3px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;">Save edit</button>'
+        + '<button onclick="ytCancelEditSummary(\'' + symbol + '\')" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:3px 12px;font-size:0.75rem;cursor:pointer;">Cancel</button>'
+        + '</div></div>'
+        + '<div style="display:flex;gap:6px;">'
+        + '<button onclick="ytApproveSummary(\'' + symbol + '\',\'' + weekOfStr + '\')" style="background:#14532d;color:#86efac;border:none;border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:700;cursor:pointer;">Approve</button>'
+        + '<button onclick="ytRejectSummary(\'' + symbol + '\',\'' + weekOfStr + '\')" style="background:#7f1d1d;color:#fca5a5;border:none;border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:700;cursor:pointer;">Reject</button>'
+        + '<button onclick="ytEditSummary(\'' + symbol + '\')" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:3px 10px;font-size:0.72rem;cursor:pointer;">Edit</button>'
+        + '<button onclick="ytRegenSummary(\'' + symbol + '\')" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:3px 10px;font-size:0.72rem;cursor:pointer;">Regen</button>'
+        + '</div>'
+        + '</div>';
+    }
+
+    async function ytGenerateSummaries() {
+      const btn = document.getElementById('yt-generate-summaries-btn');
+      const statusEl = document.getElementById('yt-generate-summaries-status');
+      const actions = document.getElementById('yt-summaries-actions');
+      const missingStr = actions?.dataset?.missingTickers || '';
+      const missing = missingStr.split(',').filter(Boolean);
+      if (!missing.length) return;
+
+      const token = localStorage.getItem('token');
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+      if (statusEl) statusEl.textContent = '';
+
+      try {
+        const r = await fetch('/api/admin?action=youtube-generate-summaries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ tickers: missing }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Failed');
+
+        // Merge results into summariesData and re-render each card
+        (data.results || []).forEach(r => {
+          const card = document.getElementById('ytsum-' + r.symbol);
+          if (!card) return;
+          if (r.aiSummary) {
+            ytSummariesData[r.symbol] = r.aiSummary;
+            card.outerHTML = ytRenderSummaryCard({ symbol: r.symbol, aiSummary: r.aiSummary, hasSnapshot: false });
+          } else if (r.error) {
+            card.innerHTML += '<p style="color:#f87171;font-size:0.75rem;margin:4px 0 0;">' + r.error + '</p>';
+          }
+        });
+
+        const stillMissing = missing.filter(s => !ytSummariesData[s]);
+        if (btn) { btn.disabled = false; btn.textContent = stillMissing.length ? 'Retry ' + stillMissing.length + ' failed' : 'All generated'; }
+        if (!stillMissing.length && actions) actions.style.display = 'none';
+        if (statusEl) statusEl.textContent = (data.results || []).filter(r => r.generated).length + ' generated';
+      } catch (e) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+        if (statusEl) { statusEl.textContent = 'Error: ' + e.message; statusEl.style.color = '#f87171'; }
+      }
+    }
+
+    async function ytApproveSummary(symbol, weekOf) {
+      const token = localStorage.getItem('token');
+      await fetch('/api/admin?action=update-ai-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ symbol, weekOf, reviewed: true, approved: true }),
+      });
+      if (ytSummariesData[symbol]) { ytSummariesData[symbol].reviewed = true; ytSummariesData[symbol].approved = true; }
+      const card = document.getElementById('ytsum-' + symbol);
+      if (card) card.outerHTML = ytRenderSummaryCard({ symbol, aiSummary: ytSummariesData[symbol], hasSnapshot: false });
+    }
+
+    async function ytRejectSummary(symbol, weekOf) {
+      const token = localStorage.getItem('token');
+      await fetch('/api/admin?action=update-ai-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ symbol, weekOf, reviewed: true, approved: false }),
+      });
+      if (ytSummariesData[symbol]) { ytSummariesData[symbol].reviewed = true; ytSummariesData[symbol].approved = false; }
+      const card = document.getElementById('ytsum-' + symbol);
+      if (card) card.outerHTML = ytRenderSummaryCard({ symbol, aiSummary: ytSummariesData[symbol], hasSnapshot: false });
+    }
+
+    function ytEditSummary(symbol) {
+      document.getElementById('ytsum-text-' + symbol).style.display = 'none';
+      document.getElementById('ytsum-edit-' + symbol).style.display = 'block';
+    }
+
+    function ytCancelEditSummary(symbol) {
+      document.getElementById('ytsum-text-' + symbol).style.display = 'block';
+      document.getElementById('ytsum-edit-' + symbol).style.display = 'none';
+    }
+
+    async function ytSaveEditSummary(symbol, weekOf) {
+      const token = localStorage.getItem('token');
+      const ta = document.getElementById('ytsum-edit-ta-' + symbol);
+      const edited = ta ? ta.value.trim() : '';
+      await fetch('/api/admin?action=update-ai-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ symbol, weekOf, reviewed: true, approved: true, editedSummary: edited }),
+      });
+      if (ytSummariesData[symbol]) {
+        ytSummariesData[symbol].editedSummary = edited;
+        ytSummariesData[symbol].reviewed = true;
+        ytSummariesData[symbol].approved = true;
+      }
+      const card = document.getElementById('ytsum-' + symbol);
+      if (card) card.outerHTML = ytRenderSummaryCard({ symbol, aiSummary: ytSummariesData[symbol], hasSnapshot: false });
+    }
+
+    async function ytRegenSummary(symbol) {
+      const token = localStorage.getItem('token');
+      const btn = document.querySelector('#ytsum-' + symbol + ' button[onclick^="ytRegenSummary"]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Regenerating...'; }
+      try {
+        const r = await fetch('/api/admin?action=regenerate-ai-summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ symbol }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Failed');
+        // Reload check-data for this symbol to get the fresh doc
+        const r2 = await fetch('/api/admin?action=youtube-check-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ tickers: [symbol] }),
+        });
+        const data2 = await r2.json();
+        const fresh = (data2.tickers || [])[0];
+        if (fresh?.aiSummary) {
+          ytSummariesData[symbol] = fresh.aiSummary;
+          const card = document.getElementById('ytsum-' + symbol);
+          if (card) card.outerHTML = ytRenderSummaryCard({ symbol, aiSummary: fresh.aiSummary, hasSnapshot: fresh.hasSnapshot });
+        }
+      } catch (e) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Regen'; }
+        alert('Regen failed: ' + e.message);
+      }
     }
 
     // ── YouTube Comment-Only Wizard ───────────────────────────────────────────

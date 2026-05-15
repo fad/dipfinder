@@ -133,6 +133,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleYoutubeProcess(req, res);
       case 'youtube-save':
         return await handleYoutubeSave(req, res);
+      case 'youtube-check-data':
+        return await handleYoutubeCheckData(req, res);
+      case 'youtube-generate-summaries':
+        return await handleYoutubeGenerateSummaries(req, res);
       case 'get-yt-ticker-prompt':
         return await handleGetYtTickerPrompt(res);
       case 'save-yt-ticker-prompt':
@@ -1799,4 +1803,133 @@ async function handleYoutubeSave(req: VercelRequest, res: VercelResponse) {
   });
 
   return res.status(200).json({ shareUrl: shareUrl || null, token: token || null, finalComment, logId: logResult.insertedId.toString() });
+}
+
+async function handleYoutubeCheckData(req: VercelRequest, res: VercelResponse) {
+  const rawTickers = req.body?.tickers || req.query.tickers;
+  const normalized: string[] = (Array.isArray(rawTickers) ? rawTickers : String(rawTickers || '').split(','))
+    .map((t: string) => t.toUpperCase().trim()).filter(Boolean).slice(0, 30);
+  if (!normalized.length) return res.status(400).json({ error: 'tickers required' });
+
+  const db = await connectToDatabase();
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  // Compute ISO week key (same logic as macro-recap.ts getISOWeekKey)
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  const weekKey = `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+
+  const results = await Promise.all(normalized.map(async (symbol) => {
+    const [aiDoc, radarDoc] = await Promise.all([
+      db.collection('aiSummaries').findOne(
+        { symbol, createdAt: { $gte: sevenDaysAgo } },
+        { projection: { symbol: 1, companyName: 1, summary: 1, editedSummary: 1, reviewed: 1, approved: 1, weekOf: 1, headlines: 1 } }
+      ),
+      db.collection('weekly_radar_universe').findOne({ weekKey, ticker: symbol }, { projection: { _id: 1 } }),
+    ]);
+    return {
+      symbol,
+      hasSnapshot: !!radarDoc,
+      aiSummary: aiDoc ? {
+        id: aiDoc._id.toString(),
+        symbol: aiDoc.symbol,
+        companyName: aiDoc.companyName,
+        summary: aiDoc.summary,
+        editedSummary: aiDoc.editedSummary || null,
+        reviewed: aiDoc.reviewed,
+        approved: aiDoc.approved,
+        weekOf: aiDoc.weekOf,
+        headlines: aiDoc.headlines || [],
+      } : null,
+    };
+  }));
+
+  return res.status(200).json({ tickers: results });
+}
+
+async function handleYoutubeGenerateSummaries(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { tickers, force = false } = req.body || {};
+  if (!Array.isArray(tickers) || !tickers.length) return res.status(400).json({ error: 'tickers required' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not set' });
+
+  const db = await connectToDatabase();
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const weekOf = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const summaryCol = db.collection('aiSummaries');
+  const normalized: string[] = tickers.map((t: string) => t.toUpperCase().trim()).filter(Boolean).slice(0, 20);
+
+  // Fetch macro context once
+  const macro: { spyWeekly?: number; qqqWeekly?: number } = {};
+  try {
+    const spy = await fetchStockData('SPY', db);
+    if (spy.closes.length >= 6) macro.spyWeekly = spy.closes[spy.closes.length - 1] / spy.closes[spy.closes.length - 6] - 1;
+  } catch { /* best-effort */ }
+  try {
+    const qqq = await fetchStockData('QQQ', db);
+    if (qqq.closes.length >= 6) macro.qqqWeekly = qqq.closes[qqq.closes.length - 1] / qqq.closes[qqq.closes.length - 6] - 1;
+  } catch { /* best-effort */ }
+
+  const promptTemplate = await getAiPromptTemplate(db);
+
+  const results = await Promise.all(normalized.map(async (symbol) => {
+    // Return existing if not forcing
+    if (!force) {
+      const existing = await summaryCol.findOne({ symbol, createdAt: { $gte: sevenDaysAgo } });
+      if (existing) {
+        return {
+          symbol, skipped: true,
+          aiSummary: {
+            id: existing._id.toString(), symbol: existing.symbol,
+            companyName: existing.companyName, summary: existing.summary,
+            editedSummary: existing.editedSummary || null,
+            reviewed: existing.reviewed, approved: existing.approved,
+            weekOf: existing.weekOf, headlines: existing.headlines || [],
+          },
+        };
+      }
+    }
+
+    try {
+      const smaPeriod = NEWSLETTER_SMA_DEFAULT;
+      const [stockData, newsRaw] = await Promise.all([
+        fetchStockData(symbol, db),
+        fetchNewsForSymbol(symbol, db, 10),
+      ]);
+      const deduped = deduplicateNewsItems(newsRaw as any[], 5);
+      const headlines = deduped.map((n: any) => n.headline);
+      const headlineDates = deduped.map((n: any) => n.datetime);
+      if (!headlines.length) return { symbol, error: 'No headlines available' };
+      if (stockData.closes.length < smaPeriod) return { symbol, error: 'Insufficient price history' };
+
+      const sma = calculateSma(stockData.closes, smaPeriod);
+      const relativePrice = stockData.currentPrice / sma - 1;
+      const result = await generateAiSummary(
+        symbol, stockData.companyName, headlines, relativePrice, smaPeriod,
+        { closes: stockData.closes, volumes: stockData.volumes || [], headlineDates, macro, promptTemplate }
+      );
+      if (!result.summary) return { symbol, error: 'Claude returned empty summary' };
+
+      await upsertAiSummary(db, symbol, stockData.companyName, headlines, result, weekOf);
+      const doc = await summaryCol.findOne({ symbol, createdAt: { $gte: sevenDaysAgo } });
+      return {
+        symbol, generated: true,
+        aiSummary: doc ? {
+          id: doc._id.toString(), symbol: doc.symbol,
+          companyName: doc.companyName, summary: doc.summary,
+          editedSummary: doc.editedSummary || null,
+          reviewed: doc.reviewed, approved: doc.approved,
+          weekOf: doc.weekOf, headlines: doc.headlines || [],
+        } : null,
+      };
+    } catch (err: any) {
+      return { symbol, error: err?.message || 'Generation failed' };
+    }
+  }));
+
+  return res.status(200).json({ results });
 }
