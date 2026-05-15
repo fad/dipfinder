@@ -1306,25 +1306,20 @@ async function fetchYouTubeTranscript(videoId: string): Promise<string> {
     // fall through to Supadata
   }
 
-  // Stage 2: TranscriptAPI fallback
+  // Stage 2: TranscriptAPI fallback (api/v2/youtube/transcript)
   const transcriptApiKey = process.env.TRANSCRIPT_API_KEY;
   if (!transcriptApiKey) throw new Error('No transcript available');
 
-  const r = await axios.get('https://www.transcriptapi.com/api/transcript', {
-    params: { apiKey: transcriptApiKey, videoId },
+  const r = await axios.get('https://transcriptapi.com/api/v2/youtube/transcript', {
+    params: { video_url: `https://www.youtube.com/watch?v=${videoId}` },
+    headers: { Authorization: `Bearer ${transcriptApiKey}` },
     timeout: 20000,
   });
 
-  const data = r.data;
-  // Handle plain string response
-  if (typeof data === 'string' && data.trim()) return data.trim();
-  // Handle { transcript: string }
-  if (typeof data?.transcript === 'string' && data.transcript.trim()) return data.transcript.trim();
-  // Handle { text: string }
-  if (typeof data?.text === 'string' && data.text.trim()) return data.text.trim();
-  // Handle array of segments [{ text }]
-  if (Array.isArray(data)) {
-    const joined = data.map((s: any) => s.text ?? s).join(' ').trim();
+  // Response: { video_id, language, transcript: [{ text, start, duration }] }
+  const segments = r.data?.transcript;
+  if (Array.isArray(segments) && segments.length) {
+    const joined = segments.map((s: any) => s.text ?? '').join(' ').trim();
     if (joined) return joined;
   }
 
