@@ -1480,6 +1480,17 @@ async function getYtTickerPrompt(db: any): Promise<string> {
   return doc?.value || DEFAULT_YT_TICKER_PROMPT;
 }
 
+function parseTitleStockCount(videoTitle: string): number | null {
+  // Match patterns like "5 stocks", "top 10 picks", "3 dividend stocks", etc.
+  const m = videoTitle.match(/\b(\d+)\s+(?:top\s+)?(?:stocks?|picks?|ideas?|companies|names?|dividend\s+stocks?|growth\s+stocks?)\b/i)
+    || videoTitle.match(/\btop\s+(\d+)\b/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    return n >= 1 && n <= 30 ? n : null;
+  }
+  return null;
+}
+
 async function ytExtractTickers(transcript: string, videoTitle: string): Promise<any[]> {
   const db = await connectToDatabase();
   const promptTemplate = await getYtTickerPrompt(db);
@@ -1498,7 +1509,19 @@ async function ytExtractTickers(transcript: string, videoTitle: string): Promise
     });
     const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]';
     const parsed = JSON.parse(stripJsonFences(raw));
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    // Sort by conviction: high > medium > low, then trim to title count if found
+    const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    parsed.sort((a: any, b: any) => (order[a.confidence] ?? 1) - (order[b.confidence] ?? 1));
+
+    const titleCount = parseTitleStockCount(videoTitle);
+    if (titleCount && parsed.length > titleCount) {
+      console.log(`ytExtractTickers: title says ${titleCount} stocks, trimming from ${parsed.length}`);
+      return parsed.slice(0, titleCount);
+    }
+
+    return parsed;
   } catch (err) {
     console.error('ytExtractTickers error:', err);
     return [];
@@ -1571,6 +1594,14 @@ OUTPUT: only the description text, no other text.`;
   } catch { return ''; }
 }
 
+function cleanCommentText(text: string): string {
+  // Replace em dashes with hyphens
+  let out = text.replace(/\u2014/g, '-').replace(/\u2013/g, '-');
+  // Normalise line endings, collapse 3+ blank lines to 2, trim
+  out = out.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return out;
+}
+
 async function ytGenerateComment(videoTitle: string, creatorName: string, tickerList: string, shareUrl: string, transcriptExcerpt: string, commentOnly = false): Promise<string> {
   const db = await connectToDatabase();
   const settingsKey = commentOnly ? 'yt-comment-prompt-only' : 'yt-comment-prompt-watchlist';
@@ -1593,7 +1624,8 @@ async function ytGenerateComment(videoTitle: string, creatorName: string, ticker
       temperature: 0.6 as any,
       messages: [{ role: 'user', content: prompt }],
     });
-    return message.content[0].type === 'text' ? message.content[0].text.trim() : '';
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '';
+    return cleanCommentText(raw);
   } catch { return ''; }
 }
 
@@ -1717,7 +1749,7 @@ async function handleYoutubeSave(req: VercelRequest, res: VercelResponse) {
   }
 
   const PLACEHOLDER = 'https://dipfinder.com/s/[link]';
-  const finalComment = (typeof commentText === 'string' ? commentText : '').replace(PLACEHOLDER, shareUrl);
+  const finalComment = cleanCommentText((typeof commentText === 'string' ? commentText : '').replace(PLACEHOLDER, shareUrl));
 
   const logResult = await db.collection('youtube_marketing_log').insertOne({
     videoUrl: videoUrl || `https://www.youtube.com/watch?v=${videoId}`,
