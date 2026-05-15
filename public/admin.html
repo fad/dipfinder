@@ -2890,7 +2890,7 @@
 
     function ytGoToStep4() {
       const title = (document.getElementById('yt-title').value || '').trim();
-      if (!title) { alert('Please enter a title.'); return; }
+      if (!ytCommentOnly && !title) { alert('Please enter a title.'); return; }
       const commentEl = document.getElementById('yt-comment');
       if (commentEl && !commentEl.value) {
         commentEl.value = ytData.commentDraft || '';
