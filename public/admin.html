@@ -324,6 +324,7 @@
               <th onclick="sortBy('timezone')">Timezone <span class="sort-arrow" id="arrow-timezone">↕</span></th>
               <th onclick="sortBy('totalLoginCount')">Logins <span class="sort-arrow" id="arrow-totalLoginCount">↕</span></th>
               <th onclick="sortBy('lastLoginAt')">Last Login <span class="sort-arrow" id="arrow-lastLoginAt">↕</span></th>
+              <th onclick="sortBy('lastNewsletterSentAt')">Last Brief <span class="sort-arrow" id="arrow-lastNewsletterSentAt">↕</span></th>
               <th onclick="sortBy('watchlist')">Watchlist <span class="sort-arrow" id="arrow-watchlist">↕</span></th>
               <th onclick="sortBy('isPro')">Pro <span class="sort-arrow" id="arrow-isPro">↕</span></th>
               <th></th>
@@ -981,7 +982,7 @@
       if (key === 'newsletterSubscribed') return user.newsletterSubscribed ? 1 : 0;
       if (key === 'sundayBriefSubscribed') return user.sundayBriefSubscribed ? 1 : 0;
       if (key === 'isPro') return user.isPro ? 1 : 0;
-      if (key === 'createdDate' || key === 'lastLoginAt') return user[key] ? new Date(user[key]).getTime() : 0;
+      if (key === 'createdDate' || key === 'lastLoginAt' || key === 'lastNewsletterSentAt') return user[key] ? new Date(user[key]).getTime() : 0;
       return (user[key] || '').toString().toLowerCase();
     }
 
@@ -999,7 +1000,7 @@
       });
 
       document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
-      ['name','email','createdDate','newsletterSubscribed','sundayBriefSubscribed','timezone','totalLoginCount','lastLoginAt','watchlist','isPro'].forEach(k => {
+      ['name','email','createdDate','newsletterSubscribed','sundayBriefSubscribed','timezone','totalLoginCount','lastLoginAt','lastNewsletterSentAt','watchlist','isPro'].forEach(k => {
         const el = document.getElementById('arrow-' + k);
         if (!el) return;
         if (k === sortKey) {
@@ -1017,7 +1018,7 @@
 
       const tbody = document.getElementById('user-rows');
       if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="no-data">No users found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="no-data">No users found</td></tr>';
       } else {
         tbody.innerHTML = pageUsers.map(u => {
           const watchlist = (u.watchlist || []);
@@ -1081,6 +1082,7 @@
             </td>
             <td>${u.totalLoginCount || 0}</td>
             <td>${fmt(u.lastLoginAt)}</td>
+            <td style="font-size:0.75rem;color:${u.lastNewsletterSentAt ? '#94a3b8' : '#475569'};">${u.lastNewsletterSentAt ? fmt(u.lastNewsletterSentAt) : '<span style="color:#475569">—</span>'}</td>
             <td title="${watchlistTip}">${watchlist.length ? watchlist.length : '<span style="color:#64748b">0</span>'}</td>
             <td>
               ${u.isPro
