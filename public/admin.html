@@ -1029,7 +1029,56 @@
             <td>${fmt(u.createdDate)}</td>
             <td><button class="sub-toggle ${u.newsletterSubscribed ? 'sub-on' : 'sub-off'}" onclick="toggleSubscription('${u.email}', 'newsletterSubscribed', ${!!u.newsletterSubscribed})">${u.newsletterSubscribed ? 'On' : 'Off'}</button></td>
             <td><button class="sub-toggle ${u.sundayBriefSubscribed ? 'sub-on' : 'sub-off'}" onclick="toggleSubscription('${u.email}', 'sundayBriefSubscribed', ${!!u.sundayBriefSubscribed})">${u.sundayBriefSubscribed ? 'On' : 'Off'}</button></td>
-            <td style="font-size:0.75rem;color:#94a3b8;">${u.timezone || '<span style="color:#475569">—</span>'}</td>
+            <td style="min-width:140px;">
+              <select onchange="setUserTimezone('${u.email}', this.value)" style="width:100%;background:#0f172a;color:#94a3b8;border:1px solid #334155;border-radius:4px;padding:2px 4px;font-size:0.7rem;cursor:pointer;">
+                <option value="" ${!u.timezone ? 'selected' : ''}>— not set —</option>
+                <optgroup label="Americas">
+                  <option value="America/New_York" ${u.timezone==='America/New_York' ? 'selected' : ''}>New York (ET)</option>
+                  <option value="America/Chicago" ${u.timezone==='America/Chicago' ? 'selected' : ''}>Chicago (CT)</option>
+                  <option value="America/Denver" ${u.timezone==='America/Denver' ? 'selected' : ''}>Denver (MT)</option>
+                  <option value="America/Los_Angeles" ${u.timezone==='America/Los_Angeles' ? 'selected' : ''}>Los Angeles (PT)</option>
+                  <option value="America/Phoenix" ${u.timezone==='America/Phoenix' ? 'selected' : ''}>Phoenix (AZ)</option>
+                  <option value="America/Anchorage" ${u.timezone==='America/Anchorage' ? 'selected' : ''}>Anchorage (AK)</option>
+                  <option value="Pacific/Honolulu" ${u.timezone==='Pacific/Honolulu' ? 'selected' : ''}>Honolulu (HI)</option>
+                  <option value="America/Toronto" ${u.timezone==='America/Toronto' ? 'selected' : ''}>Toronto</option>
+                  <option value="America/Vancouver" ${u.timezone==='America/Vancouver' ? 'selected' : ''}>Vancouver</option>
+                  <option value="America/Sao_Paulo" ${u.timezone==='America/Sao_Paulo' ? 'selected' : ''}>Sao Paulo</option>
+                  <option value="America/Argentina/Buenos_Aires" ${u.timezone==='America/Argentina/Buenos_Aires' ? 'selected' : ''}>Buenos Aires</option>
+                </optgroup>
+                <optgroup label="Europe">
+                  <option value="Europe/London" ${u.timezone==='Europe/London' ? 'selected' : ''}>London</option>
+                  <option value="Europe/Paris" ${u.timezone==='Europe/Paris' ? 'selected' : ''}>Paris</option>
+                  <option value="Europe/Berlin" ${u.timezone==='Europe/Berlin' ? 'selected' : ''}>Berlin</option>
+                  <option value="Europe/Madrid" ${u.timezone==='Europe/Madrid' ? 'selected' : ''}>Madrid</option>
+                  <option value="Europe/Rome" ${u.timezone==='Europe/Rome' ? 'selected' : ''}>Rome</option>
+                  <option value="Europe/Amsterdam" ${u.timezone==='Europe/Amsterdam' ? 'selected' : ''}>Amsterdam</option>
+                  <option value="Europe/Stockholm" ${u.timezone==='Europe/Stockholm' ? 'selected' : ''}>Stockholm</option>
+                  <option value="Europe/Moscow" ${u.timezone==='Europe/Moscow' ? 'selected' : ''}>Moscow</option>
+                </optgroup>
+                <optgroup label="Middle East &amp; Africa">
+                  <option value="Asia/Dubai" ${u.timezone==='Asia/Dubai' ? 'selected' : ''}>Dubai</option>
+                  <option value="Africa/Johannesburg" ${u.timezone==='Africa/Johannesburg' ? 'selected' : ''}>Johannesburg</option>
+                  <option value="Africa/Cairo" ${u.timezone==='Africa/Cairo' ? 'selected' : ''}>Cairo</option>
+                </optgroup>
+                <optgroup label="Asia">
+                  <option value="Asia/Kolkata" ${u.timezone==='Asia/Kolkata' ? 'selected' : ''}>India (IST)</option>
+                  <option value="Asia/Bangkok" ${u.timezone==='Asia/Bangkok' ? 'selected' : ''}>Bangkok</option>
+                  <option value="Asia/Singapore" ${u.timezone==='Asia/Singapore' ? 'selected' : ''}>Singapore</option>
+                  <option value="Asia/Shanghai" ${u.timezone==='Asia/Shanghai' ? 'selected' : ''}>Shanghai</option>
+                  <option value="Asia/Tokyo" ${u.timezone==='Asia/Tokyo' ? 'selected' : ''}>Tokyo</option>
+                  <option value="Asia/Seoul" ${u.timezone==='Asia/Seoul' ? 'selected' : ''}>Seoul</option>
+                  <option value="Asia/Hong_Kong" ${u.timezone==='Asia/Hong_Kong' ? 'selected' : ''}>Hong Kong</option>
+                </optgroup>
+                <optgroup label="Pacific">
+                  <option value="Australia/Sydney" ${u.timezone==='Australia/Sydney' ? 'selected' : ''}>Sydney</option>
+                  <option value="Australia/Melbourne" ${u.timezone==='Australia/Melbourne' ? 'selected' : ''}>Melbourne</option>
+                  <option value="Pacific/Auckland" ${u.timezone==='Pacific/Auckland' ? 'selected' : ''}>Auckland</option>
+                </optgroup>
+                <optgroup label="Other">
+                  <option value="UTC" ${u.timezone==='UTC' ? 'selected' : ''}>UTC</option>
+                </optgroup>
+              </select>
+            </td>
             <td>${u.totalLoginCount || 0}</td>
             <td>${fmt(u.lastLoginAt)}</td>
             <td title="${watchlistTip}">${watchlist.length ? watchlist.length : '<span style="color:#64748b">0</span>'}</td>
@@ -1040,7 +1089,7 @@
               <button class="btn" style="padding:0.2rem 0.55rem;font-size:0.7rem;background:${u.isPro ? '#450a0a' : '#0c2845'};color:${u.isPro ? '#fca5a5' : '#7dd3fc'};" onclick="togglePro('${u.email}', ${!!u.isPro})">${u.isPro ? 'Revoke Pro' : 'Grant Pro'}</button>
             </td>
             <td><button class="btn btn-red" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="deleteUser('${u.email}')">Delete</button></td>
-            <td>${watchlist.length ? `<button class="btn" style="padding:0.25rem 0.6rem;font-size:0.7rem;background:#1e293b;color:#7dd3fc;border:1px solid #334155;" onclick="previewBriefForUser('${u.email}')">Brief ↗</button>` : ''}</td>
+            <td style="white-space:nowrap;">${watchlist.length ? `<button class="btn" style="padding:0.25rem 0.6rem;font-size:0.7rem;background:#1e293b;color:#7dd3fc;border:1px solid #334155;margin-right:4px;" onclick="previewBriefForUser('${u.email}')">Brief ↗</button><button class="btn" style="padding:0.25rem 0.6rem;font-size:0.7rem;background:#0c2845;color:#7dd3fc;border:1px solid #1e3a5f;" onclick="sendBriefToUser('${u.email}', this)">Send</button>` : ''}</td>
           </tr>`;
         }).join('');
       }
@@ -2152,6 +2201,54 @@
         if (u) u.isPro = newVal;
         renderTable();
       } catch (e) {
+        alert('Network error: ' + e.message);
+      }
+    }
+
+    async function setUserTimezone(email, timezone) {
+      if (!timezone) return; // "not set" selected — no-op
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=set-user-timezone', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, timezone })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('Error: ' + (data.error || res.status)); return; }
+        const u = allUsers.find(u => u.email === email);
+        if (u) u.timezone = timezone;
+      } catch (e) {
+        alert('Network error: ' + e.message);
+      }
+    }
+
+    async function sendBriefToUser(email, btn) {
+      if (!confirm('Send Sunday Brief to ' + email + ' now?\n\nThis bypasses the normal time window and will update lastNewsletterSentAt.')) return;
+      const orig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('/api/admin?action=send-brief-to-user', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          btn.textContent = 'Sent';
+          btn.style.background = '#14532d';
+          btn.style.color = '#86efac';
+          btn.style.border = '1px solid #166534';
+        } else {
+          btn.textContent = orig;
+          btn.disabled = false;
+          alert('Failed: ' + (data.error || 'unknown error'));
+        }
+      } catch (e) {
+        btn.textContent = orig;
+        btn.disabled = false;
         alert('Network error: ' + e.message);
       }
     }

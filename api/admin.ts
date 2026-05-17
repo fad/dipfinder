@@ -7,10 +7,14 @@ import { connectToDatabase } from './lib/mongodb';
 import { yahooFinance, calculateSma } from './lib/stocks';
 import { getEmailTemplate, saveEmailTemplate, listTemplateKeys, sendEmail, buildEmailHtml, renderTemplate } from './lib/email';
 import Anthropic from '@anthropic-ai/sdk';
-import { fetchStockData, fetchNewsForSymbol, NEWSLETTER_SMA_DEFAULT } from './lib/newsletter-data';
-import { generateAiSummary, upsertAiSummary, getAiPromptTemplate, DEFAULT_NEWS_SUMMARY_PROMPT, deduplicateNewsItems } from './lib/ai-summaries';
+import { fetchStockData, fetchNewsForSymbol, NEWSLETTER_SMA_DEFAULT, buildStockResults, fetchAllWeekEarnings, filterEarningsByWatchlist } from './lib/newsletter-data';
+import { generateAiSummary, upsertAiSummary, getAiPromptTemplate, DEFAULT_NEWS_SUMMARY_PROMPT, deduplicateNewsItems, getApprovedSummaries } from './lib/ai-summaries';
 import { verifyJWT } from './lib/auth';
 import { shouldCronRun, recordCronRun } from './lib/cron-schedule';
+import { sendNewsletterEmail } from './lib/email';
+import { fetchCurrentWeekMacroRecap } from './lib/macro-recap';
+import { fetchRadarSuggestions } from './lib/radar';
+import { buildOpenerSummary } from './lib/personalOpener';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -149,6 +153,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleGetYtCommentPrompt(res, 'yt-comment-prompt-only', DEFAULT_YT_COMMENT_PROMPT_ONLY);
       case 'save-yt-comment-prompt-only':
         return await handleSaveYtCommentPrompt(req, res, 'yt-comment-prompt-only');
+      case 'set-user-timezone':
+        return await handleSetUserTimezone(req, res);
+      case 'send-brief-to-user':
+        return await handleSendBriefToUser(req, res);
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
@@ -1932,4 +1940,100 @@ async function handleYoutubeGenerateSummaries(req: VercelRequest, res: VercelRes
   }));
 
   return res.status(200).json({ results });
+}
+
+async function handleSetUserTimezone(req: VercelRequest, res: VercelResponse) {
+  const { email, timezone } = req.body || {};
+  if (!email || !timezone) return res.status(400).json({ error: 'email and timezone required' });
+
+  // Basic IANA timezone validation
+  try { Intl.DateTimeFormat(undefined, { timeZone: timezone }); } catch {
+    return res.status(400).json({ error: 'Invalid timezone' });
+  }
+
+  const db = await connectToDatabase();
+  const result = await db.collection('users').updateOne(
+    { email: email.toLowerCase() },
+    { $set: { timezone } }
+  );
+  if (result.matchedCount === 0) return res.status(404).json({ error: 'User not found' });
+  return res.status(200).json({ ok: true });
+}
+
+async function handleSendBriefToUser(req: VercelRequest, res: VercelResponse) {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email required' });
+
+  const db = await connectToDatabase();
+  const user = await db.collection('users').findOne({ email: email.toLowerCase() });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const watchlist: string[] = user.watchlist || [];
+  if (watchlist.length === 0) return res.status(400).json({ error: 'User has no watchlist stocks' });
+
+  const smaPeriod: number = user.smaPeriod || NEWSLETTER_SMA_DEFAULT;
+  const chartOrientation: 'x' | 'y' = user.chartOrientation === 'x' ? 'x' : 'y';
+  const isPro = !!user.isPro;
+
+  const aiSummaries = await getApprovedSummaries(db);
+  const allEarningsThisWeek = await fetchAllWeekEarnings(db);
+  const weeklyEarnings = filterEarningsByWatchlist(allEarningsThisWeek, watchlist);
+  const weekInMacroText = await fetchCurrentWeekMacroRecap(db);
+  const stockResults = await buildStockResults(watchlist, db, smaPeriod);
+
+  if (stockResults.length === 0) {
+    return res.status(500).json({ error: 'Could not load stock data for this user\'s watchlist' });
+  }
+
+  const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+  const prevSnapshot = await db.collection('weeklySnapshots').findOne(
+    { userId: user._id.toString(), weekOf: { $lt: sixDaysAgo } },
+    { sort: { weekOf: -1 } },
+  );
+  const previousStocks = prevSnapshot?.stocks ?? null;
+  const currentStocks = stockResults.map((s: any) => ({ symbol: s.symbol, relativePrice: s.relativePrice }));
+  const openerSummary = buildOpenerSummary(currentStocks, previousStocks);
+
+  const unsubToken = jwt.sign(
+    { email: user.email, purpose: 'unsubscribe' },
+    JWT_SECRET,
+    { expiresIn: '365d' }
+  );
+  const unsubscribeUrl = `${FRONTEND_URL}/api/newsletter-unsubscribe?token=${unsubToken}`;
+
+  const viewToken = jwt.sign(
+    { email: user.email, purpose: 'newsletter-view' },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+  const viewOnlineUrl = `${FRONTEND_URL}/newsletter/${viewToken}`;
+
+  const radarSuggestions = await fetchRadarSuggestions(db, user._id.toString());
+
+  const ok = await sendNewsletterEmail({
+    to: user.email,
+    name: user.name || 'there',
+    stocks: stockResults,
+    smaPeriod,
+    unsubscribeUrl,
+    viewOnlineUrl,
+    chartOrientation,
+    openerSummary,
+    aiSummaries,
+    weeklyEarnings,
+    weekInMacroText,
+    radarSuggestions,
+    isPro,
+    db,
+  });
+
+  if (ok) {
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { lastNewsletterSentAt: new Date() } }
+    );
+    return res.status(200).json({ ok: true, sent: true });
+  } else {
+    return res.status(500).json({ error: 'Failed to send email — check Resend logs' });
+  }
 }
